@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"github.com/kr/pretty"
 	"github.com/mccanne/zq/pkg/zeek"
 	"github.com/mccanne/zq/pkg/zng"
 	"github.com/mccanne/zq/pkg/zval"
@@ -23,9 +22,7 @@ func Encode(dst []byte, id uint32, r *zng.Record) ([]byte, error) {
 	binary.BigEndian.PutUint32(hdr[1:], uint32(id))
 	dst = append(dst, hdr[:]...)
 	// write value body seralized as avro
-	b, err := encodeRecord(dst, r.Type, r.Raw)
-	pretty.Println(b)
-	return b, err
+	return encodeRecord(dst, r.Type, r.Raw)
 }
 
 //XXX move this to zval

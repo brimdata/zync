@@ -1,15 +1,13 @@
 package zinger
 
 import (
-	"fmt"
 	"net/http"
-	"os"
 
 	"github.com/mccanne/zq/pkg/zio/detector"
 )
 
 func handle(format string, producer *Producer, w http.ResponseWriter, r *http.Request) {
-	fmt.Println("HANDLE")
+	// XXX log new connection
 	if r.Method != http.MethodPost {
 		http.Error(w, "bad method", http.StatusForbidden)
 		return
@@ -31,7 +29,6 @@ func handle(format string, producer *Producer, w http.ResponseWriter, r *http.Re
 	if reader == nil {
 		panic("couldn't allocate reader: " + format)
 	}
-	fmt.Println("READER")
 	for {
 		// XXX might want some sort of batching here, but maybe not.
 		rec, err := reader.Read()
@@ -40,10 +37,8 @@ func handle(format string, producer *Producer, w http.ResponseWriter, r *http.Re
 				// XXX should send more reasonable status code
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
-			fmt.Println("EOS")
 			return
 		}
-		fmt.Println("READ ONE")
 		err = producer.Write(rec)
 		if err != nil {
 			// XXX should send more reasonable status code
@@ -53,16 +48,12 @@ func handle(format string, producer *Producer, w http.ResponseWriter, r *http.Re
 	}
 }
 
-func Run(port string, producer *Producer) {
+func Run(port string, producer *Producer) error {
 	http.HandleFunc("/tsv", func(w http.ResponseWriter, r *http.Request) {
 		handle("zeek", producer, w, r)
 	})
 	http.HandleFunc("/bzng", func(w http.ResponseWriter, r *http.Request) {
 		handle("bzng", producer, w, r)
 	})
-	// http.HandleFunc("/bzng", handleBzng)
-	if err := http.ListenAndServe(port, nil); err != nil {
-		//XXX return err
-		fmt.Fprintln(os.Stderr, err)
-	}
+	return http.ListenAndServe(port, nil)
 }

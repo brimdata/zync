@@ -1,13 +1,11 @@
 package zinger
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/Shopify/sarama"
 	kafka "github.com/dangkaka/go-kafka-avro"
 	"github.com/go-avro/avro"
-	"github.com/kr/pretty"
 	"github.com/mccanne/zinger/zavro"
 	"github.com/mccanne/zq/pkg/zng"
 	"github.com/mccanne/zq/pkg/zng/resolver"
@@ -48,7 +46,6 @@ func NewProducer(kServers, rServes []string) (*Producer, error) {
 
 //XXX could have config to map records onto different topics based on path
 func (p *Producer) Write(rec *zng.Record) error {
-	fmt.Println("WRITE")
 	id := rec.Descriptor.ID // XXX need to map
 	kid, ok := p.mapper[id]
 	if !ok {
@@ -76,7 +73,7 @@ func (p *Producer) Write(rec *zng.Record) error {
 		Key:   sarama.StringEncoder(key),
 		Value: value,
 	}
-	pretty.Println(msg)
+	//pretty.Println(msg)
 	_, _, err = p.Producer.SendMessage(msg)
 	return err
 }
