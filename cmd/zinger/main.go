@@ -105,11 +105,11 @@ func main() {
 	if len(os.Args) == 2 {
 		port = os.Args[1]
 	}
-	var producer *zinger.Producer
-	//XXX need to init kafka producer
-	zinger.InitServer(port, producer)
-	http.HandleFunc("/", handle)
-	if err := http.ListenAndServe(port, nil); err != nil {
+	servers := []string{"localhost:9092"}
+	producer, err := zinger.NewProducer(servers, nil)
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
+	zinger.Run(port, producer)
 }

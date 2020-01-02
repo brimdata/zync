@@ -7,7 +7,7 @@ import (
 	"github.com/mccanne/zq/pkg/zeek"
 )
 
-func genSchema(typ zeek.Type) avro.Schema {
+func GenSchema(typ zeek.Type) avro.Schema {
 	switch typ := typ.(type) {
 	case *zeek.TypeRecord:
 		return genRecordSchema(typ)
@@ -23,7 +23,7 @@ func genSchema(typ zeek.Type) avro.Schema {
 func genVectorSchema(typ *zeek.TypeVector) avro.Schema {
 	inner := zeek.InnerType(typ)
 	return &avro.ArraySchema{
-		Items: genSchema(inner),
+		Items: GenSchema(inner),
 	}
 }
 
@@ -32,7 +32,7 @@ func genSetSchema(typ *zeek.TypeSet) avro.Schema {
 	// more meta-info to disnguish the two cases
 	inner := zeek.InnerType(typ)
 	return &avro.ArraySchema{
-		Items: genSchema(inner),
+		Items: GenSchema(inner),
 	}
 }
 
@@ -41,7 +41,7 @@ func genRecordSchema(typ *zeek.TypeRecord) avro.Schema {
 	for _, col := range typ.Columns {
 		fld := &avro.SchemaField{
 			Name: col.Name,
-			Type: genSchema(col.Type),
+			Type: GenSchema(col.Type),
 		}
 		fields = append(fields, fld)
 	}

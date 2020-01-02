@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 
+	"github.com/go-avro/avro"
 	"github.com/mccanne/zq/pkg/nano"
 	"github.com/mccanne/zq/pkg/peeker"
 	"github.com/mccanne/zq/pkg/zng"
@@ -19,6 +20,10 @@ const (
 type Reader struct {
 	peeker *peeker.Reader
 	mapper *resolver.Mapper
+}
+
+func Decode(in []byte, schema avro.Schema) ([]byte, error) {
+	return nil, errors.New("zavro.Decode not yet implemented")
 }
 
 func NewReader(reader io.Reader, r *resolver.Table) *Reader {
@@ -39,8 +44,8 @@ func (r *Reader) parseValue(id int, b []byte) (*zng.Record, error) {
 	}
 	//XXX decode avro in b to zval... need avro schema?
 	record := zng.NewVolatileRecord(descriptor, nano.MinTs, b)
-	if err := record.TypeCheck(); err != nil {
-		return nil, err
+	if ok := record.TypeCheck(); !ok {
+		return nil, ErrBadValue
 	}
 	//XXX this should go in NewRecord?
 	ts, err := record.AccessTime("ts")
