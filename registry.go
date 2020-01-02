@@ -1,10 +1,18 @@
 package zinger
 
-import (
-	"github.com/mccanne/zq/pkg/zng/resolver"
-)
-
 //XXX TBD
 type Registry struct {
-	Resolver *resolver.Table
+	subject string
+	servers []string
+}
+
+func NewRegistry(subject string, servers []string) *Registry {
+	return &Registry{
+		subject: subject,
+		servers: servers,
+	}
+}
+
+func (r *Registry) Fetch(id int) (string, error) {
+	return "", nil
 }
