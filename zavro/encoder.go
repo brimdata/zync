@@ -144,6 +144,14 @@ func encodeRecord(dst []byte, typ *zeek.TypeRecord, body zval.Encoding) ([]byte,
 		if err != nil {
 			return nil, err
 		}
+		if body == nil {
+			// unset field.  encode as the null type.
+			dst = appendVarint(dst, 0)
+			continue
+		}
+		// field is present.  encode the field union by referecing
+		// the type's position in the union.
+		dst = appendVarint(dst, 1)
 		switch v := col.Type.(type) {
 		case *zeek.TypeRecord:
 			if !container {

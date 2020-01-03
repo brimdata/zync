@@ -41,9 +41,12 @@ func genSetSchema(typ *zeek.TypeSet) avro.Schema {
 func genRecordSchema(typ *zeek.TypeRecord) avro.Schema {
 	var fields []*avro.SchemaField
 	for _, col := range typ.Columns {
+		var union [2]avro.Schema
+		union[0] = &avro.NullSchema{}
+		union[1] = GenSchema(col.Type)
 		fld := &avro.SchemaField{
 			Name: col.Name,
-			Type: GenSchema(col.Type),
+			Type: &avro.UnionSchema{union[:]},
 		}
 		fields = append(fields, fld)
 	}
