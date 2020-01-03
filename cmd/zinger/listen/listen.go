@@ -32,7 +32,7 @@ type Command struct {
 
 func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
 	c := &Command{Command: parent.(*root.Command)}
-	f.StringVar(&c.listenAddr, "l", ":9890", "ip:port's of port and interface to listen on")
+	f.StringVar(&c.listenAddr, "l", ":9890", "[addr]:port to listen on")
 	return c, nil
 }
 

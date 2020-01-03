@@ -39,10 +39,10 @@ func Servers(s string) []string {
 
 func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
 	c := &Command{}
-	f.StringVar(&c.kafkaCluster, "k", "localhost:9092", "ip:port's of one or more kafka servers")
-	f.StringVar(&c.registryCluster, "r", "localhost:8081", "ip:port's of one more kafka registry servers")
+	f.StringVar(&c.kafkaCluster, "k", "localhost:9092", "[addr]:port list of one or more kafka servers")
+	f.StringVar(&c.registryCluster, "r", "localhost:8081", "[addr]:port list of one more kafka registry servers")
 	//XXX change default from kavrotest-value
-	f.StringVar(&c.Subject, "s", "kavrotest-value", "schema subject name")
+	f.StringVar(&c.Subject, "s", "kavrotest-value", "subject name for kafka schema registry")
 	return c, nil
 }
 
