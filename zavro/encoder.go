@@ -276,7 +276,8 @@ func encodeScalar(dst []byte, typ zeek.Type, body zval.Encoding) ([]byte, error)
 		return appendVarint(dst, int64(port)), nil
 
 	case *zeek.TypeOfString:
-		return appendCountedValue(dst, body), nil
+		s := zeek.EscapeUTF8(body)
+		return appendCountedValue(dst, []byte(s)), nil
 
 	case *zeek.TypeOfSubnet:
 		// IP subnets are turned into strings...
