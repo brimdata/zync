@@ -5,7 +5,9 @@ import (
 	"os"
 
 	_ "github.com/mccanne/zinger/cmd/zinger/listen"
+	_ "github.com/mccanne/zinger/cmd/zinger/ls"
 	"github.com/mccanne/zinger/cmd/zinger/root"
+	_ "github.com/mccanne/zinger/cmd/zinger/schema"
 )
 
 // These variables are populated via the Go linker.

@@ -1,27 +1,30 @@
 package zinger
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/Shopify/sarama"
 	kafka "github.com/dangkaka/go-kafka-avro"
 	"github.com/go-avro/avro"
+	"github.com/mccanne/zinger/registry"
 	"github.com/mccanne/zinger/zavro"
 	"github.com/mccanne/zq/pkg/zng"
 	"github.com/mccanne/zq/pkg/zng/resolver"
 )
 
-//XXX TBD
 type Producer struct {
 	//XXX don't use SyncProducer
 	Producer sarama.SyncProducer
-	Registry *Registry
 	Resolver *resolver.Table
-	schemas  map[uint32]avro.Schema
-	mapper   map[int]uint32
+	registry *registry.Connection
+	schemas  map[int]avro.Schema
+	mapper   map[int]int
 }
 
-func NewProducer(kServers, rServes []string) (*Producer, error) {
+func NewProducer(servers []string, reg *registry.Connection) (*Producer, error) {
 	config := sarama.NewConfig()
 	config.Version = sarama.V2_0_1_0
 	config.Producer.Partitioner = sarama.NewHashPartitioner
@@ -32,32 +35,48 @@ func NewProducer(kServers, rServes []string) (*Producer, error) {
 	config.Producer.Retry.Max = 10
 	config.Producer.Retry.Backoff = 1000 * time.Millisecond
 	//XXX don't use sync
-	p, err := sarama.NewSyncProducer(kServers, config)
+	p, err := sarama.NewSyncProducer(servers, config)
 	if err != nil {
 		return nil, err
 	}
 	return &Producer{
 		Producer: p,
 		Resolver: resolver.NewTable(),
-		schemas:  make(map[uint32]avro.Schema),
-		mapper:   make(map[int]uint32),
+		registry: reg,
+		schemas:  make(map[int]avro.Schema),
+		mapper:   make(map[int]int),
 	}, nil
 }
 
 //XXX could have config to map records onto different topics based on path
 func (p *Producer) Write(rec *zng.Record) error {
-	id := rec.Descriptor.ID // XXX need to map
+	id := rec.Descriptor.ID
 	kid, ok := p.mapper[id]
 	if !ok {
-		//XXX need to talk to registry, nop for now
-		kid = uint32(id)
 		s := zavro.GenSchema(rec.Descriptor.Type)
+		record, ok := s.(*avro.RecordSchema)
+		if !ok {
+			return errors.New("internal error: avro schema not of type record")
+		}
+		record.Namespace = "com.example" //XXX
+		// XXX we need the name to hash to a fingerprint here, otherwise
+		// will we get a ton of versions on the same name for different
+		// instances/restarts of a zng stream
+		record.Name = fmt.Sprintf("szinger%d", id)
+		schema, err := json.Marshal(record)
+		if err != nil {
+			fmt.Println("schema creation error:", err) // logger
+			return err
+		}
+		kid, err = p.registry.Create(schema)
+		if err != nil {
+			return err
+		}
 		p.mapper[id] = kid
 		p.schemas[kid] = s
+		fmt.Println("new schema:", kid, string(schema)) // logger
 	}
-	//XXX
-	kid = 1
-	b, err := zavro.Encode(nil, kid, rec)
+	b, err := zavro.Encode(nil, uint32(kid), rec)
 	if err != nil {
 		return err
 	}
@@ -73,7 +92,6 @@ func (p *Producer) Write(rec *zng.Record) error {
 		Key:   sarama.StringEncoder(key),
 		Value: value,
 	}
-	//pretty.Println(msg)
 	_, _, err = p.Producer.SendMessage(msg)
 	return err
 }

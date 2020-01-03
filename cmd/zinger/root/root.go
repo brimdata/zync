@@ -1,8 +1,8 @@
 package root
 
 import (
-	"errors"
 	"flag"
+	"strings"
 
 	"github.com/mccanne/charm"
 )
@@ -24,19 +24,36 @@ TBD`,
 
 type Command struct {
 	charm.Command
+	kafkaCluster    string
+	registryCluster string
+	Subject         string
 }
 
 func init() {
 	Zinger.Add(charm.Help)
 }
 
+func Servers(s string) []string {
+	return strings.Split(s, ",")
+}
+
 func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
 	c := &Command{}
-	//f.StringVar(&c.kafkaCluster, "k", "localhost:9092", "ip:port's of one or more kafka servers")
-	//f.StringVar(&c.registryCluster, "r", "localhost:8081", "ip:port's of one more kafka registry servers")
+	f.StringVar(&c.kafkaCluster, "k", "localhost:9092", "ip:port's of one or more kafka servers")
+	f.StringVar(&c.registryCluster, "r", "localhost:8081", "ip:port's of one more kafka registry servers")
+	//XXX change default from kavrotest-value
+	f.StringVar(&c.Subject, "s", "kavrotest-value", "schema subject name")
 	return c, nil
 }
 
+func (c *Command) KafkaCluster() []string {
+	return Servers(c.kafkaCluster)
+}
+
+func (c *Command) RegistryCluster() []string {
+	return Servers(c.registryCluster)
+}
+
 func (c *Command) Run(args []string) error {
-	return errors.New("TBD: no default zinger subcommend")
+	return Zinger.Exec(c, []string{"help"})
 }
