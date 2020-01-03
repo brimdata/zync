@@ -92,7 +92,7 @@ func encodeVector(dst []byte, typ *zeek.TypeVector, body zval.Encoding) ([]byte,
 	}
 	if cnt != 0 {
 		// append 0-length block to indicate end of array
-		dst = appendVarint(dst, int64(cnt))
+		dst = appendVarint(dst, int64(0))
 	}
 	return dst, nil
 }
@@ -126,7 +126,7 @@ func encodeSet(dst []byte, typ *zeek.TypeSet, body zval.Encoding) ([]byte, error
 	}
 	if cnt != 0 {
 		// append 0-length block to indicate end of array
-		dst = appendVarint(dst, int64(cnt))
+		dst = appendVarint(dst, int64(0))
 	}
 	return dst, nil
 }
