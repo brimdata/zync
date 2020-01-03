@@ -17,7 +17,7 @@ type Connection struct {
 
 type (
 	Schema struct {
-		Schema string `json:"schema"`
+		Body string `json:"schema"`
 	}
 	SchemaVersion struct {
 		Subject string `json:"subject"`
@@ -62,7 +62,7 @@ func (c *Connection) Lookup(id int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return s.Schema, nil
+	return s.Body, nil
 }
 
 // body should hold the json encoding of the schema
@@ -71,7 +71,7 @@ func (c *Connection) Create(schema []byte) (int, error) {
 	// Schema registry wants you to send it the JSON schema
 	// definition as a JSON-encoded string of the
 	// JSON-encoded schema.
-	body, err := json.Marshal(&Schema{Schema: string(schema)})
+	body, err := json.Marshal(&Schema{Body: string(schema)})
 	if err != nil {
 		return 0, errors.New("registry couldn't encode schema")
 	}
@@ -83,6 +83,7 @@ func (c *Connection) Create(schema []byte) (int, error) {
 	var result Id
 	err = unpack(b, &result)
 	if err != nil {
+		err = errors.New(err.Error() + ": " + string(schema))
 		return 0, err
 	}
 	return result.ID, nil

@@ -44,8 +44,8 @@ func (r *Reader) parseValue(id int, b []byte) (*zng.Record, error) {
 	}
 	//XXX decode avro in b to zval... need avro schema?
 	record := zng.NewVolatileRecord(descriptor, nano.MinTs, b)
-	if ok := record.TypeCheck(); !ok {
-		return nil, ErrBadValue
+	if err := record.TypeCheck(); err != nil {
+		return nil, err
 	}
 	//XXX this should go in NewRecord?
 	ts, err := record.AccessTime("ts")

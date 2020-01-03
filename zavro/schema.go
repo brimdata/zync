@@ -1,6 +1,8 @@
 package zavro
 
 import (
+	"crypto/md5"
+	"fmt"
 	"reflect"
 
 	"github.com/go-avro/avro"
@@ -45,9 +47,14 @@ func genRecordSchema(typ *zeek.TypeRecord) avro.Schema {
 		}
 		fields = append(fields, fld)
 	}
+	namespace := "com.example" //XXX
+	// We hash the zng type to an md5 fingerprint here, otherwise
+	// we would get a ton of versions on the same name for different
+	// instances/restarts of a zng stream.
+	sum := md5.Sum([]byte(typ.String()))
 	return &avro.RecordSchema{
-		Name:       "",
-		Namespace:  "",
+		Name:       fmt.Sprintf("zng_%x", sum),
+		Namespace:  namespace,
 		Doc:        "",
 		Aliases:    nil,
 		Properties: nil,
@@ -107,7 +114,7 @@ type MicroTimeSchema struct{}
 
 // Returns a JSON representation of LongSchema.
 func (*MicroTimeSchema) String() string {
-	return `{"type": "time-micros", "logicalType": "long" }`
+	return `{"type": "time-micros", "name": "time-micros", "logicalType": "long" }`
 }
 
 // Type returns a type constant for this MicroTimeSchema.
@@ -134,5 +141,5 @@ func (*MicroTimeSchema) Validate(v reflect.Value) bool {
 
 // MarshalJSON serializes the given schema as JSON. Never returns an error.
 func (*MicroTimeSchema) MarshalJSON() ([]byte, error) {
-	return []byte(`{"type": "time-micros", "logicalType": "long" }`), nil
+	return []byte(`{ "type" : "long", "logicalType" : "time-micros" }`), nil
 }

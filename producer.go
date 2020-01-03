@@ -58,11 +58,6 @@ func (p *Producer) Write(rec *zng.Record) error {
 		if !ok {
 			return errors.New("internal error: avro schema not of type record")
 		}
-		record.Namespace = "com.example" //XXX
-		// XXX we need the name to hash to a fingerprint here, otherwise
-		// will we get a ton of versions on the same name for different
-		// instances/restarts of a zng stream
-		record.Name = fmt.Sprintf("szinger%d", id)
 		schema, err := json.Marshal(record)
 		if err != nil {
 			fmt.Println("schema creation error:", err) // logger

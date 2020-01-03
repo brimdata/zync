@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/mccanne/zq/pkg/zio/detector"
+	"github.com/mccanne/zq/pkg/zng"
 )
 
 func handle(format string, producer *Producer, w http.ResponseWriter, r *http.Request) {
@@ -12,22 +13,20 @@ func handle(format string, producer *Producer, w http.ResponseWriter, r *http.Re
 		http.Error(w, "bad method", http.StatusForbidden)
 		return
 	}
-	// XXX could encode the kafka topic
-	//dirPath, err := parsePath(r.URL.RequestURI())
-	//if err != nil {
-	//	http.Error(w, err.Error(), http.StatusForbidden)
-	//	return
-	//}
-	//fmt.Println("READ ALL")
-	//b, err := ioutil.ReadAll(r.Body)
-	//if err != nil {
-	//	fmt.Println(err)
-	//}
-	//fmt.Println(string(b))
-
-	reader := detector.LookupReader(format, r.Body, producer.Resolver)
-	if reader == nil {
-		panic("couldn't allocate reader: " + format)
+	var reader zng.Reader
+	if format == "auto" {
+		g := detector.GzipReader(r.Body)
+		var err error
+		reader, err = detector.NewReader(g, producer.Resolver)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		reader = detector.LookupReader(format, r.Body, producer.Resolver)
+		if reader == nil {
+			panic("couldn't allocate reader: " + format)
+		}
 	}
 	for {
 		// XXX might want some sort of batching here, but maybe not.
@@ -49,6 +48,9 @@ func handle(format string, producer *Producer, w http.ResponseWriter, r *http.Re
 }
 
 func Run(port string, producer *Producer) error {
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		handle("auto", producer, w, r)
+	})
 	http.HandleFunc("/tsv", func(w http.ResponseWriter, r *http.Request) {
 		handle("zeek", producer, w, r)
 	})
