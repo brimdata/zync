@@ -8,7 +8,6 @@ import (
 	_ "github.com/mccanne/zinger/cmd/zinger/ls"
 	_ "github.com/mccanne/zinger/cmd/zinger/post"
 	"github.com/mccanne/zinger/cmd/zinger/root"
-	_ "github.com/mccanne/zinger/cmd/zinger/schema"
 )
 
 // These variables are populated via the Go linker.

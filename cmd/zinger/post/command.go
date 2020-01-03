@@ -45,9 +45,15 @@ func (c *Command) Run(args []string) error {
 		args = []string{"-"}
 	}
 	for _, fname := range args {
-		f, err := os.Open(fname)
-		if err != nil {
-			return err
+		var f *os.File
+		var err error
+		if fname == "-" {
+			f = os.Stdin
+		} else {
+			f, err = os.Open(fname)
+			if err != nil {
+				return err
+			}
 		}
 		_, err = c.post(f)
 		if err != nil {
