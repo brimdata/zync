@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 
+	"github.com/go-avro/avro"
 	"github.com/mccanne/zq/pkg/nano"
 	"github.com/mccanne/zq/pkg/peeker"
 	"github.com/mccanne/zq/pkg/zng"
@@ -19,6 +20,10 @@ const (
 type Reader struct {
 	peeker *peeker.Reader
 	mapper *resolver.Mapper
+}
+
+func Decode(in []byte, schema avro.Schema) ([]byte, error) {
+	return nil, errors.New("zavro.Decode not yet implemented")
 }
 
 func NewReader(reader io.Reader, r *resolver.Table) *Reader {

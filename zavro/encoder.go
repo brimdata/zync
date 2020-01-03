@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/mccanne/zq/pkg/zeek"
+	"github.com/mccanne/zq/pkg/zng"
 	"github.com/mccanne/zq/pkg/zval"
 )
 
@@ -13,6 +14,16 @@ import (
 
 // These errors shouldn't happen because the input should be type checked.
 var ErrBadValue = errors.New("bad zng value in kavro translator")
+
+func Encode(dst []byte, id uint32, r *zng.Record) ([]byte, error) {
+	// build kafka/avro header
+	var hdr [5]byte
+	hdr[0] = 0
+	binary.BigEndian.PutUint32(hdr[1:], uint32(id))
+	dst = append(dst, hdr[:]...)
+	// write value body seralized as avro
+	return encodeRecord(dst, r.Type, r.Raw)
+}
 
 //XXX move this to zval
 func zlen(zv zval.Encoding) (int, error) {

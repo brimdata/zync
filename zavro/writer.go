@@ -1,7 +1,6 @@
 package zavro
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -28,23 +27,9 @@ func NewWriter(w io.Writer) *Writer {
 func (w *Writer) Write(r *zng.Record) error {
 	id := r.Descriptor.ID
 	if !w.tracker.Seen(id) {
-		w.schemas[id] = genSchema(r.Descriptor.Type)
+		w.schemas[id] = GenSchema(r.Descriptor.Type)
 	}
-	// build kafka/avro header
-	var hdr [5]byte
-	hdr[0] = 0
-	binary.BigEndian.PutUint32(hdr[1:], uint32(id))
-	_, err := w.Writer.Write(hdr[:])
-	if err != nil {
-		return err
-	}
-	// write value body seralized as avro
-	b, err := encodeRecord(nil, r.Type, r.Raw)
-	if err != nil {
-		return err
-	}
-	_, err = w.Writer.Write(b)
-	return err
+	return nil
 }
 
 // just dump schemas to stdout for debugging
