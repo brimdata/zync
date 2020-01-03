@@ -114,7 +114,7 @@ type MicroTimeSchema struct{}
 
 // Returns a JSON representation of LongSchema.
 func (*MicroTimeSchema) String() string {
-	return `{"type": "time-micros", "name": "time-micros", "logicalType": "long" }`
+	return `{"type": "long", "name": "timestamp-micros", "logicalType": "timestamp-micros" }`
 }
 
 // Type returns a type constant for this MicroTimeSchema.
@@ -141,5 +141,5 @@ func (*MicroTimeSchema) Validate(v reflect.Value) bool {
 
 // MarshalJSON serializes the given schema as JSON. Never returns an error.
 func (*MicroTimeSchema) MarshalJSON() ([]byte, error) {
-	return []byte(`{ "type" : "long", "logicalType" : "time-micros" }`), nil
+	return []byte(`{ "type" : "long", "logicalType" : "timestamp-micros" }`), nil
 }
