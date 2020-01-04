@@ -45,7 +45,7 @@ func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
 	f.StringVar(&c.registryCluster, "r", "localhost:8081", "[addr]:port list of one more kafka registry servers")
 	//XXX change these defaults?
 	f.StringVar(&c.Topic, "t", "kavro-test", "subject name for kafka schema registry")
-	f.StringVar(&c.Subject, "n", "com.example", "namespace to use when creating new schemas")
+	f.StringVar(&c.Namespace, "n", "com.example", "namespace to use when creating new schemas")
 	f.StringVar(&c.Subject, "s", "kavrotest-value", "subject name for kafka schema registry")
 	return c, nil
 }
