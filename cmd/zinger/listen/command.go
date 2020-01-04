@@ -6,9 +6,9 @@ import (
 	"os"
 
 	"github.com/mccanne/charm"
-	"github.com/mccanne/zinger"
 	"github.com/mccanne/zinger/cmd/zinger/root"
-	"github.com/mccanne/zinger/registry"
+	"github.com/mccanne/zinger/pkg/registry"
+	"github.com/mccanne/zinger/pkg/zinger"
 )
 
 var Listen = &charm.Spec{

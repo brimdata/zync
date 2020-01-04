@@ -8,7 +8,7 @@ import (
 
 	"github.com/mccanne/charm"
 	"github.com/mccanne/zinger/cmd/zinger/root"
-	"github.com/mccanne/zinger/registry"
+	"github.com/mccanne/zinger/pkg/registry"
 )
 
 var Ls = &charm.Spec{
