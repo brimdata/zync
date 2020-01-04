@@ -39,7 +39,7 @@ func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
 func (c *Command) Run(args []string) error {
 	servers := c.KafkaCluster()
 	reg := registry.NewConnection(c.Subject, c.RegistryCluster())
-	producer, err := zinger.NewProducer(servers, reg)
+	producer, err := zinger.NewProducer(servers, reg, c.Topic, c.Namespace)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

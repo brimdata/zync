@@ -9,48 +9,47 @@ import (
 	"github.com/mccanne/zq/pkg/zeek"
 )
 
-func GenSchema(typ zeek.Type) avro.Schema {
+func GenSchema(typ zeek.Type, namespace string) avro.Schema {
 	switch typ := typ.(type) {
 	case *zeek.TypeRecord:
-		return genRecordSchema(typ)
+		return genRecordSchema(typ, namespace)
 	case *zeek.TypeVector:
-		return genVectorSchema(typ)
+		return genVectorSchema(typ, namespace)
 	case *zeek.TypeSet:
-		return genSetSchema(typ)
+		return genSetSchema(typ, namespace)
 	default:
 		return genScalarSchema(typ)
 	}
 }
 
-func genVectorSchema(typ *zeek.TypeVector) avro.Schema {
+func genVectorSchema(typ *zeek.TypeVector, namespace string) avro.Schema {
 	inner := zeek.InnerType(typ)
 	return &avro.ArraySchema{
-		Items: GenSchema(inner),
+		Items: GenSchema(inner, namespace),
 	}
 }
 
-func genSetSchema(typ *zeek.TypeSet) avro.Schema {
+func genSetSchema(typ *zeek.TypeSet, namespace string) avro.Schema {
 	// XXX this looks the same as vector for now but we will want to add
 	// more meta-info to disnguish the two cases
 	inner := zeek.InnerType(typ)
 	return &avro.ArraySchema{
-		Items: GenSchema(inner),
+		Items: GenSchema(inner, namespace),
 	}
 }
 
-func genRecordSchema(typ *zeek.TypeRecord) avro.Schema {
+func genRecordSchema(typ *zeek.TypeRecord, namespace string) avro.Schema {
 	var fields []*avro.SchemaField
 	for _, col := range typ.Columns {
 		var union [2]avro.Schema
 		union[0] = &avro.NullSchema{}
-		union[1] = GenSchema(col.Type)
+		union[1] = GenSchema(col.Type, namespace)
 		fld := &avro.SchemaField{
 			Name: col.Name,
 			Type: &avro.UnionSchema{union[:]},
 		}
 		fields = append(fields, fld)
 	}
-	namespace := "com.example" //XXX
 	// We hash the zng type to an md5 fingerprint here, otherwise
 	// we would get a ton of versions on the same name for different
 	// instances/restarts of a zng stream.

@@ -26,6 +26,8 @@ type Command struct {
 	charm.Command
 	kafkaCluster    string
 	registryCluster string
+	Topic           string
+	Namespace       string
 	Subject         string
 }
 
@@ -41,7 +43,9 @@ func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
 	c := &Command{}
 	f.StringVar(&c.kafkaCluster, "k", "localhost:9092", "[addr]:port list of one or more kafka servers")
 	f.StringVar(&c.registryCluster, "r", "localhost:8081", "[addr]:port list of one more kafka registry servers")
-	//XXX change default from kavrotest-value
+	//XXX change these defaults?
+	f.StringVar(&c.Topic, "t", "kavro-test", "subject name for kafka schema registry")
+	f.StringVar(&c.Subject, "n", "com.example", "namespace to use when creating new schemas")
 	f.StringVar(&c.Subject, "s", "kavrotest-value", "subject name for kafka schema registry")
 	return c, nil
 }

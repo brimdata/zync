@@ -18,12 +18,16 @@ type Producer struct {
 	//XXX don't use SyncProducer
 	Producer sarama.SyncProducer
 	Resolver *resolver.Table
-	registry *registry.Connection
-	schemas  map[int]avro.Schema
-	mapper   map[int]int
+	// For now there is a single topic written to.  We camn add support
+	// later to route different records to different topics based on rules.
+	topic     string
+	namespace string
+	registry  *registry.Connection
+	schemas   map[int]avro.Schema
+	mapper    map[int]int
 }
 
-func NewProducer(servers []string, reg *registry.Connection) (*Producer, error) {
+func NewProducer(servers []string, reg *registry.Connection, topic, namespace string) (*Producer, error) {
 	config := sarama.NewConfig()
 	config.Version = sarama.V2_0_1_0
 	config.Producer.Partitioner = sarama.NewHashPartitioner
@@ -39,20 +43,21 @@ func NewProducer(servers []string, reg *registry.Connection) (*Producer, error) 
 		return nil, err
 	}
 	return &Producer{
-		Producer: p,
-		Resolver: resolver.NewTable(),
-		registry: reg,
-		schemas:  make(map[int]avro.Schema),
-		mapper:   make(map[int]int),
+		Producer:  p,
+		Resolver:  resolver.NewTable(),
+		registry:  reg,
+		topic:     topic,
+		namespace: namespace,
+		schemas:   make(map[int]avro.Schema),
+		mapper:    make(map[int]int),
 	}, nil
 }
 
-//XXX could have config to map records onto different topics based on path
 func (p *Producer) Write(rec *zng.Record) error {
 	id := rec.Descriptor.ID
 	kid, ok := p.mapper[id]
 	if !ok {
-		s := zavro.GenSchema(rec.Descriptor.Type)
+		s := zavro.GenSchema(rec.Descriptor.Type, p.namespace)
 		record, ok := s.(*avro.RecordSchema)
 		if !ok {
 			return errors.New("internal error: avro schema not of type record")
@@ -74,11 +79,8 @@ func (p *Producer) Write(rec *zng.Record) error {
 	if err != nil {
 		return err
 	}
-	topic := "kavro-test" //XXX
-	//key := ""             //XXX
 	msg := &sarama.ProducerMessage{
-		Topic: topic,
-		//Key:   sarama.StringEncoder(key),
+		Topic: p.topic,
 		Value: sarama.ByteEncoder(b),
 	}
 	_, _, err = p.Producer.SendMessage(msg)
