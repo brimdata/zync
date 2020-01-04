@@ -2,6 +2,7 @@ package root
 
 import (
 	"flag"
+	"log"
 	"strings"
 
 	"github.com/mccanne/charm"
@@ -47,6 +48,7 @@ func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
 	f.StringVar(&c.Topic, "t", "kavro-test", "subject name for kafka schema registry")
 	f.StringVar(&c.Namespace, "n", "com.example", "namespace to use when creating new schemas")
 	f.StringVar(&c.Subject, "s", "kavrotest-value", "subject name for kafka schema registry")
+	log.SetPrefix("zinger")
 	return c, nil
 }
 

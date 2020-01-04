@@ -1,6 +1,7 @@
 package zinger
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/mccanne/zq/pkg/zio/detector"
@@ -25,7 +26,7 @@ func handle(format string, producer *Producer, w http.ResponseWriter, r *http.Re
 	} else {
 		reader = detector.LookupReader(format, r.Body, producer.Resolver)
 		if reader == nil {
-			panic("couldn't allocate reader: " + format)
+			log.Panic("couldn't allocate reader: " + format)
 		}
 	}
 	for {
