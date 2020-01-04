@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
-	kafka "github.com/dangkaka/go-kafka-avro"
 	"github.com/go-avro/avro"
 	"github.com/mccanne/zinger/registry"
 	"github.com/mccanne/zinger/zavro"
@@ -75,17 +74,12 @@ func (p *Producer) Write(rec *zng.Record) error {
 	if err != nil {
 		return err
 	}
-	//XXX get rid of this layer
-	value := &kafka.AvroEncoder{
-		SchemaID: int(kid),
-		Content:  b[5:],
-	}
 	topic := "kavro-test" //XXX
-	key := ""             //XXX
+	//key := ""             //XXX
 	msg := &sarama.ProducerMessage{
 		Topic: topic,
-		Key:   sarama.StringEncoder(key),
-		Value: value,
+		//Key:   sarama.StringEncoder(key),
+		Value: sarama.ByteEncoder(b),
 	}
 	_, _, err = p.Producer.SendMessage(msg)
 	return err

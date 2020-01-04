@@ -58,7 +58,7 @@ func genRecordSchema(typ *zeek.TypeRecord) avro.Schema {
 	return &avro.RecordSchema{
 		Name:       fmt.Sprintf("zng_%x", sum),
 		Namespace:  namespace,
-		Doc:        "",
+		Doc:        "Created by zinger from zng type " + typ.String(),
 		Aliases:    nil,
 		Properties: nil,
 		Fields:     fields,
