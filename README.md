@@ -53,7 +53,7 @@ Kafka service at `192.168.1.1:9092`.  The Schema Registry service at
 `192.168.1.1:8081` is used to create new schemas based on the incoming data.
 All newly created schemas are all created under the namespace `com.acme` under
 the subject `zinger`.
-Streams are produced to Kafka on the topic `zeekdata`.
+Transcoded stream data is transmitted to Kafka on the topic `zeekdata`.
 
 ### zinger post
 
