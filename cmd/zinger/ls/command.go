@@ -13,11 +13,13 @@ import (
 
 var Ls = &charm.Spec{
 	Name:  "ls",
-	Usage: "ls [options]",
+	Usage: "ls [-l] [schemdID ... ]",
 	Short: "list schemas",
 	Long: `
-The ls command allows you to...
-TBD.`,
+The ls command allows you to list the schema IDs under the specified namespace
+and subject. Specify the -l argument causes the content of each schema to be
+displayed as NDJSON.
+`,
 	New: New,
 }
 

@@ -13,11 +13,12 @@ import (
 
 var Post = &charm.Spec{
 	Name:  "post",
-	Usage: "post [options]",
+	Usage: "post [options] [file1, file2, ...]",
 	Short: "post data to zinger",
 	Long: `
-The post command allows you to...
-TBD.`,
+The post command allows you to post log files directly to zinger.
+If no files are specified, input is taken from stdin allowing you to easily
+run a shell pipeline, e.g., using zq, and send the results to kafka via zinger.`,
 	New: New,
 }
 
