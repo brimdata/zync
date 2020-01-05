@@ -1,13 +1,12 @@
 # zinger
-Zeek/ZNG transcoding gateway for Kafka/Avro
 
-Zinger is a tool for interconnecting Zeek with
+Zinger is a tool for interconnecting [Zeek](https://www.zeek.org/) with
 [Kafka/Avro](https://docs.confluent.io/current/schema-registry/serializer-formatter.html#wire-format)
 via the
 [Kafka schema Registry]((https://github.com/confluentinc/schema-registry)).
 
-It uses [kafka sarama](https://github.com/Shopify/sarama) to communicate with
-Kafka and [go-avro](https://github.com/go-avro/avro) to build schemas.
+It uses [Sarama](https://github.com/Shopify/sarama) to communicate with
+Kafka and [go-avro](https://github.com/go-avro/avro) to construct schemas.
 
 Zinger has native support for communicating with the
 [Schema Registry REST API](https://github.com/confluentinc/schema-registry) and
@@ -92,3 +91,8 @@ config to route data to different topics based on simple filter rules
 (we could use zql filtering logic and the zq filter proc).
 * Crash recoverable restart could be achieved by tying ZNG control acks
 to kafka message success so the Zeek TSV plugin would know where to restart.
+* Timestamps are converted to the logical microsecond timestamp documented
+in the avro spec.  It appears there are nanosecond timestamps using logical types
+documented elsewhere.
+* Likewise, IP address and subnets are converted to strings and it seems like
+logical types would be preferred.
