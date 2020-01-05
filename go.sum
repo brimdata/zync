@@ -49,8 +49,8 @@ github.com/mccanne/charm v0.0.3-0.20191224190439-b05e1b7b1be3 h1:Sj9zugMeJDXrKpO
 github.com/mccanne/charm v0.0.3-0.20191224190439-b05e1b7b1be3/go.mod h1:R47PUgWIRA4UrwFWKI6vgAEWHXPYWUg3iAtyXB8yKNU=
 github.com/mccanne/joe v0.0.0-20181124064909-25770742c256 h1:pWqEkj5bKTW1WXgBrcoc0uZReflLquW7xu6EsAersRc=
 github.com/mccanne/joe v0.0.0-20181124064909-25770742c256/go.mod h1:ws78j95WzGWyQqUJksJu3Dly2hyMI1II7HVcY7DoHFg=
-github.com/mccanne/zq v0.0.2-0.20191231162001-dd4bce07688b h1:Lx03bCZWbFWrwtUXRnXgcRS71DEcbctUbJn2kPgsGTw=
-github.com/mccanne/zq v0.0.2-0.20191231162001-dd4bce07688b/go.mod h1:OLYK+vfaVHeB5Ebv6DBwOnM5/gyCfxRWZyPKjjDHN5I=
+github.com/mccanne/zq v0.0.2-0.20200105212749-306c2963aaf7 h1:zpvnPw/+is35IWTpFzv5dwg3amuO8QQ3y5exYYxoQc8=
+github.com/mccanne/zq v0.0.2-0.20200105212749-306c2963aaf7/go.mod h1:OLYK+vfaVHeB5Ebv6DBwOnM5/gyCfxRWZyPKjjDHN5I=
 github.com/peterh/liner v1.1.0/go.mod h1:CRroGNssyjTd/qIG2FyxByd2S8JEAZXBl4qUrZf8GS0=
 github.com/pierrec/lz4 v2.2.6+incompatible h1:6aCX4/YZ9v8q69hTyiR7dNLnTA3fgtKHVVW5BCd5Znw=
 github.com/pierrec/lz4 v2.2.6+incompatible/go.mod h1:pdkljMzZIN41W+lC3N2tnIh5sFi+IEE17M5jbnwPHcY=
