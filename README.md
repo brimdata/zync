@@ -16,8 +16,10 @@ into [Apache Avro](https://avro.apache.org/).
 
 ## Installation
 
-To install zinger, clone this repo and run
+To install zinger, clone this repo and run `make install`:
 ```
+git clone https://github.com/mccanne/zinger.git
+cd zinger
 make install
 ```
 Make sure you have Go installed in your environment and that GOPATH is
