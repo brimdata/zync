@@ -19,7 +19,18 @@ var Zinger = &charm.Spec{
 	Usage: "zinger [global options] command [options] [arguments...]",
 	Short: "use zinger to interconnect zeek and kafka",
 	Long: `
-TBD`,
+Zinger inteconnects zeek and Kafka/Acvro using the Kafka Schema Registery.
+
+Use -k to specify the Kafka bootstrap servers as a comma-separated list
+of addresses (with form address:port).  Likewise, use -r to specify
+one or more registry servers.
+
+Use -t to specify the Kafka topic. Currently, all data is published to
+a single topic.
+
+Use -n to specify a namespace and -s to specify a subject both used when
+utomatically creating new schemas for transcoded Zeek/ZNG data.
+`,
 	New: New,
 }
 

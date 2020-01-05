@@ -16,8 +16,10 @@ var Listen = &charm.Spec{
 	Usage: "listen [options]",
 	Short: "listen as a daemon and transcode streaming posts onto kafka",
 	Long: `
-The listen command allows you to...
-TBD.`,
+The listen command launches a process to listen on the provided interface and
+port for HTTP POST requests of streaming data.  For each incoming connection,
+the stream is transcoded into Avro and published on the specified Kafka topic.
+`,
 	New: New,
 }
 
