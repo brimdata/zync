@@ -82,8 +82,8 @@ Use `-l`, to display each full schema as NDJSON.
 
 ## Caveats
 
-This code is in a proof-of-concept stage but with a bit more effort,
-could be made production qualities.
+This code is in a proof-of-concept stage, but with a bit more effort,
+we could make it production quality.
 
 Here are a few caveats:
 * No SSL or auth.

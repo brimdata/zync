@@ -10,7 +10,7 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/go-avro/avro"
 	"github.com/mccanne/zinger/pkg/registry"
-	"github.com/mccanne/zinger/zavro"
+	"github.com/mccanne/zinger/pkg/zavro"
 	"github.com/mccanne/zq/pkg/zng"
 	"github.com/mccanne/zq/pkg/zng/resolver"
 )
