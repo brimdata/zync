@@ -1,16 +1,16 @@
 # zinger
 
-Zinger is a tool for interconnecting [Zeek](https://www.zeek.org/) with
+Zinger interconnects [Zeek](https://www.zeek.org/) and
 [Kafka/Avro](https://docs.confluent.io/current/schema-registry/serializer-formatter.html#wire-format)
 by transcoding Zeek log streams into Avro and storing the Avro schemas
 in the Kafka
 [Schema Registry]((https://github.com/confluentinc/schema-registry)).
 
-It uses [Sarama](https://github.com/Shopify/sarama) to communicate with
+Internally, it uses [Sarama](https://github.com/Shopify/sarama) to communicate with
 Kafka and [go-avro](https://github.com/go-avro/avro) to construct schemas.
 
 Zinger has native support for communicating with the
-[Schema Registry REST API](https://github.com/confluentinc/schema-registry) and
+Kafka [Schema Registry](https://github.com/confluentinc/schema-registry) and
 for transcoding [Zeek/Zng](https://github.com/mccanne/zq/blob/master/pkg/zng/docs/spec.md)
 into [Apache Avro](https://avro.apache.org/).
 
