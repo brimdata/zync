@@ -39,7 +39,7 @@ for incoming connections containing a stream of data in any format supported
 by zq, i.e., Zeek TSV streams, ZNG streams, NDJSON, etc.
 
 For example, when Zeek can be run with the
-[TSV streaming pluging](https://github.com/looky-cloud/zson-http-plugin)
+[TSV streaming plugin](https://github.com/looky-cloud/zeek-tsv-http-plugin)
 configured to point at zinger and zinger will transcode all incoming data
 onto Kafka/Avro.
 
