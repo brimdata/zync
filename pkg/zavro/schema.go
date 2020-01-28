@@ -6,39 +6,39 @@ import (
 	"reflect"
 
 	"github.com/go-avro/avro"
-	"github.com/mccanne/zq/pkg/zeek"
+	"github.com/mccanne/zq/zng"
 )
 
-func GenSchema(typ zeek.Type, namespace string) avro.Schema {
+func GenSchema(typ zng.Type, namespace string) avro.Schema {
 	switch typ := typ.(type) {
-	case *zeek.TypeRecord:
+	case *zng.TypeRecord:
 		return genRecordSchema(typ, namespace)
-	case *zeek.TypeVector:
+	case *zng.TypeVector:
 		return genVectorSchema(typ, namespace)
-	case *zeek.TypeSet:
+	case *zng.TypeSet:
 		return genSetSchema(typ, namespace)
 	default:
 		return genScalarSchema(typ)
 	}
 }
 
-func genVectorSchema(typ *zeek.TypeVector, namespace string) avro.Schema {
-	inner := zeek.InnerType(typ)
+func genVectorSchema(typ *zng.TypeVector, namespace string) avro.Schema {
+	inner := zng.InnerType(typ)
 	return &avro.ArraySchema{
 		Items: GenSchema(inner, namespace),
 	}
 }
 
-func genSetSchema(typ *zeek.TypeSet, namespace string) avro.Schema {
+func genSetSchema(typ *zng.TypeSet, namespace string) avro.Schema {
 	// XXX this looks the same as vector for now but we will want to add
 	// more meta-info to disnguish the two cases
-	inner := zeek.InnerType(typ)
+	inner := zng.InnerType(typ)
 	return &avro.ArraySchema{
 		Items: GenSchema(inner, namespace),
 	}
 }
 
-func genRecordSchema(typ *zeek.TypeRecord, namespace string) avro.Schema {
+func genRecordSchema(typ *zng.TypeRecord, namespace string) avro.Schema {
 	var fields []*avro.SchemaField
 	for _, col := range typ.Columns {
 		var union [2]avro.Schema
@@ -64,46 +64,46 @@ func genRecordSchema(typ *zeek.TypeRecord, namespace string) avro.Schema {
 	}
 }
 
-func genScalarSchema(typ zeek.Type) avro.Schema {
+func genScalarSchema(typ zng.Type) avro.Schema {
 	switch typ.(type) {
-	case *zeek.TypeOfAddr:
+	case *zng.TypeOfAddr:
 		// IP addresses are turned into strings...
 		return &avro.StringSchema{}
 
-	case *zeek.TypeOfBool:
+	case *zng.TypeOfBool:
 		return &avro.BooleanSchema{}
 
-	case *zeek.TypeOfCount:
+	case *zng.TypeOfCount:
 		return &avro.LongSchema{}
 
-	case *zeek.TypeOfDouble:
+	case *zng.TypeOfDouble:
 		return &avro.DoubleSchema{}
 
-	case *zeek.TypeOfEnum:
+	case *zng.TypeOfEnum:
 		// for now, we change zng enums to avro strings.
 		// we would like to change enum to a conventional enum
 		// but zeek doesn't provide the enum def so we just
 		// cast zeek enum values to string values
 		return &avro.StringSchema{}
 
-	case *zeek.TypeOfInt:
+	case *zng.TypeOfInt:
 		// zng int is an avro long
 		return &avro.LongSchema{}
 
-	case *zeek.TypeOfInterval:
+	case *zng.TypeOfInterval:
 		return &MicroTimeSchema{}
 
-	case *zeek.TypeOfPort:
+	case *zng.TypeOfPort:
 		// XXX map a port to an int
 		return &avro.IntSchema{}
 
-	case *zeek.TypeOfString:
+	case *zng.TypeOfString:
 		return &avro.StringSchema{}
 
-	case *zeek.TypeOfSubnet:
+	case *zng.TypeOfSubnet:
 		return &avro.StringSchema{}
 
-	case *zeek.TypeOfTime:
+	case *zng.TypeOfTime:
 		return &MicroTimeSchema{}
 
 	default:

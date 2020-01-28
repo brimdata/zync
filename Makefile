@@ -26,4 +26,7 @@ install:
 clean:
 	@rm -rf dist
 
-.PHONY: vet test-unit test-system clean build
+localzq:
+	@go mod edit -replace=github.com/mccanne/zq=../zq
+
+.PHONY: vet test-unit test-system clean build localzq

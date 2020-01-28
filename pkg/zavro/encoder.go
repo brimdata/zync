@@ -4,9 +4,8 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"github.com/mccanne/zq/pkg/zeek"
-	"github.com/mccanne/zq/pkg/zng"
-	"github.com/mccanne/zq/pkg/zval"
+	"github.com/mccanne/zq/zng"
+	"github.com/mccanne/zq/zcode"
 )
 
 //XXX zq flattens records (i.e., id.orig_h, etc).  kafka target might want
@@ -26,8 +25,8 @@ func Encode(dst []byte, id uint32, r *zng.Record) ([]byte, error) {
 }
 
 //XXX move this to zval
-func zlen(zv zval.Encoding) (int, error) {
-	it := zval.Iter(zv)
+func zlen(zv zcode.Bytes) (int, error) {
+	it := zcode.Iter(zv)
 	cnt := 0
 	for !it.Done() {
 		_, _, err := it.Next()
@@ -39,7 +38,7 @@ func zlen(zv zval.Encoding) (int, error) {
 	return cnt, nil
 }
 
-func encodeVector(dst []byte, typ *zeek.TypeVector, body zval.Encoding) ([]byte, error) {
+func encodeVector(dst []byte, typ *zng.TypeVector, body zcode.Bytes) ([]byte, error) {
 	if body == nil {
 		return dst, nil
 	}
@@ -48,15 +47,15 @@ func encodeVector(dst []byte, typ *zeek.TypeVector, body zval.Encoding) ([]byte,
 		return nil, err
 	}
 	dst = appendVarint(dst, int64(cnt))
-	inner := zeek.InnerType(typ)
-	it := zval.Iter(body)
+	inner := zng.InnerType(typ)
+	it := zcode.Iter(body)
 	for !it.Done() {
 		body, container, err := it.Next()
 		if err != nil {
 			return nil, err
 		}
 		switch v := inner.(type) {
-		case *zeek.TypeRecord:
+		case *zng.TypeRecord:
 			if !container {
 				return nil, ErrBadValue
 			}
@@ -64,7 +63,7 @@ func encodeVector(dst []byte, typ *zeek.TypeVector, body zval.Encoding) ([]byte,
 			if err != nil {
 				return nil, err
 			}
-		case *zeek.TypeVector:
+		case *zng.TypeVector:
 			if !container {
 				return nil, ErrBadValue
 			}
@@ -72,7 +71,7 @@ func encodeVector(dst []byte, typ *zeek.TypeVector, body zval.Encoding) ([]byte,
 			if err != nil {
 				return nil, err
 			}
-		case *zeek.TypeSet:
+		case *zng.TypeSet:
 			if !container {
 				return nil, ErrBadValue
 			}
@@ -97,12 +96,12 @@ func encodeVector(dst []byte, typ *zeek.TypeVector, body zval.Encoding) ([]byte,
 	return dst, nil
 }
 
-func encodeSet(dst []byte, typ *zeek.TypeSet, body zval.Encoding) ([]byte, error) {
+func encodeSet(dst []byte, typ *zng.TypeSet, body zcode.Bytes) ([]byte, error) {
 	if body == nil {
 		return dst, nil
 	}
-	inner := zeek.InnerType(typ)
-	if zeek.IsContainerType(inner) {
+	inner := zng.InnerType(typ)
+	if zng.IsContainerType(inner) {
 		return nil, ErrBadValue
 	}
 	cnt, err := zlen(body)
@@ -110,7 +109,7 @@ func encodeSet(dst []byte, typ *zeek.TypeSet, body zval.Encoding) ([]byte, error
 		return nil, err
 	}
 	dst = appendVarint(dst, int64(cnt))
-	it := zval.Iter(body)
+	it := zcode.Iter(body)
 	for !it.Done() {
 		body, container, err := it.Next()
 		if err != nil {
@@ -131,11 +130,11 @@ func encodeSet(dst []byte, typ *zeek.TypeSet, body zval.Encoding) ([]byte, error
 	return dst, nil
 }
 
-func encodeRecord(dst []byte, typ *zeek.TypeRecord, body zval.Encoding) ([]byte, error) {
+func encodeRecord(dst []byte, typ *zng.TypeRecord, body zcode.Bytes) ([]byte, error) {
 	if body == nil {
 		return dst, nil
 	}
-	it := zval.Iter(body)
+	it := zcode.Iter(body)
 	for _, col := range typ.Columns {
 		if it.Done() {
 			return nil, ErrBadValue
@@ -153,7 +152,7 @@ func encodeRecord(dst []byte, typ *zeek.TypeRecord, body zval.Encoding) ([]byte,
 		// the type's position in the union.
 		dst = appendVarint(dst, 1)
 		switch v := col.Type.(type) {
-		case *zeek.TypeRecord:
+		case *zng.TypeRecord:
 			if !container {
 				return nil, ErrBadValue
 			}
@@ -161,7 +160,7 @@ func encodeRecord(dst []byte, typ *zeek.TypeRecord, body zval.Encoding) ([]byte,
 			if err != nil {
 				return nil, err
 			}
-		case *zeek.TypeVector:
+		case *zng.TypeVector:
 			if !container {
 				return nil, ErrBadValue
 			}
@@ -169,7 +168,7 @@ func encodeRecord(dst []byte, typ *zeek.TypeRecord, body zval.Encoding) ([]byte,
 			if err != nil {
 				return nil, err
 			}
-		case *zeek.TypeSet:
+		case *zng.TypeSet:
 			if !container {
 				return nil, ErrBadValue
 			}
@@ -201,24 +200,24 @@ func appendCountedValue(dst, val []byte) []byte {
 	return append(dst, val...)
 }
 
-func encodeScalar(dst []byte, typ zeek.Type, body zval.Encoding) ([]byte, error) {
+func encodeScalar(dst []byte, typ zng.Type, body zcode.Bytes) ([]byte, error) {
 	if body == nil {
 		//XXX need to encode empty stuff
 		return dst, nil
 	}
 	switch typ.(type) {
-	case *zeek.TypeOfAddr:
+	case *zng.TypeOfAddr:
 		// IP addresses are turned into strings...
-		ip, err := zeek.DecodeAddr(body)
+		ip, err := zng.DecodeAddr(body)
 		if err != nil {
 			return nil, err
 		}
 		b := []byte(ip.String())
 		return appendCountedValue(dst, b), nil
 
-	case *zeek.TypeOfBool:
+	case *zng.TypeOfBool:
 		// bool is single byte 0 or 1
-		v, err := zeek.DecodeBool(body)
+		v, err := zng.DecodeBool(body)
 		if err != nil {
 			return nil, err
 		}
@@ -227,15 +226,15 @@ func encodeScalar(dst []byte, typ zeek.Type, body zval.Encoding) ([]byte, error)
 		}
 		return append(dst, byte(0)), nil
 
-	case *zeek.TypeOfCount:
+	case *zng.TypeOfCount:
 		// count is encoded as a long.  XXX return error on overdflow?
-		v, err := zeek.DecodeCount(body)
+		v, err := zng.DecodeCount(body)
 		if err != nil {
 			return nil, err
 		}
 		return appendVarint(dst, int64(v)), nil
 
-	case *zeek.TypeOfDouble:
+	case *zng.TypeOfDouble:
 		// avro says this is Java's doubleToLongBits...
 		// we need to check if Go math lib is the same
 		if len(body) != 8 {
@@ -243,61 +242,61 @@ func encodeScalar(dst []byte, typ zeek.Type, body zval.Encoding) ([]byte, error)
 		}
 		return append(dst, body...), nil
 
-	case *zeek.TypeOfEnum:
+	case *zng.TypeOfEnum:
 		// for now, we change zng enums to avro strings.
 		// we would like to change enum to a conventional enum
 		// but zeek doesn't provide the enum def so we just
 		// cast zeek enum values to string values
 		return appendCountedValue(dst, body), nil
 
-	case *zeek.TypeOfInt:
+	case *zng.TypeOfInt:
 		// count is encoded as a long.  XXX return error on overdflow?
-		v, err := zeek.DecodeInt(body)
+		v, err := zng.DecodeInt(body)
 		if err != nil {
 			return nil, err
 		}
 		return appendVarint(dst, v), nil
 
-	case *zeek.TypeOfInterval:
+	case *zng.TypeOfInterval:
 		// XXX map an interval to a microsecond time
-		ns, err := zeek.DecodeInterval(body)
+		ns, err := zng.DecodeInterval(body)
 		if err != nil {
 			return nil, err
 		}
 		us := ns / 1000
 		return appendVarint(dst, us), nil
 
-	case *zeek.TypeOfPort:
+	case *zng.TypeOfPort:
 		// XXX map a port to an int
-		port, err := zeek.DecodePort(body)
+		port, err := zng.DecodePort(body)
 		if err != nil {
 			return nil, err
 		}
 		return appendVarint(dst, int64(port)), nil
 
-	case *zeek.TypeOfString:
-		s := zeek.EscapeUTF8(body)
+	case *zng.TypeOfString:
+		s := zng.EscapeUTF8(body)
 		return appendCountedValue(dst, []byte(s)), nil
 
-	case *zeek.TypeOfSubnet:
+	case *zng.TypeOfSubnet:
 		// IP subnets are turned into strings...
-		net, err := zeek.DecodeSubnet(body)
+		net, err := zng.DecodeSubnet(body)
 		if err != nil {
 			return nil, err
 		}
 		b := []byte(net.String())
 		return appendCountedValue(dst, b), nil
 
-	case *zeek.TypeOfTime:
+	case *zng.TypeOfTime:
 		// XXX map a nano to a microsecond time
-		ts, err := zeek.DecodeInterval(body)
+		ts, err := zng.DecodeInterval(body)
 		if err != nil {
 			return nil, err
 		}
 		us := ts / 1000
 		return appendVarint(dst, us), nil
 
-	case *zeek.TypeRecord, *zeek.TypeVector, *zeek.TypeSet:
+	case *zng.TypeRecord, *zng.TypeVector, *zng.TypeSet:
 		panic("internal bug") //XXX
 	default:
 		panic("unknown type") //XXX

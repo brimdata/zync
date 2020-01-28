@@ -4,8 +4,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/mccanne/zq/pkg/zio/detector"
-	"github.com/mccanne/zq/pkg/zng"
+	"github.com/mccanne/zq/zio/detector"
+	"github.com/mccanne/zq/zbuf"
 )
 
 func handle(format string, producer *Producer, w http.ResponseWriter, r *http.Request) {
@@ -14,17 +14,17 @@ func handle(format string, producer *Producer, w http.ResponseWriter, r *http.Re
 		http.Error(w, "bad method", http.StatusForbidden)
 		return
 	}
-	var reader zng.Reader
+	var reader zbuf.Reader
 	if format == "auto" {
 		g := detector.GzipReader(r.Body)
 		var err error
-		reader, err = detector.NewReader(g, producer.Resolver)
+		reader, err = detector.NewReader(g, producer.Context)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	} else {
-		reader = detector.LookupReader(format, r.Body, producer.Resolver)
+		reader = detector.LookupReader(format, r.Body, producer.Context)
 		if reader == nil {
 			log.Panic("couldn't allocate reader: " + format)
 		}
