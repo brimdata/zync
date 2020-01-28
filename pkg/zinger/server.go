@@ -9,7 +9,7 @@ import (
 	"github.com/mccanne/zq/zng/resolver"
 )
 
-func handle(format string, producer *Producer, zctx *resolver.Context, w http.ResponseWriter, r *http.Request) {
+func handle(format string, outputs []zbuf.Writer, zctx *resolver.Context, w http.ResponseWriter, r *http.Request) {
 	// XXX log new connection
 	if r.Method != http.MethodPost {
 		http.Error(w, "bad method", http.StatusForbidden)
@@ -40,24 +40,26 @@ func handle(format string, producer *Producer, zctx *resolver.Context, w http.Re
 			}
 			return
 		}
-		err = producer.Write(rec)
-		if err != nil {
-			// XXX should send more reasonable status code
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+		for _, o := range outputs {
+			err = o.Write(rec)
+			if err != nil {
+				// XXX should send more reasonable status code
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		}
 	}
 }
 
-func Run(port string, producer *Producer, zctx *resolver.Context) error {
+func Run(port string, outputs []zbuf.Writer, zctx *resolver.Context) error {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		handle("auto", producer, zctx, w, r)
+		handle("auto", outputs, zctx, w, r)
 	})
 	http.HandleFunc("/tsv", func(w http.ResponseWriter, r *http.Request) {
-		handle("zeek", producer, zctx, w, r)
+		handle("zeek", outputs, zctx, w, r)
 	})
 	http.HandleFunc("/bzng", func(w http.ResponseWriter, r *http.Request) {
-		handle("bzng", producer, zctx, w, r)
+		handle("bzng", outputs, zctx, w, r)
 	})
 	return http.ListenAndServe(port, nil)
 }

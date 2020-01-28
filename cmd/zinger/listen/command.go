@@ -10,6 +10,7 @@ import (
 	"github.com/mccanne/zinger/cmd/zinger/root"
 	"github.com/mccanne/zinger/pkg/registry"
 	"github.com/mccanne/zinger/pkg/zinger"
+	"github.com/mccanne/zq/zbuf"
 	"github.com/mccanne/zq/zng/resolver"
 )
 
@@ -63,5 +64,5 @@ func (c *Command) Run(args []string) error {
 		os.Exit(1)
 	}
 	zctx := resolver.NewContext()
-	return zinger.Run(c.listenAddr, producer, zctx)
+	return zinger.Run(c.listenAddr, []zbuf.Writer{producer}, zctx)
 }
