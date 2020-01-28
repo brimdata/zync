@@ -10,6 +10,7 @@ import (
 	"github.com/mccanne/zinger/cmd/zinger/root"
 	"github.com/mccanne/zinger/pkg/registry"
 	"github.com/mccanne/zinger/pkg/zinger"
+	"github.com/mccanne/zq/zng/resolver"
 )
 
 var Listen = &charm.Spec{
@@ -61,5 +62,6 @@ func (c *Command) Run(args []string) error {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	return zinger.Run(c.listenAddr, producer)
+	zctx := resolver.NewContext()
+	return zinger.Run(c.listenAddr, producer, zctx)
 }

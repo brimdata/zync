@@ -4,11 +4,12 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/mccanne/zq/zio/detector"
 	"github.com/mccanne/zq/zbuf"
+	"github.com/mccanne/zq/zio/detector"
+	"github.com/mccanne/zq/zng/resolver"
 )
 
-func handle(format string, producer *Producer, w http.ResponseWriter, r *http.Request) {
+func handle(format string, producer *Producer, zctx *resolver.Context, w http.ResponseWriter, r *http.Request) {
 	// XXX log new connection
 	if r.Method != http.MethodPost {
 		http.Error(w, "bad method", http.StatusForbidden)
@@ -18,13 +19,13 @@ func handle(format string, producer *Producer, w http.ResponseWriter, r *http.Re
 	if format == "auto" {
 		g := detector.GzipReader(r.Body)
 		var err error
-		reader, err = detector.NewReader(g, producer.Context)
+		reader, err = detector.NewReader(g, zctx)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	} else {
-		reader = detector.LookupReader(format, r.Body, producer.Context)
+		reader = detector.LookupReader(format, r.Body, zctx)
 		if reader == nil {
 			log.Panic("couldn't allocate reader: " + format)
 		}
@@ -48,15 +49,15 @@ func handle(format string, producer *Producer, w http.ResponseWriter, r *http.Re
 	}
 }
 
-func Run(port string, producer *Producer) error {
+func Run(port string, producer *Producer, zctx *resolver.Context) error {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		handle("auto", producer, w, r)
+		handle("auto", producer, zctx, w, r)
 	})
 	http.HandleFunc("/tsv", func(w http.ResponseWriter, r *http.Request) {
-		handle("zeek", producer, w, r)
+		handle("zeek", producer, zctx, w, r)
 	})
 	http.HandleFunc("/bzng", func(w http.ResponseWriter, r *http.Request) {
-		handle("bzng", producer, w, r)
+		handle("bzng", producer, zctx, w, r)
 	})
 	return http.ListenAndServe(port, nil)
 }

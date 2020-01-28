@@ -12,7 +12,6 @@ import (
 	"github.com/mccanne/zinger/pkg/registry"
 	"github.com/mccanne/zinger/pkg/zavro"
 	"github.com/mccanne/zq/zng"
-	"github.com/mccanne/zq/zng/resolver"
 )
 
 type Producer struct {
@@ -24,7 +23,6 @@ type Producer struct {
 	// manager).  For now, any parallel connections share a single producer.
 	// XXX note: change this to sarama.AsyncProducer
 	Producer sarama.SyncProducer
-	Context *resolver.Context
 	// For now there is a single topic written to.  We can add support
 	// later to route different records to different topics based on rules.
 	topic     string
@@ -50,7 +48,6 @@ func NewProducer(servers []string, reg *registry.Connection, topic, namespace st
 	}
 	return &Producer{
 		Producer:  p,
-		Context:  resolver.NewContext(),
 		registry:  reg,
 		topic:     topic,
 		namespace: namespace,
