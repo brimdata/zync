@@ -11,8 +11,8 @@ import (
 	"github.com/go-avro/avro"
 	"github.com/mccanne/zinger/pkg/registry"
 	"github.com/mccanne/zinger/pkg/zavro"
-	"github.com/mccanne/zq/pkg/zng"
-	"github.com/mccanne/zq/pkg/zng/resolver"
+	"github.com/mccanne/zq/zng"
+	"github.com/mccanne/zq/zng/resolver"
 )
 
 type Producer struct {
@@ -24,7 +24,7 @@ type Producer struct {
 	// manager).  For now, any parallel connections share a single producer.
 	// XXX note: change this to sarama.AsyncProducer
 	Producer sarama.SyncProducer
-	Resolver *resolver.Table
+	Context *resolver.Context
 	// For now there is a single topic written to.  We can add support
 	// later to route different records to different topics based on rules.
 	topic     string
@@ -50,7 +50,7 @@ func NewProducer(servers []string, reg *registry.Connection, topic, namespace st
 	}
 	return &Producer{
 		Producer:  p,
-		Resolver:  resolver.NewTable(),
+		Context:  resolver.NewContext(),
 		registry:  reg,
 		topic:     topic,
 		namespace: namespace,
@@ -59,14 +59,14 @@ func NewProducer(servers []string, reg *registry.Connection, topic, namespace st
 }
 
 func (p *Producer) Write(rec *zng.Record) error {
-	id := rec.Descriptor.ID
+	id := rec.Type.ID()
 	// For now wrap a lock around the entire creation of a new schema.
 	// This would be more efficient with a condition variable where the
 	// first arriver gets to create the schema.
 	p.Lock()
 	kid, ok := p.mapper[id]
 	if !ok {
-		s := zavro.GenSchema(rec.Descriptor.Type, p.namespace)
+		s := zavro.GenSchema(rec.Type, p.namespace)
 		record, ok := s.(*avro.RecordSchema)
 		if !ok {
 			p.Unlock()
