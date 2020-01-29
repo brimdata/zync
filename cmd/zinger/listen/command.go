@@ -22,7 +22,22 @@ var Listen = &charm.Spec{
 	Long: `
 The listen command launches a process to listen on the provided interface and
 port for HTTP POST requests of streaming data.  For each incoming connection,
-the stream is transcoded into Avro and published on the specified Kafka topic.
+the stream is forward to the configured output(s). Current outputs are local
+file writer and Kafka, where the stream is transcoded into Avro and published
+on the specified Kafka topic.
+
+When the Kafka output is enabled:
+
+Use -b to specify the Kafka bootstrap servers as a comma-separated list
+of addresses (with form address:port).  Likewise, use -r to specify
+one or more registry servers.
+
+Use -t to specify the Kafka topic. Currently, all data is published to
+a single topic.
+
+Use -n to specify a namespace and -s to specify a subject both used when
+automatically creating new schemas for transcoded Zeek/ZNG data.
+
 `,
 	New: New,
 }

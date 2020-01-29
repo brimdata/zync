@@ -1,17 +1,25 @@
 # zinger
 
-Zinger interconnects [Zeek](https://www.zeek.org/) and
+Zinger is a receiver for [Zeek](https://www.zeek.org/) logs. It receives logs in any format
+supported by [zq](https://github.com/mccanne/zq/) and can store,
+process, and forward them to various outputs depending on its configuration.
+
+Currently supported outputs are:
+
+- the **File** output, a simple file writer that writes each incoming log a separate file (in any zq-supported format)
+- the **Kafka** output, which interconnects Zeek and
 [Kafka/Avro](https://docs.confluent.io/current/schema-registry/serializer-formatter.html#wire-format)
 by transcoding Zeek log streams into Avro and storing the Avro schemas
 in the Kafka
 [Schema Registry]((https://github.com/confluentinc/schema-registry)).
 
-Internally, it uses [Sarama](https://github.com/Shopify/sarama) to communicate with
-Kafka and [go-avro](https://github.com/go-avro/avro) to construct schemas.
-
-Zinger has native support for communicating with the
-Kafka [Schema Registry](https://github.com/confluentinc/schema-registry) and
-for transcoding [Zeek/Zng](https://github.com/mccanne/zq/blob/master/pkg/zng/docs/spec.md)
+Internally, the Kafka output uses
+[Sarama](https://github.com/Shopify/sarama) to communicate with Kafka
+and [go-avro](https://github.com/go-avro/avro) to construct
+schemas. It has native support for communicating with the Kafka
+[Schema Registry](https://github.com/confluentinc/schema-registry) and
+for transcoding
+[Zeek/Zng](https://github.com/mccanne/zq/blob/master/pkg/zng/docs/spec.md)
 into [Apache Avro](https://avro.apache.org/).
 
 ## Installation
@@ -45,7 +53,7 @@ onto Kafka/Avro.
 
 For example, running this command
 ```
-zinger -k 192.168.1.1:9092 -r 192.168.1.1:8081 -t zeekdata -s zinger -n com.acme listen -l :6755
+zinger -k -b 192.168.1.1:9092 -r 192.168.1.1:8081 -t zeekdata -s zinger -n com.acme listen -l :6755
 ```
 starts up a process to listen for incoming connections on port `6755` converting
 all such streams to Kafka/Avro streams by sending them as a Kafka producer to the
