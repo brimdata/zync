@@ -3,14 +3,19 @@ package zinger
 import (
 	"log"
 	"net/http"
+	"sync/atomic"
 
 	"github.com/mccanne/zq/zbuf"
 	"github.com/mccanne/zq/zio/detector"
 	"github.com/mccanne/zq/zng/resolver"
+	"go.uber.org/zap"
 )
 
-func handle(format string, outputs []zbuf.Writer, zctx *resolver.Context, w http.ResponseWriter, r *http.Request) {
-	// XXX log new connection
+func handle(format string, outputs []zbuf.Writer, zctx *resolver.Context, logger *zap.SugaredLogger, w http.ResponseWriter, r *http.Request) {
+	logger.Infof("new request: %s %s", r.Method, r.URL)
+	defer func() {
+		logger.Infof("request complete")
+	}()
 	if r.Method != http.MethodPost {
 		http.Error(w, "bad method", http.StatusForbidden)
 		return
@@ -44,6 +49,9 @@ func handle(format string, outputs []zbuf.Writer, zctx *resolver.Context, w http
 			err = o.Write(rec)
 			if err != nil {
 				// XXX should send more reasonable status code
+				// and if we have multiple outputs, we should
+				// still keep going on the one(s) that didn't
+				// error rather than bailing here.
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -52,14 +60,26 @@ func handle(format string, outputs []zbuf.Writer, zctx *resolver.Context, w http
 }
 
 func Run(port string, outputs []zbuf.Writer, zctx *resolver.Context) error {
+	prod, _ := zap.NewProduction()
+	logger := prod.Sugar()
+
+	nreqs := int64(0) // there must be a better way to do this with zap...
+	logger.Infof("Listening on HTTP %s", port)
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		handle("auto", outputs, zctx, w, r)
+		id := atomic.AddInt64(&nreqs, 1)
+		l := logger.With("id", id)
+		handle("auto", outputs, zctx, l, w, r)
 	})
 	http.HandleFunc("/tsv", func(w http.ResponseWriter, r *http.Request) {
-		handle("zeek", outputs, zctx, w, r)
+		id := atomic.AddInt64(&nreqs, 1)
+		l := logger.With("id", id)
+		handle("zeek", outputs, zctx, l, w, r)
 	})
 	http.HandleFunc("/bzng", func(w http.ResponseWriter, r *http.Request) {
-		handle("bzng", outputs, zctx, w, r)
+		id := atomic.AddInt64(&nreqs, 1)
+		l := logger.With("id", id)
+		handle("bzng", outputs, zctx, l, w, r)
 	})
 	return http.ListenAndServe(port, nil)
 }
