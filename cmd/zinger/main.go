@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 
-	_ "github.com/mccanne/zinger/cmd/zinger/listen"
-	_ "github.com/mccanne/zinger/cmd/zinger/ls"
-	_ "github.com/mccanne/zinger/cmd/zinger/post"
-	"github.com/mccanne/zinger/cmd/zinger/root"
+	_ "github.com/brimsec/zinger/cmd/zinger/listen"
+	_ "github.com/brimsec/zinger/cmd/zinger/ls"
+	_ "github.com/brimsec/zinger/cmd/zinger/post"
+	"github.com/brimsec/zinger/cmd/zinger/root"
 )
 
 // These variables are populated via the Go linker.

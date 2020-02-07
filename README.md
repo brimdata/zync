@@ -26,7 +26,7 @@ into [Apache Avro](https://avro.apache.org/).
 
 To install zinger, clone this repo and run `make install`:
 ```
-git clone https://github.com/mccanne/zinger.git
+git clone https://github.com/brimsec/zinger.git
 cd zinger
 make install
 ```

@@ -6,10 +6,10 @@ import (
 	"os"
 	"strings"
 
+	"github.com/brimsec/zinger/cmd/zinger/root"
+	"github.com/brimsec/zinger/pkg/registry"
+	"github.com/brimsec/zinger/pkg/zinger"
 	"github.com/mccanne/charm"
-	"github.com/mccanne/zinger/cmd/zinger/root"
-	"github.com/mccanne/zinger/pkg/registry"
-	"github.com/mccanne/zinger/pkg/zinger"
 	"github.com/mccanne/zq/emitter"
 	"github.com/mccanne/zq/zbuf"
 	"github.com/mccanne/zq/zng/resolver"

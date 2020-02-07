@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/brimsec/zinger/cmd/zinger/root"
 	"github.com/mccanne/charm"
-	"github.com/mccanne/zinger/cmd/zinger/root"
 )
 
 var Post = &charm.Spec{
