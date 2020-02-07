@@ -1,4 +1,4 @@
-module github.com/mccanne/zinger
+module github.com/brimsec/zinger
 
 go 1.13
 

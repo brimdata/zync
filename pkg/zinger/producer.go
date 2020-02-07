@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/brimsec/zinger/pkg/registry"
+	"github.com/brimsec/zinger/pkg/zavro"
 	"github.com/go-avro/avro"
-	"github.com/mccanne/zinger/pkg/registry"
-	"github.com/mccanne/zinger/pkg/zavro"
 	"github.com/mccanne/zq/zng"
 )
 
