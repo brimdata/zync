@@ -120,3 +120,4 @@ in the avro spec.  It appears there are nanosecond timestamps using logical type
 documented elsewhere.
 * Likewise, IP address and subnets are converted to strings and it seems like
 logical types would be preferred.
+* For ZNG/BZNG input, the only numeric `int` types currently supported are the 64-bit ones (`int64`, `uint64`).
