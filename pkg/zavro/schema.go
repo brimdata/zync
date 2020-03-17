@@ -65,38 +65,38 @@ func genRecordSchema(typ *zng.TypeRecord, namespace string) avro.Schema {
 }
 
 func genScalarSchema(typ zng.Type) avro.Schema {
-	switch typ.(type) {
-	case *zng.TypeOfIP:
+	switch typ.ID() {
+	case zng.IdIP:
 		// IP addresses are turned into strings...
 		return &avro.StringSchema{}
 
-	case *zng.TypeOfBool:
+	case zng.IdBool:
 		return &avro.BooleanSchema{}
 
-	case *zng.TypeOfInt64:
+	case zng.IdInt64:
 		// zng int is an avro long
 		return &avro.LongSchema{}
 
-	case *zng.TypeOfUint64:
+	case zng.IdUint64:
 		return &avro.LongSchema{}
 
-	case *zng.TypeOfFloat64:
+	case zng.IdFloat64:
 		return &avro.DoubleSchema{}
 
-	case *zng.TypeOfDuration:
+	case zng.IdDuration:
 		return &MicroTimeSchema{}
 
-	case *zng.TypeOfPort:
+	case zng.IdPort:
 		// XXX map a port to an int
 		return &avro.IntSchema{}
 
-	case *zng.TypeOfString, *zng.TypeOfBstring:
+	case zng.IdString, zng.IdBstring:
 		return &avro.StringSchema{}
 
-	case *zng.TypeOfNet:
+	case zng.IdNet:
 		return &avro.StringSchema{}
 
-	case *zng.TypeOfTime:
+	case zng.IdTime:
 		return &MicroTimeSchema{}
 
 	default:
