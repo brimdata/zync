@@ -90,7 +90,7 @@ func genScalarSchema(typ zng.Type) avro.Schema {
 		// XXX map a port to an int
 		return &avro.IntSchema{}
 
-	case *zng.TypeOfString:
+	case *zng.TypeOfString, *zng.TypeOfBstring:
 		return &avro.StringSchema{}
 
 	case *zng.TypeOfNet:
