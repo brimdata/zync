@@ -6,7 +6,7 @@ import (
 	"reflect"
 
 	"github.com/go-avro/avro"
-	"github.com/mccanne/zq/zng"
+	"github.com/brimsec/zq/zng"
 )
 
 func GenSchema(typ zng.Type, namespace string) avro.Schema {

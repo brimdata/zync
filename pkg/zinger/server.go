@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"sync/atomic"
 
-	"github.com/mccanne/zq/zbuf"
-	"github.com/mccanne/zq/zio/detector"
-	"github.com/mccanne/zq/zng/resolver"
+	"github.com/brimsec/zq/zbuf"
+	"github.com/brimsec/zq/zio/detector"
+	"github.com/brimsec/zq/zng/resolver"
 	"go.uber.org/zap"
 )
 

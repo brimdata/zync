@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"github.com/mccanne/zq/zcode"
-	"github.com/mccanne/zq/zng"
+	"github.com/brimsec/zq/zcode"
+	"github.com/brimsec/zq/zng"
 )
 
 //XXX zq flattens records (i.e., id.orig_h, etc).  kafka target might want
