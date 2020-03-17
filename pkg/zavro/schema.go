@@ -100,7 +100,7 @@ func genScalarSchema(typ zng.Type) avro.Schema {
 		return &MicroTimeSchema{}
 
 	default:
-		panic("genScalarSchema: unknown type")
+		panic(fmt.Sprintf("genScalarSchema: unknown type %s", typ))
 	}
 }
 
