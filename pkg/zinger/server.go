@@ -21,17 +21,17 @@ func handle(format string, outputs []zbuf.Writer, zctx *resolver.Context, logger
 		return
 	}
 	var reader zbuf.Reader
+	var err error
 	if format == "auto" {
 		g := detector.GzipReader(r.Body)
-		var err error
 		reader, err = detector.NewReader(g, zctx)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	} else {
-		reader = detector.LookupReader(format, r.Body, zctx)
-		if reader == nil {
+		reader, err = detector.LookupReader(format, r.Body, zctx)
+		if err != nil || reader == nil {
 			log.Panic("couldn't allocate reader: " + format)
 		}
 	}

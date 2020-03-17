@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/go-avro/avro"
 	"github.com/brimsec/zq/zng"
+	"github.com/go-avro/avro"
 )
 
 func GenSchema(typ zng.Type, namespace string) avro.Schema {
 	switch typ := typ.(type) {
 	case *zng.TypeRecord:
 		return genRecordSchema(typ, namespace)
-	case *zng.TypeVector:
+	case *zng.TypeArray:
 		return genVectorSchema(typ, namespace)
 	case *zng.TypeSet:
 		return genSetSchema(typ, namespace)
@@ -22,7 +22,7 @@ func GenSchema(typ zng.Type, namespace string) avro.Schema {
 	}
 }
 
-func genVectorSchema(typ *zng.TypeVector, namespace string) avro.Schema {
+func genVectorSchema(typ *zng.TypeArray, namespace string) avro.Schema {
 	inner := zng.InnerType(typ)
 	return &avro.ArraySchema{
 		Items: GenSchema(inner, namespace),
@@ -66,31 +66,24 @@ func genRecordSchema(typ *zng.TypeRecord, namespace string) avro.Schema {
 
 func genScalarSchema(typ zng.Type) avro.Schema {
 	switch typ.(type) {
-	case *zng.TypeOfAddr:
+	case *zng.TypeOfIP:
 		// IP addresses are turned into strings...
 		return &avro.StringSchema{}
 
 	case *zng.TypeOfBool:
 		return &avro.BooleanSchema{}
 
-	case *zng.TypeOfCount:
-		return &avro.LongSchema{}
-
-	case *zng.TypeOfDouble:
-		return &avro.DoubleSchema{}
-
-	case *zng.TypeOfEnum:
-		// for now, we change zng enums to avro strings.
-		// we would like to change enum to a conventional enum
-		// but zeek doesn't provide the enum def so we just
-		// cast zeek enum values to string values
-		return &avro.StringSchema{}
-
-	case *zng.TypeOfInt:
+	case *zng.TypeOfInt64:
 		// zng int is an avro long
 		return &avro.LongSchema{}
 
-	case *zng.TypeOfInterval:
+	case *zng.TypeOfUint64:
+		return &avro.LongSchema{}
+
+	case *zng.TypeOfFloat64:
+		return &avro.DoubleSchema{}
+
+	case *zng.TypeOfDuration:
 		return &MicroTimeSchema{}
 
 	case *zng.TypeOfPort:
@@ -100,7 +93,7 @@ func genScalarSchema(typ zng.Type) avro.Schema {
 	case *zng.TypeOfString:
 		return &avro.StringSchema{}
 
-	case *zng.TypeOfSubnet:
+	case *zng.TypeOfNet:
 		return &avro.StringSchema{}
 
 	case *zng.TypeOfTime:
