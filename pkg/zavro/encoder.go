@@ -266,7 +266,7 @@ func encodeScalar(dst []byte, typ zng.Type, body zcode.Bytes) ([]byte, error) {
 		}
 		return appendVarint(dst, int64(port)), nil
 
-	case *zng.TypeOfString:
+	case *zng.TypeOfString, *zng.TypeOfBstring:
 		s := typ.StringOf(body, zng.OutFormatZeek, false)
 		return appendCountedValue(dst, []byte(s)), nil
 
