@@ -10,9 +10,9 @@ import (
 	"github.com/brimsec/zinger/pkg/registry"
 	"github.com/brimsec/zinger/pkg/zinger"
 	"github.com/mccanne/charm"
-	"github.com/mccanne/zq/emitter"
-	"github.com/mccanne/zq/zbuf"
-	"github.com/mccanne/zq/zng/resolver"
+	"github.com/brimsec/zq/emitter"
+	"github.com/brimsec/zq/zbuf"
+	"github.com/brimsec/zq/zng/resolver"
 )
 
 var Listen = &charm.Spec{

@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/brimsec/zq/zng"
 	"github.com/go-avro/avro"
-	"github.com/mccanne/zq/zng"
 )
 
 func GenSchema(typ zng.Type, namespace string) avro.Schema {
 	switch typ := typ.(type) {
 	case *zng.TypeRecord:
 		return genRecordSchema(typ, namespace)
-	case *zng.TypeVector:
+	case *zng.TypeArray:
 		return genVectorSchema(typ, namespace)
 	case *zng.TypeSet:
 		return genSetSchema(typ, namespace)
@@ -22,7 +22,7 @@ func GenSchema(typ zng.Type, namespace string) avro.Schema {
 	}
 }
 
-func genVectorSchema(typ *zng.TypeVector, namespace string) avro.Schema {
+func genVectorSchema(typ *zng.TypeArray, namespace string) avro.Schema {
 	inner := zng.InnerType(typ)
 	return &avro.ArraySchema{
 		Items: GenSchema(inner, namespace),
@@ -65,49 +65,42 @@ func genRecordSchema(typ *zng.TypeRecord, namespace string) avro.Schema {
 }
 
 func genScalarSchema(typ zng.Type) avro.Schema {
-	switch typ.(type) {
-	case *zng.TypeOfAddr:
+	switch typ.ID() {
+	case zng.IdIP:
 		// IP addresses are turned into strings...
 		return &avro.StringSchema{}
 
-	case *zng.TypeOfBool:
+	case zng.IdBool:
 		return &avro.BooleanSchema{}
 
-	case *zng.TypeOfCount:
-		return &avro.LongSchema{}
-
-	case *zng.TypeOfDouble:
-		return &avro.DoubleSchema{}
-
-	case *zng.TypeOfEnum:
-		// for now, we change zng enums to avro strings.
-		// we would like to change enum to a conventional enum
-		// but zeek doesn't provide the enum def so we just
-		// cast zeek enum values to string values
-		return &avro.StringSchema{}
-
-	case *zng.TypeOfInt:
+	case zng.IdInt64:
 		// zng int is an avro long
 		return &avro.LongSchema{}
 
-	case *zng.TypeOfInterval:
+	case zng.IdUint64:
+		return &avro.LongSchema{}
+
+	case zng.IdFloat64:
+		return &avro.DoubleSchema{}
+
+	case zng.IdDuration:
 		return &MicroTimeSchema{}
 
-	case *zng.TypeOfPort:
+	case zng.IdPort:
 		// XXX map a port to an int
 		return &avro.IntSchema{}
 
-	case *zng.TypeOfString:
+	case zng.IdString, zng.IdBstring:
 		return &avro.StringSchema{}
 
-	case *zng.TypeOfSubnet:
+	case zng.IdNet:
 		return &avro.StringSchema{}
 
-	case *zng.TypeOfTime:
+	case zng.IdTime:
 		return &MicroTimeSchema{}
 
 	default:
-		panic("genScalarSchema: unknown type")
+		panic(fmt.Sprintf("genScalarSchema: unknown type %s", typ))
 	}
 }
 

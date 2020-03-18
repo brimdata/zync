@@ -27,6 +27,6 @@ clean:
 	@rm -rf dist
 
 localzq:
-	@go mod edit -replace=github.com/mccanne/zq=../zq
+	@go mod edit -replace=github.com/brimsec/zq=../zq
 
 .PHONY: vet test-unit test-system clean build localzq

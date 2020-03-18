@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"sync/atomic"
 
-	"github.com/mccanne/zq/zbuf"
-	"github.com/mccanne/zq/zio/detector"
-	"github.com/mccanne/zq/zng/resolver"
+	"github.com/brimsec/zq/zbuf"
+	"github.com/brimsec/zq/zio/detector"
+	"github.com/brimsec/zq/zng/resolver"
 	"go.uber.org/zap"
 )
 
@@ -21,17 +21,17 @@ func handle(format string, outputs []zbuf.Writer, zctx *resolver.Context, logger
 		return
 	}
 	var reader zbuf.Reader
+	var err error
 	if format == "auto" {
 		g := detector.GzipReader(r.Body)
-		var err error
 		reader, err = detector.NewReader(g, zctx)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	} else {
-		reader = detector.LookupReader(format, r.Body, zctx)
-		if reader == nil {
+		reader, err = detector.LookupReader(format, r.Body, zctx)
+		if err != nil || reader == nil {
 			log.Panic("couldn't allocate reader: " + format)
 		}
 	}

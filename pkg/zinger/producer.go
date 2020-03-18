@@ -11,7 +11,7 @@ import (
 	"github.com/brimsec/zinger/pkg/registry"
 	"github.com/brimsec/zinger/pkg/zavro"
 	"github.com/go-avro/avro"
-	"github.com/mccanne/zq/zng"
+	"github.com/brimsec/zq/zng"
 )
 
 type Producer struct {
