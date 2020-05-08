@@ -30,7 +30,7 @@ func handle(format string, outputs []zbuf.Writer, zctx *resolver.Context, logger
 			return
 		}
 	} else {
-		reader, err = detector.LookupReader(format, r.Body, zctx)
+		reader, err = detector.LookupReader(r.Body, zctx, format)
 		if err != nil || reader == nil {
 			log.Panic("couldn't allocate reader: " + format)
 		}
