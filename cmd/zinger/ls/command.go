@@ -1,15 +1,13 @@
 package ls
 
 import (
-	"errors"
 	"flag"
 	"fmt"
-	"strconv"
-	"strings"
 
-	"github.com/brimsec/zinger/cmd/zinger/root"
-	"github.com/brimsec/zinger/pkg/registry"
-	"github.com/mccanne/charm"
+	"github.com/brimdata/zed/pkg/charm"
+	"github.com/brimdata/zinger/cli"
+	"github.com/brimdata/zinger/cmd/zinger/root"
+	"github.com/riferrei/srclient"
 )
 
 var Ls = &charm.Spec{
@@ -17,9 +15,9 @@ var Ls = &charm.Spec{
 	Usage: "ls [-l] [schemaID ... ]",
 	Short: "list schemas",
 	Long: `
-The ls command allows you to list the schema IDs under the specified namespace
-and subject. Specify the -l argument causes the content of each schema to be
-displayed as NDJSON.
+The ls command allows prints the schema registry subjects and schemas information
+for the latest schema in each subject.
+The API token and endpoint URL are obtained from $HOME/.confluent/schema_registry.json.
 `,
 	New: New,
 }
@@ -30,58 +28,35 @@ func init() {
 
 type Command struct {
 	*root.Command
-	registryCluster string
-	Subject         string
-	lflag           bool
+	flags cli.Flags
 }
 
 func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
 	c := &Command{Command: parent.(*root.Command)}
-	f.BoolVar(&c.lflag, "l", false, "show schema contents as ndjson")
-	f.StringVar(&c.registryCluster, "r", "localhost:8081", "[addr]:port list of one more kafka registry servers")
-	f.StringVar(&c.Subject, "s", "kavrotest-value", "subject name for kafka schema registry")
+	c.flags.SetFlags(f)
 	return c, nil
 }
 
-func parseIDs(in []string) ([]int, error) {
-	var out []int
-	for _, s := range in {
-		v, err := strconv.Atoi(s)
-		if err != nil {
-			return nil, errors.New("ls arguments must be a list of schema IDs")
-		}
-		out = append(out, v)
-	}
-	return out, nil
-}
-
-func servers(s string) []string {
-	return strings.Split(s, ",")
-}
-
 func (c *Command) Run(args []string) error {
-	reg := registry.NewConnection(c.Subject, servers(c.registryCluster))
-	var ids []int
-	var err error
-	if len(args) != 0 {
-		ids, err = parseIDs(args)
-	} else {
-		ids, err = reg.List(c.Subject)
-	}
+	url, secret, err := cli.SchemaRegistryEndpoint()
 	if err != nil {
 		return err
 	}
-	for _, id := range ids {
-		if c.lflag {
-			schema, err := reg.Lookup(id)
-			if err != nil {
-				return err
-			}
-			fmt.Println(string(schema))
-		} else {
-			fmt.Println(id)
+	registry := srclient.CreateSchemaRegistryClient(url)
+	registry.SetCredentials(secret.User, secret.Password)
+	subjects, err := registry.GetSubjects()
+	if err != nil {
+		return err
+	}
+	for _, subject := range subjects {
+		fmt.Printf("subject %s:\n", subject)
+		schema, err := registry.GetLatestSchema(subject)
+		if err != nil {
+			return err
 		}
+		fmt.Printf("  id %d\n", schema.ID())
+		fmt.Printf("  version %d\n", schema.Version())
+		fmt.Printf("  schema %s\n", schema.Schema())
 	}
 	return nil
-
 }
