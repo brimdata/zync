@@ -9,10 +9,11 @@ import (
 	"github.com/brimsec/zinger/cmd/zinger/root"
 	"github.com/brimsec/zinger/pkg/registry"
 	"github.com/brimsec/zinger/pkg/zinger"
-	"github.com/mccanne/charm"
 	"github.com/brimsec/zq/emitter"
 	"github.com/brimsec/zq/zbuf"
+	"github.com/brimsec/zq/zio"
 	"github.com/brimsec/zq/zng/resolver"
+	"github.com/mccanne/charm"
 )
 
 var Listen = &charm.Spec{
@@ -94,7 +95,10 @@ func (c *Command) Run(args []string) error {
 	var outputs []zbuf.Writer
 
 	if c.doFile {
-		emitter, err := emitter.NewDir(c.fOpts.dir, "", c.fOpts.ofmt, os.Stderr, nil)
+		flags := &zio.WriterFlags{
+			Format: c.fOpts.ofmt,
+		}
+		emitter, err := emitter.NewDir(c.fOpts.dir, "", os.Stderr, flags)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
