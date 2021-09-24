@@ -11,9 +11,9 @@ import (
 var Sync = &charm.Spec{
 	Name:  "sync",
 	Usage: "sync [options]",
-	Short: "sync a pool in a Zed lake to a kafka topic",
+	Short: "sync from a Zed lake pool to a Kafka topic",
 	Long: `
-The sync command syncs data in a Zed lake to a Kafka topic acting
+The sync command syncs data from a Zed lake to a Kafka topic acting
 as a source of Zed data for Kafka.
 The Zed records are transcoded into Avro and published
 on the specified Kafka topic.

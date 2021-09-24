@@ -11,7 +11,7 @@ is supported where the Avro schemas are obtained from a configured
 
 An arbitrary Zed script can be applied to the Zed records in either direction.
 
-Zinger formats records received from Kafka using the Zed envelope:
+Zinger formats records received from Kafka using the Zed envelope
 ```
 {
         kafka: {topic:string,offset:int64,partition:int32},

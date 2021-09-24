@@ -58,7 +58,10 @@ func (c *Consumer) Close() {
 func (c *Consumer) Run(zctx *zson.Context, w zio.Writer) error {
 	for {
 		msg, err := c.consumer.ReadMessage(time.Second)
-		if err == nil {
+		if err != nil {
+			//XXX
+			fmt.Printf("Error consuming the message: %v (%v)\n", err, msg)
+		} else {
 			if len(msg.Value) < 6 {
 				return fmt.Errorf("bad kafka-avro value in topic: len %d", len(msg.Value))
 			}
@@ -94,9 +97,6 @@ func (c *Consumer) Run(zctx *zson.Context, w zio.Writer) error {
 			if (msg.TopicPartition.Offset + 1) >= c.highWater {
 				break
 			}
-		} else {
-			//XXX
-			fmt.Printf("Error consuming the message: %v (%v)\n", err, msg)
 		}
 	}
 	return nil

@@ -28,10 +28,6 @@ type Command struct {
 	charm.Command
 }
 
-func init() {
-	//Zinger.Add(charm.Help)
-}
-
 func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
 	c := &Command{}
 	log.SetPrefix("zinger")

@@ -1,6 +1,6 @@
 module github.com/brimdata/zinger
 
-go 1.13
+go 1.16
 
 require (
 	github.com/brimdata/zed v0.30.0

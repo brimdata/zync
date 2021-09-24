@@ -31,12 +31,11 @@ func encodeRecordSchema(typ *zng.TypeRecord, namespace string) (avro.Schema, err
 		if err != nil {
 			return nil, err
 		}
-		var union [2]avro.Schema
-		union[0] = &avro.NullSchema{}
-		union[1] = schema
 		fld := &avro.SchemaField{
 			Name: col.Name,
-			Type: &avro.UnionSchema{union[:]},
+			Type: &avro.UnionSchema{
+				Types: []avro.Schema{&avro.NullSchema{}, schema},
+			},
 		}
 		fields = append(fields, fld)
 	}

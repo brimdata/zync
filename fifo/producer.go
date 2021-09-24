@@ -50,7 +50,7 @@ func (p *Producer) Run(reader zio.Reader) error {
 			}
 		}
 	}()
-	var cnt int
+	var n int
 	var closeErr error
 	for {
 		rec, err := reader.Read()
@@ -62,11 +62,11 @@ func (p *Producer) Run(reader zio.Reader) error {
 			closeErr = err
 			break
 		}
-		cnt++
+		n++
 	}
 	// Wait for all messages to be delivered XXX
 	p.producer.Flush(5 * 1000)
-	fmt.Printf("%d messages produced to topic %q\n", cnt, p.topic)
+	fmt.Printf("%d messages produced to topic %q\n", n, p.topic)
 	p.producer.Close()
 	return closeErr
 }
@@ -86,7 +86,7 @@ func (p *Producer) write(rec *zng.Record) error {
 		if err != nil {
 			return err
 		}
-		id, err = p.CreateSchema(schema)
+		id, err = p.CreateSchema(string(schema))
 		if err != nil {
 			return err
 		}
@@ -106,11 +106,11 @@ func (p *Producer) write(rec *zng.Record) error {
 	return err
 }
 
-func (p *Producer) CreateSchema(schema []byte) (int, error) {
+func (p *Producer) CreateSchema(schema string) (int, error) {
 	// We use RecordNameStrategy for the subject name so we can have
 	// different schemas on the same topic.
-	subject := string(schema)
-	s, err := p.registry.CreateSchema(subject, string(schema), srclient.Avro)
+	subject := schema
+	s, err := p.registry.CreateSchema(subject, schema, srclient.Avro)
 	if err != nil {
 		return -1, err
 	}

@@ -65,17 +65,14 @@ func (c *Command) Run(args []string) error {
 	}
 	registry := srclient.CreateSchemaRegistryClient(url)
 	registry.SetCredentials(secret.User, secret.Password)
-	zctx := zson.NewContext()
-	local := storage.NewLocalEngine()
-	readers, err := c.inputFlags.Open(zctx, local, args, true)
+	readers, err := c.inputFlags.Open(zson.NewContext(), storage.NewLocalEngine(), args, true)
 	if err != nil {
 		return err
 	}
 	defer zio.CloseReaders(readers)
-	reader := zio.ConcatReader(readers...)
 	producer, err := fifo.NewProducer(config, registry, c.flags.Topic, c.flags.Namespace)
 	if err != nil {
 		return err
 	}
-	return producer.Run(reader)
+	return producer.Run(zio.ConcatReader(readers...))
 }

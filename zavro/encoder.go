@@ -256,7 +256,6 @@ func encodeScalar(dst []byte, typ zng.Type, body zcode.Bytes) ([]byte, error) {
 		us := ns / 1000
 		return appendVarint(dst, int64(us)), nil
 	case zng.IDString, zng.IDBstring:
-		//s := typ.StringOf(body, zng.OutFormatZeek, false)
 		return appendCountedValue(dst, []byte(body)), nil
 	case zng.IDNet:
 		// IP subnets are turned into strings...

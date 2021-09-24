@@ -53,16 +53,16 @@ func decodeArray(b *zcode.Builder, in []byte, schema *avro.ArraySchema) ([]byte,
 	elemType := schema.Items
 	for {
 		// XXX check for size exceeded on array that doesn't fit in mem
-		var cnt int64
-		in, cnt = decodeVarint(in)
+		var n int64
+		in, n = decodeVarint(in)
 		if in == nil {
 			return nil, errors.New("bad array encoding in avro serialization")
 		}
-		if cnt == 0 {
+		if n == 0 {
 			break
 		}
-		if cnt < 0 {
-			cnt = -cnt
+		if n < 0 {
+			n = -n
 			in, _ = decodeVarint(in)
 			if in == nil {
 				return nil, errors.New("bad array encoding in avro serialization")

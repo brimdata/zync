@@ -15,9 +15,9 @@ var Ls = &charm.Spec{
 	Usage: "ls [-l] [schemaID ... ]",
 	Short: "list schemas",
 	Long: `
-The ls command allows prints the schema registry subjects and schemas information
+The ls command prints the schema registry subjects and schema information
 for the latest schema in each subject.
-The API token and endpoint URL are obtained from $HOME/.confluent/schema_registry.json.
+The endpoint URL and credentials are obtained from $HOME/.confluent/schema_registry.json.
 `,
 	New: New,
 }

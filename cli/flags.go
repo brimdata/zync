@@ -2,7 +2,6 @@ package cli
 
 import (
 	"encoding/json"
-	"errors"
 	"flag"
 	"os"
 	"path/filepath"
@@ -15,7 +14,7 @@ type Flags struct {
 	Namespace string
 }
 
-type APIKey struct {
+type Credentials struct {
 	User     string
 	Password string
 }
@@ -25,12 +24,12 @@ func (f *Flags) SetFlags(fs *flag.FlagSet) {
 	fs.StringVar(&f.Namespace, "n", "io.brimdata.zinger", "Kafka name space for new schemas")
 }
 
-func SchemaRegistryEndpoint() (string, APIKey, error) {
+func SchemaRegistryEndpoint() (string, Credentials, error) {
 	key, err := getKey()
 	if err != nil {
-		return "", APIKey{}, err
+		return "", Credentials{}, err
 	}
-	return key.URL, APIKey{key.User, key.Password}, nil
+	return key.URL, Credentials{key.User, key.Password}, nil
 }
 
 type apiKey struct {
@@ -41,9 +40,9 @@ type apiKey struct {
 
 func getKey() (apiKey, error) {
 	//XXX move this to CLI flags
-	home := os.Getenv("HOME")
-	if home == "" {
-		return apiKey{}, errors.New("No HOME")
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return apiKey{}, err
 	}
 	path := filepath.Join(home, ".confluent", "schema_registry.json")
 	b, err := os.ReadFile(path)
@@ -57,17 +56,17 @@ func getKey() (apiKey, error) {
 
 //XXX use ccloud code instead?
 type config struct {
-	Bootstrap_servers string `json:"bootstrap_servers"`
-	Security_protocol string `json:"security_protocol"`
-	Sasl_mechanisms   string `json:"sasl_mechanisms"`
-	Sasl_username     string `json:"sasl_username"`
-	Sasl_password     string `json:"sasl_password"`
+	BootstrapServers string `json:"bootstrap_servers"`
+	SecurityProtocol string `json:"security_protocol"`
+	SaslMechanisms   string `json:"sasl_mechanisms"`
+	SaslUsername     string `json:"sasl_username"`
+	SaslPassword     string `json:"sasl_password"`
 }
 
 func LoadKafkaConfig() (*kafka.ConfigMap, error) {
-	home := os.Getenv("HOME")
-	if home == "" {
-		return nil, errors.New("No HOME")
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
 	}
 	path := filepath.Join(home, ".confluent", "kafka_config.json")
 	b, err := os.ReadFile(path)
@@ -77,10 +76,10 @@ func LoadKafkaConfig() (*kafka.ConfigMap, error) {
 	var c config
 	err = json.Unmarshal(b, &c)
 	return &kafka.ConfigMap{
-		"bootstrap.servers": c.Bootstrap_servers,
-		"sasl.mechanisms":   c.Sasl_mechanisms,
-		"security.protocol": c.Security_protocol,
-		"sasl.username":     c.Sasl_username,
-		"sasl.password":     c.Sasl_password,
+		"bootstrap.servers": c.BootstrapServers,
+		"sasl.mechanisms":   c.SaslMechanisms,
+		"security.protocol": c.SecurityProtocol,
+		"sasl.username":     c.SaslUsername,
+		"sasl.password":     c.SaslPassword,
 	}, err
 }
