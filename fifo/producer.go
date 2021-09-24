@@ -2,13 +2,11 @@ package fifo
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/brimdata/zed/zio"
 	"github.com/brimdata/zed/zng"
 	"github.com/brimdata/zinger/zavro"
-	"github.com/go-avro/avro"
 	"github.com/riferrei/srclient"
 	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
@@ -110,16 +108,11 @@ func (p *Producer) write(rec *zng.Record) error {
 func (p *Producer) lookupSchema(typ zng.Type) (int, error) {
 	id, ok := p.mapper[typ]
 	if !ok {
-		//XXX this shouldn't be a record in general
-		s, err := zavro.EncodeSchema(zng.TypeRecordOf(typ), p.namespace)
+		s, err := zavro.EncodeSchema(typ, p.namespace)
 		if err != nil {
 			return 0, err
 		}
-		record, ok := s.(*avro.RecordSchema)
-		if !ok {
-			return 0, errors.New("internal error: avro schema not of type record")
-		}
-		schema, err := json.Marshal(record)
+		schema, err := json.Marshal(s)
 		if err != nil {
 			return 0, err
 		}

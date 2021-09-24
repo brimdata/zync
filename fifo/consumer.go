@@ -2,7 +2,6 @@ package fifo
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"time"
 
@@ -115,7 +114,7 @@ func (c *Consumer) decodeAvro(zctx *zson.Context, b []byte) (zng.Value, error) {
 	if len(b) == 0 {
 		return zng.Value{Type: zng.TypeNull}, nil
 	}
-	if len(b) < 6 {
+	if len(b) < 5 {
 		return zng.Value{}, fmt.Errorf("bad kafka-avro value in topic: len %d", len(b))
 	}
 	schemaID := binary.BigEndian.Uint32(b[1:5])
@@ -131,19 +130,11 @@ func (c *Consumer) decodeAvro(zctx *zson.Context, b []byte) (zng.Value, error) {
 	if err != nil {
 		return zng.Value{}, err
 	}
-	recType := zng.TypeRecordOf(typ)
-	if recType == nil {
-		return zng.Value{}, errors.New("avro schema not a Zed record")
-	}
-	avroTypeRecord, ok := avroSchema.(*avro.RecordSchema)
-	if !ok {
-		return zng.Value{}, errors.New("schema not an avrod record")
-	}
-	bytes, err := zavro.Decode(b[5:], avroTypeRecord)
+	bytes, err := zavro.Decode(b[5:], avroSchema)
 	if err != nil {
 		return zng.Value{}, err
 	}
-	return zng.Value{recType, bytes}, nil
+	return zng.Value{typ, bytes}, nil
 }
 
 func (c *Consumer) outerType(zctx *zson.Context, meta, key, val zng.Type) (zng.Type, error) {
