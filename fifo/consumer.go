@@ -22,6 +22,7 @@ type Consumer struct {
 	registry  *srclient.SchemaRegistryClient
 	highWater kafka.Offset
 	wrap      bool
+	types     map[zng.Type]zng.Type
 }
 
 func NewConsumer(config *kafka.ConfigMap, reg *srclient.SchemaRegistryClient, topic string, wrap bool) (*Consumer, error) {
@@ -51,6 +52,7 @@ func NewConsumer(config *kafka.ConfigMap, reg *srclient.SchemaRegistryClient, to
 		registry:  reg,
 		highWater: kafka.Offset(offset),
 		wrap:      wrap,
+		types:     make(map[zng.Type]zng.Type),
 	}, nil
 }
 
@@ -99,7 +101,7 @@ func (c *Consumer) Run(zctx *zson.Context, w zio.Writer) error {
 			}
 			var rec *zng.Record
 			if c.wrap {
-				rec, err = wrap(zctx, metaType, recType, bytes, msg.TopicPartition)
+				rec, err = c.wrapRecord(zctx, metaType, recType, bytes, msg.TopicPartition)
 				if err != nil {
 					return err
 				}
@@ -117,16 +119,20 @@ func (c *Consumer) Run(zctx *zson.Context, w zio.Writer) error {
 	return nil
 }
 
-//XXX cache the lookup of the wrapped record type
-func wrap(zctx *zson.Context, metaType, typ zng.Type, bytes []byte, meta kafka.TopicPartition) (*zng.Record, error) {
-	// XXX have option to store keys
-	cols := []zng.Column{
-		{"kafka", metaType},
-		{"value", typ},
-	}
-	outerType, err := zctx.LookupTypeRecord(cols)
-	if err != nil {
-		return nil, err
+func (c *Consumer) wrapRecord(zctx *zson.Context, metaType, typ zng.Type, bytes []byte, meta kafka.TopicPartition) (*zng.Record, error) {
+	outerType, ok := c.types[typ]
+	if !ok {
+		cols := []zng.Column{
+			{"kafka", metaType},
+			//{"key", keyType}, XXX not yet
+			{"value", typ},
+		}
+		var err error
+		outerType, err = zctx.LookupTypeRecord(cols)
+		if err != nil {
+			return nil, err
+		}
+		c.types[typ] = outerType
 	}
 	var b zcode.Builder
 	// {topic:string,partition:int64,offset:int64}
