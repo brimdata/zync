@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/brimdata/zed/zcode"
 	"github.com/brimdata/zed/zio"
 	"github.com/brimdata/zed/zng"
 	"github.com/brimdata/zed/zson"
@@ -20,9 +21,10 @@ type Consumer struct {
 	consumer  *kafka.Consumer
 	registry  *srclient.SchemaRegistryClient
 	highWater kafka.Offset
+	wrap      bool
 }
 
-func NewConsumer(config *kafka.ConfigMap, reg *srclient.SchemaRegistryClient, topic string) (*Consumer, error) {
+func NewConsumer(config *kafka.ConfigMap, reg *srclient.SchemaRegistryClient, topic string, wrap bool) (*Consumer, error) {
 	if err := config.SetKey("group.id", ksuid.New().String()); err != nil {
 		return nil, err
 	}
@@ -48,6 +50,7 @@ func NewConsumer(config *kafka.ConfigMap, reg *srclient.SchemaRegistryClient, to
 		consumer:  c,
 		registry:  reg,
 		highWater: kafka.Offset(offset),
+		wrap:      wrap,
 	}, nil
 }
 
@@ -56,6 +59,10 @@ func (c *Consumer) Close() {
 }
 
 func (c *Consumer) Run(zctx *zson.Context, w zio.Writer) error {
+	metaType, err := zson.ParseType(zctx, "{topic:string,partition:int64,offset:int64}")
+	if err != nil {
+		return err
+	}
 	for {
 		msg, err := c.consumer.ReadMessage(time.Second)
 		if err != nil {
@@ -90,7 +97,15 @@ func (c *Consumer) Run(zctx *zson.Context, w zio.Writer) error {
 			if err != nil {
 				return err
 			}
-			rec := zng.NewRecord(recType, bytes)
+			var rec *zng.Record
+			if c.wrap {
+				rec, err = wrap(zctx, metaType, recType, bytes, msg.TopicPartition)
+				if err != nil {
+					return err
+				}
+			} else {
+				rec = zng.NewRecord(recType, bytes)
+			}
 			if err := w.Write(rec); err != nil {
 				return err
 			}
@@ -100,4 +115,26 @@ func (c *Consumer) Run(zctx *zson.Context, w zio.Writer) error {
 		}
 	}
 	return nil
+}
+
+//XXX cache the lookup of the wrapped record type
+func wrap(zctx *zson.Context, metaType, typ zng.Type, bytes []byte, meta kafka.TopicPartition) (*zng.Record, error) {
+	// XXX have option to store keys
+	cols := []zng.Column{
+		{"kafka", metaType},
+		{"value", typ},
+	}
+	outerType, err := zctx.LookupTypeRecord(cols)
+	if err != nil {
+		return nil, err
+	}
+	var b zcode.Builder
+	// {topic:string,partition:int64,offset:int64}
+	b.BeginContainer()
+	b.AppendPrimitive([]byte(*meta.Topic))
+	b.AppendPrimitive(zng.EncodeInt(int64(meta.Partition)))
+	b.AppendPrimitive(zng.EncodeInt(int64(meta.Offset)))
+	b.EndContainer()
+	b.AppendContainer(bytes)
+	return zng.NewRecord(outerType, b.Bytes()), nil
 }
