@@ -72,27 +72,27 @@ func (p *Producer) Run(reader zio.Reader) error {
 }
 
 func (p *Producer) write(rec *zng.Record) error {
-	id, ok := p.mapper[rec.Type]
-	if !ok {
-		s, err := zavro.EncodeSchema(zng.TypeRecordOf(rec.Type), p.namespace)
-		if err != nil {
-			return err
-		}
-		record, ok := s.(*avro.RecordSchema)
-		if !ok {
-			return errors.New("internal error: avro schema not of type record")
-		}
-		schema, err := json.Marshal(record)
-		if err != nil {
-			return err
-		}
-		id, err = p.CreateSchema(string(schema))
-		if err != nil {
-			return err
-		}
-		p.mapper[rec.Type] = id
+	key, err := rec.Access("key")
+	if err != nil {
+		key = zng.Value{Type: zng.TypeNull}
 	}
-	b, err := zavro.Encode(nil, uint32(id), rec)
+	keySchemaID, err := p.lookupSchema(key.Type)
+	if err != nil {
+		return err
+	}
+	val, err := rec.Access("value")
+	if err != nil {
+		val = rec.Value
+	}
+	valSchemaID, err := p.lookupSchema(val.Type)
+	if err != nil {
+		return err
+	}
+	keyBytes, err := zavro.Encode(nil, uint32(keySchemaID), key)
+	if err != nil {
+		return err
+	}
+	valBytes, err := zavro.Encode(nil, uint32(valSchemaID), val)
 	if err != nil {
 		return err
 	}
@@ -101,9 +101,35 @@ func (p *Producer) write(rec *zng.Record) error {
 			Topic:     &p.topic,
 			Partition: kafka.PartitionAny,
 		},
-		Key:   nil,
-		Value: b}, nil)
+		Key:   keyBytes,
+		Value: valBytes},
+		nil)
 	return err
+}
+
+func (p *Producer) lookupSchema(typ zng.Type) (int, error) {
+	id, ok := p.mapper[typ]
+	if !ok {
+		//XXX this shouldn't be a record in general
+		s, err := zavro.EncodeSchema(zng.TypeRecordOf(typ), p.namespace)
+		if err != nil {
+			return 0, err
+		}
+		record, ok := s.(*avro.RecordSchema)
+		if !ok {
+			return 0, errors.New("internal error: avro schema not of type record")
+		}
+		schema, err := json.Marshal(record)
+		if err != nil {
+			return 0, err
+		}
+		id, err = p.CreateSchema(string(schema))
+		if err != nil {
+			return 0, err
+		}
+		p.mapper[typ] = id
+	}
+	return id, nil
 }
 
 func (p *Producer) CreateSchema(schema string) (int, error) {

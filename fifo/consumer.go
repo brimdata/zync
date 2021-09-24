@@ -22,7 +22,7 @@ type Consumer struct {
 	registry  *srclient.SchemaRegistryClient
 	highWater kafka.Offset
 	wrap      bool
-	types     map[zng.Type]zng.Type
+	types     map[zng.Type]map[zng.Type]zng.Type
 }
 
 func NewConsumer(config *kafka.ConfigMap, reg *srclient.SchemaRegistryClient, topic string, wrap bool) (*Consumer, error) {
@@ -52,7 +52,7 @@ func NewConsumer(config *kafka.ConfigMap, reg *srclient.SchemaRegistryClient, to
 		registry:  reg,
 		highWater: kafka.Offset(offset),
 		wrap:      wrap,
-		types:     make(map[zng.Type]zng.Type),
+		types:     make(map[zng.Type]map[zng.Type]zng.Type),
 	}, nil
 }
 
@@ -71,42 +71,17 @@ func (c *Consumer) Run(zctx *zson.Context, w zio.Writer) error {
 			//XXX
 			fmt.Printf("Error consuming the message: %v (%v)\n", err, msg)
 		} else {
-			if len(msg.Value) < 6 {
-				return fmt.Errorf("bad kafka-avro value in topic: len %d", len(msg.Value))
-			}
-			schemaID := binary.BigEndian.Uint32(msg.Value[1:5])
-			schema, err := c.registry.GetSchema(int(schemaID))
-			if err != nil {
-				return fmt.Errorf("could not retrieve schema id %d: %w", schemaID, err)
-			}
-			avroSchema, err := avro.ParseSchema(schema.Schema())
+			key, err := c.decodeAvro(zctx, msg.Key)
 			if err != nil {
 				return err
 			}
-			typ, err := zavro.DecodeSchema(zctx, avroSchema)
+			val, err := c.decodeAvro(zctx, msg.Value)
 			if err != nil {
 				return err
 			}
-			recType := zng.TypeRecordOf(typ)
-			if recType == nil {
-				return errors.New("avro schema not a Zed record")
-			}
-			avroTypeRecord, ok := avroSchema.(*avro.RecordSchema)
-			if !ok {
-				return errors.New("schema not an avrod record")
-			}
-			bytes, err := zavro.Decode(msg.Value[5:], avroTypeRecord)
+			rec, err := c.wrapRecord(zctx, metaType, key, val, msg.TopicPartition)
 			if err != nil {
 				return err
-			}
-			var rec *zng.Record
-			if c.wrap {
-				rec, err = c.wrapRecord(zctx, metaType, recType, bytes, msg.TopicPartition)
-				if err != nil {
-					return err
-				}
-			} else {
-				rec = zng.NewRecord(recType, bytes)
 			}
 			if err := w.Write(rec); err != nil {
 				return err
@@ -119,20 +94,10 @@ func (c *Consumer) Run(zctx *zson.Context, w zio.Writer) error {
 	return nil
 }
 
-func (c *Consumer) wrapRecord(zctx *zson.Context, metaType, typ zng.Type, bytes []byte, meta kafka.TopicPartition) (*zng.Record, error) {
-	outerType, ok := c.types[typ]
-	if !ok {
-		cols := []zng.Column{
-			{"kafka", metaType},
-			//{"key", keyType}, XXX not yet
-			{"value", typ},
-		}
-		var err error
-		outerType, err = zctx.LookupTypeRecord(cols)
-		if err != nil {
-			return nil, err
-		}
-		c.types[typ] = outerType
+func (c *Consumer) wrapRecord(zctx *zson.Context, metaType zng.Type, key, val zng.Value, meta kafka.TopicPartition) (*zng.Record, error) {
+	outerType, err := c.outerType(zctx, metaType, key.Type, val.Type)
+	if err != nil {
+		return nil, err
 	}
 	var b zcode.Builder
 	// {topic:string,partition:int64,offset:int64}
@@ -141,6 +106,73 @@ func (c *Consumer) wrapRecord(zctx *zson.Context, metaType, typ zng.Type, bytes 
 	b.AppendPrimitive(zng.EncodeInt(int64(meta.Partition)))
 	b.AppendPrimitive(zng.EncodeInt(int64(meta.Offset)))
 	b.EndContainer()
-	b.AppendContainer(bytes)
+	b.AppendContainer(key.Bytes)
+	b.AppendContainer(val.Bytes)
 	return zng.NewRecord(outerType, b.Bytes()), nil
+}
+
+func (c *Consumer) decodeAvro(zctx *zson.Context, b []byte) (zng.Value, error) {
+	if len(b) == 0 {
+		return zng.Value{Type: zng.TypeNull}, nil
+	}
+	if len(b) < 6 {
+		return zng.Value{}, fmt.Errorf("bad kafka-avro value in topic: len %d", len(b))
+	}
+	schemaID := binary.BigEndian.Uint32(b[1:5])
+	schema, err := c.registry.GetSchema(int(schemaID))
+	if err != nil {
+		return zng.Value{}, fmt.Errorf("could not retrieve schema id %d: %w", schemaID, err)
+	}
+	avroSchema, err := avro.ParseSchema(schema.Schema())
+	if err != nil {
+		return zng.Value{}, err
+	}
+	typ, err := zavro.DecodeSchema(zctx, avroSchema)
+	if err != nil {
+		return zng.Value{}, err
+	}
+	recType := zng.TypeRecordOf(typ)
+	if recType == nil {
+		return zng.Value{}, errors.New("avro schema not a Zed record")
+	}
+	avroTypeRecord, ok := avroSchema.(*avro.RecordSchema)
+	if !ok {
+		return zng.Value{}, errors.New("schema not an avrod record")
+	}
+	bytes, err := zavro.Decode(b[5:], avroTypeRecord)
+	if err != nil {
+		return zng.Value{}, err
+	}
+	return zng.Value{recType, bytes}, nil
+}
+
+func (c *Consumer) outerType(zctx *zson.Context, meta, key, val zng.Type) (zng.Type, error) {
+	m, ok := c.types[key]
+	if !ok {
+		c.makeType(zctx, meta, key, val)
+	} else if typ, ok := m[val]; ok {
+		return typ, nil
+	} else {
+		c.makeType(zctx, meta, key, val)
+	}
+	return c.types[key][val], nil
+}
+
+func (c *Consumer) makeType(zctx *zson.Context, meta, key, val zng.Type) (*zng.TypeRecord, error) {
+	cols := []zng.Column{
+		{"kafka", meta},
+		{"key", key},
+		{"value", val},
+	}
+	typ, err := zctx.LookupTypeRecord(cols)
+	if err != nil {
+		return nil, err
+	}
+	m, ok := c.types[key]
+	if !ok {
+		m = make(map[zng.Type]zng.Type)
+		c.types[key] = m
+	}
+	m[val] = typ
+	return typ, nil
 }
