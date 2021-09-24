@@ -4,7 +4,7 @@ import (
 	"flag"
 	"log"
 
-	"github.com/mccanne/charm"
+	"github.com/brimdata/zed/pkg/charm"
 )
 
 // These variables are populated via the Go linker.
@@ -28,10 +28,6 @@ type Command struct {
 	charm.Command
 }
 
-func init() {
-	Zinger.Add(charm.Help)
-}
-
 func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
 	c := &Command{}
 	log.SetPrefix("zinger")
@@ -39,5 +35,8 @@ func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
 }
 
 func (c *Command) Run(args []string) error {
-	return Zinger.Exec(c, []string{"help"})
+	if len(args) == 0 {
+		return charm.NeedHelp
+	}
+	return charm.ErrNoRun
 }

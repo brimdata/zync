@@ -3,13 +3,11 @@ package zavro
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 
-	"github.com/brimsec/zq/zcode"
-	"github.com/brimsec/zq/zng"
+	"github.com/brimdata/zed/zcode"
+	"github.com/brimdata/zed/zng"
 )
-
-//XXX zq flattens records (i.e., id.orig_h, etc).  kafka target might want
-// the records unflattened a la the zeek writer
 
 // These errors shouldn't happen because the input should be type checked.
 var ErrBadValue = errors.New("bad zng value in kavro translator")
@@ -21,7 +19,12 @@ func Encode(dst []byte, id uint32, r *zng.Record) ([]byte, error) {
 	binary.BigEndian.PutUint32(hdr[1:], uint32(id))
 	dst = append(dst, hdr[:]...)
 	// write value body seralized as avro
-	return encodeRecord(dst, r.Type, r.Raw)
+	typ, ok := r.Type.(*zng.TypeRecord)
+	if !ok {
+		//XXX shouldn't happen
+		return nil, errors.New("not a record")
+	}
+	return encodeRecord(dst, typ, r.Bytes)
 }
 
 //XXX move this to zval
@@ -38,7 +41,7 @@ func zlen(zv zcode.Bytes) (int, error) {
 	return cnt, nil
 }
 
-func encodeVector(dst []byte, typ *zng.TypeArray, body zcode.Bytes) ([]byte, error) {
+func encodeArray(dst []byte, typ *zng.TypeArray, body zcode.Bytes) ([]byte, error) {
 	if body == nil {
 		return dst, nil
 	}
@@ -67,7 +70,7 @@ func encodeVector(dst []byte, typ *zng.TypeArray, body zcode.Bytes) ([]byte, err
 			if !container {
 				return nil, ErrBadValue
 			}
-			dst, err = encodeVector(dst, v, body)
+			dst, err = encodeArray(dst, v, body)
 			if err != nil {
 				return nil, err
 			}
@@ -148,7 +151,7 @@ func encodeRecord(dst []byte, typ *zng.TypeRecord, body zcode.Bytes) ([]byte, er
 			dst = appendVarint(dst, 0)
 			continue
 		}
-		// field is present.  encode the field union by referecing
+		// field is present.  encode the field union by referencing
 		// the type's position in the union.
 		dst = appendVarint(dst, 1)
 		switch v := col.Type.(type) {
@@ -164,7 +167,7 @@ func encodeRecord(dst []byte, typ *zng.TypeRecord, body zcode.Bytes) ([]byte, er
 			if !container {
 				return nil, ErrBadValue
 			}
-			dst, err = encodeVector(dst, v, body)
+			dst, err = encodeArray(dst, v, body)
 			if err != nil {
 				return nil, err
 			}
@@ -206,7 +209,7 @@ func encodeScalar(dst []byte, typ zng.Type, body zcode.Bytes) ([]byte, error) {
 		return dst, nil
 	}
 	switch typ.ID() {
-	case zng.IdIP:
+	case zng.IDIP:
 		// IP addresses are turned into strings...
 		ip, err := zng.DecodeIP(body)
 		if err != nil {
@@ -214,8 +217,7 @@ func encodeScalar(dst []byte, typ zng.Type, body zcode.Bytes) ([]byte, error) {
 		}
 		b := []byte(ip.String())
 		return appendCountedValue(dst, b), nil
-
-	case zng.IdBool:
+	case zng.IDBool:
 		// bool is single byte 0 or 1
 		v, err := zng.DecodeBool(body)
 		if err != nil {
@@ -225,52 +227,37 @@ func encodeScalar(dst []byte, typ zng.Type, body zcode.Bytes) ([]byte, error) {
 			return append(dst, byte(1)), nil
 		}
 		return append(dst, byte(0)), nil
-
-	case zng.IdInt64:
+	case zng.IDInt64:
 		v, err := zng.DecodeInt(body)
 		if err != nil {
 			return nil, err
 		}
 		return appendVarint(dst, v), nil
-
-	case zng.IdUint64:
+	case zng.IDUint64:
 		// count is encoded as a uint64.  XXX return error on overdflow?
 		v, err := zng.DecodeUint(body)
 		if err != nil {
 			return nil, err
 		}
 		return appendVarint(dst, int64(v)), nil
-
-	case zng.IdFloat64:
+	case zng.IDFloat64:
 		// avro says this is Java's doubleToLongBits...
 		// we need to check if Go math lib is the same
 		if len(body) != 8 {
 			return nil, errors.New("double value not 8 bytes")
 		}
 		return append(dst, body...), nil
-
-	case zng.IdDuration:
+	case zng.IDDuration:
 		// XXX map an interval to a microsecond time
 		ns, err := zng.DecodeDuration(body)
 		if err != nil {
 			return nil, err
 		}
 		us := ns / 1000
-		return appendVarint(dst, us), nil
-
-	case zng.IdPort:
-		// XXX map a port to an int
-		port, err := zng.DecodePort(body)
-		if err != nil {
-			return nil, err
-		}
-		return appendVarint(dst, int64(port)), nil
-
-	case zng.IdString, zng.IdBstring:
-		s := typ.StringOf(body, zng.OutFormatZeek, false)
-		return appendCountedValue(dst, []byte(s)), nil
-
-	case zng.IdNet:
+		return appendVarint(dst, int64(us)), nil
+	case zng.IDString, zng.IDBstring:
+		return appendCountedValue(dst, []byte(body)), nil
+	case zng.IDNet:
 		// IP subnets are turned into strings...
 		net, err := zng.DecodeNet(body)
 		if err != nil {
@@ -278,8 +265,7 @@ func encodeScalar(dst []byte, typ zng.Type, body zcode.Bytes) ([]byte, error) {
 		}
 		b := []byte(net.String())
 		return appendCountedValue(dst, b), nil
-
-	case zng.IdTime:
+	case zng.IDTime:
 		// XXX map a nano to a microsecond time
 		ts, err := zng.DecodeInt(body)
 		if err != nil {
@@ -287,12 +273,7 @@ func encodeScalar(dst []byte, typ zng.Type, body zcode.Bytes) ([]byte, error) {
 		}
 		us := ts / 1000
 		return appendVarint(dst, us), nil
-
-		/*
-			case *zng.TypeRecord, *zng.TypeArray, *zng.TypeSet:
-				panic("internal bug") //XXX
-		*/
 	default:
-		panic("unknown type") //XXX
+		return nil, fmt.Errorf("encodeScalar: unknown type: %q", typ)
 	}
 }
