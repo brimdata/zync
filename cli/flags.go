@@ -12,6 +12,7 @@ import (
 type Flags struct {
 	Topic     string
 	Namespace string
+	Host      string
 }
 
 type Credentials struct {
@@ -19,9 +20,20 @@ type Credentials struct {
 	Password string
 }
 
+const HostEnv = "ZED_LAKE_HOST"
+
+func DefaultHost() string {
+	host := os.Getenv(HostEnv)
+	if host == "" {
+		host = "localhost:9867"
+	}
+	return host
+}
+
 func (f *Flags) SetFlags(fs *flag.FlagSet) {
-	fs.StringVar(&f.Topic, "t", "", "Kafka topic name")
-	fs.StringVar(&f.Namespace, "n", "io.brimdata.zinger", "Kafka name space for new schemas")
+	fs.StringVar(&f.Topic, "topic", "", "Kafka topic name")
+	fs.StringVar(&f.Namespace, "namespace", "io.brimdata.zinger", "Kafka name space for new schemas")
+	fs.StringVar(&f.Host, "host", DefaultHost(), "host[:port] of Zed lake service")
 }
 
 func SchemaRegistryEndpoint() (string, Credentials, error) {
@@ -39,12 +51,11 @@ type apiKey struct {
 }
 
 func getKey() (apiKey, error) {
-	//XXX move this to CLI flags
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return apiKey{}, err
 	}
-	path := filepath.Join(home, ".confluent", "schema_registry.json")
+	path := filepath.Join(home, ".zinger", "schema_registry.json")
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return apiKey{}, err
@@ -54,7 +65,6 @@ func getKey() (apiKey, error) {
 	return key, err
 }
 
-//XXX use ccloud code instead?
 type config struct {
 	BootstrapServers string `json:"bootstrap_servers"`
 	SecurityProtocol string `json:"security_protocol"`
@@ -68,7 +78,7 @@ func LoadKafkaConfig() (*kafka.ConfigMap, error) {
 	if err != nil {
 		return nil, err
 	}
-	path := filepath.Join(home, ".confluent", "kafka_config.json")
+	path := filepath.Join(home, ".zinger", "kafka_config.json")
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err

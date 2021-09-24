@@ -10,16 +10,19 @@ import (
 	"github.com/go-avro/avro"
 )
 
-func Decode(in []byte, schema *avro.RecordSchema) (zcode.Bytes, error) {
+func Decode(in []byte, schema avro.Schema) (zcode.Bytes, error) {
 	var b zcode.Builder
-	in, err := decodeRecord(&b, in, schema)
+	in, err := decodeAny(&b, in, schema)
 	if err != nil {
 		return nil, err
 	}
 	if len(in) != 0 {
 		return nil, fmt.Errorf("avro decoder: extra data of length %d", len(in))
 	}
-	return b.Bytes().ContainerBody()
+	if _, ok := schema.(*avro.RecordSchema); ok {
+		return b.Bytes().ContainerBody()
+	}
+	return b.Bytes(), nil
 }
 
 func decodeAny(b *zcode.Builder, in []byte, schema avro.Schema) ([]byte, error) {
@@ -121,6 +124,9 @@ func decodeCountedValue(in []byte) ([]byte, []byte) {
 
 func decodeScalar(b *zcode.Builder, in []byte, schema avro.Schema) ([]byte, error) {
 	switch schema := schema.(type) {
+	case *avro.NullSchema:
+		b.AppendNull()
+		return in, nil
 	case *avro.BooleanSchema:
 		if len(in) == 0 {
 			return nil, errors.New("end of input decoding bool")
@@ -151,16 +157,6 @@ func decodeScalar(b *zcode.Builder, in []byte, schema avro.Schema) ([]byte, erro
 		}
 		b.AppendPrimitive(body)
 		return in, nil
-		/*
-			case zng.IDTime:
-				// XXX map a nano to a microsecond time
-				ts, err := zng.DecodeInt(body)
-				if err != nil {
-					return nil, err
-				}
-				us := ts / 1000
-				return appendVarint(dst, us), nil
-		*/
 	default:
 		return nil, fmt.Errorf("unsupported avro schema: %T", schema)
 	}

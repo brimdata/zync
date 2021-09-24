@@ -1,6 +1,7 @@
 package produce
 
 import (
+	"context"
 	"errors"
 	"flag"
 
@@ -21,7 +22,7 @@ var Produce = &charm.Spec{
 	Short: "produce Zed data into a Kafka topic",
 	Long: `
 The produce command copies the input Zed data into a Kafka topic.
-No effort is made to provide synchronization as data as simply coped from
+No effort is made to provide synchronization as data as simply copied from
 input to the topic and any failures are not recovered from.
 Use the "zinger sync" command to provide synchronization and
 fail-safe, restartable operation.`,
@@ -46,11 +47,12 @@ func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
 }
 
 func (c *Command) Run(args []string) error {
+	ctx := context.Background()
 	if len(args) == 0 {
 		return errors.New("no inputs provided")
 	}
 	if c.flags.Topic == "" {
-		return errors.New("no topic (-t) provided")
+		return errors.New("no topic provided")
 	}
 	if err := c.inputFlags.Init(); err != nil {
 		return err
@@ -65,7 +67,7 @@ func (c *Command) Run(args []string) error {
 	}
 	registry := srclient.CreateSchemaRegistryClient(url)
 	registry.SetCredentials(secret.User, secret.Password)
-	readers, err := c.inputFlags.Open(zson.NewContext(), storage.NewLocalEngine(), args, true)
+	readers, err := c.inputFlags.Open(ctx, zson.NewContext(), storage.NewLocalEngine(), args, true)
 	if err != nil {
 		return err
 	}
@@ -74,5 +76,5 @@ func (c *Command) Run(args []string) error {
 	if err != nil {
 		return err
 	}
-	return producer.Run(zio.ConcatReader(readers...))
+	return producer.Run(ctx, zio.ConcatReader(readers...))
 }

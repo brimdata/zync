@@ -18,6 +18,8 @@ var Ls = &charm.Spec{
 The ls command prints the schema registry subjects and schema information
 for the latest schema in each subject.
 The endpoint URL and credentials are obtained from $HOME/.confluent/schema_registry.json.
+
+This runs a bit slow as each schema entry is fetched synchronously from the registry.
 `,
 	New: New,
 }
