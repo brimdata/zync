@@ -30,14 +30,16 @@ func NewFrom(zctx *zson.Context, dst *Lake, src *Consumer) *From {
 
 // Make theae configurable
 const BatchThresh = 10 * 1024 * 1024
-const BatchTimeout = time.Second //XXX make this bigger
+const BatchTimeout = 5 * time.Second
 
 func (f *From) Sync() (int64, int64, error) {
 	offset, err := f.dst.NextProducerOffset()
 	if err != nil {
 		return 0, 0, err
 	}
-	fmt.Println("PRODUCER OFFSET", offset)
+	if offset >= int64(f.src.HighWater())+1 {
+		return 0, 0, nil
+	}
 	// Loop over the records from the kafka consumer and
 	// commit a batch at a time to the lake.
 	var ncommit, nrec int64

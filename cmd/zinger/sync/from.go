@@ -91,7 +91,6 @@ func (f *From) Run(args []string) error {
 	registry := srclient.CreateSchemaRegistryClient(url)
 	registry.SetCredentials(secret.User, secret.Password)
 	zctx := zson.NewContext()
-	fmt.Println("CONSUMER OFFSET", consumerOffset)
 	consumer, err := fifo.NewConsumer(zctx, config, registry, f.flags.Topic, consumerOffset)
 	if err != nil {
 		return err
@@ -100,6 +99,8 @@ func (f *From) Run(args []string) error {
 	ncommit, nrec, err := from.Sync()
 	if ncommit != 0 {
 		fmt.Printf("synchronized %d record%s in %d commit%s\n", nrec, plural(nrec), ncommit, plural(ncommit))
+	} else {
+		fmt.Println("nothing new found to synchronize")
 	}
 	//XXX close consumer?
 	return err

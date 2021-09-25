@@ -22,9 +22,14 @@ type Consumer struct {
 	consumer  *kafka.Consumer
 	registry  *srclient.SchemaRegistryClient
 	highWater kafka.Offset
-	pending   bool
 	metaType  zng.Type
 	types     map[zng.Type]map[zng.Type]zng.Type
+	schemas   map[int]typeSchema
+}
+
+type typeSchema struct {
+	zng.Type
+	avro.Schema
 }
 
 func NewConsumer(zctx *zson.Context, config *kafka.ConfigMap, reg *srclient.SchemaRegistryClient, topic string, at int64) (*Consumer, error) {
@@ -38,6 +43,9 @@ func NewConsumer(zctx *zson.Context, config *kafka.ConfigMap, reg *srclient.Sche
 	//if err := config.SetKey("auto.offset.reset", "earliest"); err != nil {
 	//	return nil, err
 	//}
+	//if err := config.SetKey("go.application.rebalance.enable", true); err != nil {
+	//	return nil, err
+	//}
 	if err := config.SetKey("enable.auto.commit", false); err != nil {
 		return nil, err
 	}
@@ -45,7 +53,7 @@ func NewConsumer(zctx *zson.Context, config *kafka.ConfigMap, reg *srclient.Sche
 	if err != nil {
 		return nil, err
 	}
-	c.SubscribeTopics([]string{topic}, nil)
+	//c.SubscribeTopics([]string{topic}, nil)
 	// Get the last offset at start time and read up to that point.
 	// XXX we should add an option to stream or stop at the end,
 	// and should check that there is only one partition
@@ -53,10 +61,11 @@ func NewConsumer(zctx *zson.Context, config *kafka.ConfigMap, reg *srclient.Sche
 	if err != nil {
 		return nil, err
 	}
-	if err := c.Assign([]kafka.TopicPartition{{
+	partition := kafka.TopicPartition{
 		Topic:  &topic,
 		Offset: kafka.Offset(at),
-	}}); err != nil {
+	}
+	if err := c.Assign([]kafka.TopicPartition{partition}); err != nil {
 		return nil, err
 	}
 	return &Consumer{
@@ -65,13 +74,17 @@ func NewConsumer(zctx *zson.Context, config *kafka.ConfigMap, reg *srclient.Sche
 		registry:  reg,
 		highWater: kafka.Offset(offset),
 		metaType:  metaType,
-		pending:   true,
 		types:     make(map[zng.Type]map[zng.Type]zng.Type),
+		schemas:   make(map[int]typeSchema),
 	}, nil
 }
 
 func (c *Consumer) Close() {
 	c.consumer.Close()
+}
+
+func (c *Consumer) HighWater() kafka.Offset {
+	return c.highWater
 }
 
 func (c *Consumer) Run(w zio.Writer) error {
@@ -114,21 +127,13 @@ loop:
 		event := c.consumer.Poll(ms)
 		switch event := event.(type) {
 		case nil:
-			// How is this timeout different from ErrTimeout?
 			break loop
 		case kafka.Error:
 			if event.Code() == kafka.ErrTimedOut {
 				break loop
 			}
 			return nil, event
-		case *kafka.AssignedPartitions:
-			fmt.Println("PENDING CLEAR")
-			c.pending = false
-			continue
 		case *kafka.Message:
-			if c.pending {
-				continue
-			}
 			key, err := c.decodeAvro(event.Key)
 			if err != nil {
 				return nil, err
@@ -176,25 +181,35 @@ func (c *Consumer) decodeAvro(b []byte) (zng.Value, error) {
 		return zng.Value{}, fmt.Errorf("bad kafka-avro value in topic: len %d", len(b))
 	}
 	schemaID := binary.BigEndian.Uint32(b[1:5])
-	//XXX this caching logic isn't quite right... we should do this
-	// schema work for every value
-	schema, err := c.registry.GetSchema(int(schemaID))
+	schema, typ, err := c.getSchema(int(schemaID))
 	if err != nil {
 		return zng.Value{}, fmt.Errorf("could not retrieve schema id %d: %w", schemaID, err)
 	}
-	avroSchema, err := avro.ParseSchema(schema.Schema())
-	if err != nil {
-		return zng.Value{}, err
-	}
-	typ, err := zavro.DecodeSchema(c.zctx, avroSchema)
-	if err != nil {
-		return zng.Value{}, err
-	}
-	bytes, err := zavro.Decode(b[5:], avroSchema)
+	bytes, err := zavro.Decode(b[5:], schema)
 	if err != nil {
 		return zng.Value{}, err
 	}
 	return zng.Value{typ, bytes}, nil
+}
+
+func (c *Consumer) getSchema(id int) (avro.Schema, zng.Type, error) {
+	if both, ok := c.schemas[id]; ok {
+		return both.Schema, both.Type, nil
+	}
+	schema, err := c.registry.GetSchema(id)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not retrieve schema id %d: %w", id, err)
+	}
+	avroSchema, err := avro.ParseSchema(schema.Schema())
+	if err != nil {
+		return nil, nil, err
+	}
+	typ, err := zavro.DecodeSchema(c.zctx, avroSchema)
+	if err != nil {
+		return nil, nil, err
+	}
+	c.schemas[id] = typeSchema{Type: typ, Schema: avroSchema}
+	return avroSchema, typ, nil
 }
 
 func (c *Consumer) outerType(key, val zng.Type) (zng.Type, error) {
