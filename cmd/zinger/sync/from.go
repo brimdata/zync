@@ -95,6 +95,14 @@ func (f *From) Run(args []string) error {
 	if err != nil {
 		return err
 	}
+	highWater := int64(consumer.HighWater())
+	if consumerOffset == highWater {
+		fmt.Println("nothing new found to synchronize")
+		return nil
+	}
+	if consumerOffset > highWater {
+		return fmt.Errorf("sync error: lake input offset (%d) is greater than kafka consumer high-water offset (%d) for topic %q", consumerOffset, highWater, f.flags.Topic)
+	}
 	from := fifo.NewFrom(zctx, lk, consumer)
 	ncommit, nrec, err := from.Sync()
 	if ncommit != 0 {
