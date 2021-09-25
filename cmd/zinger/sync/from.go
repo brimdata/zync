@@ -91,20 +91,12 @@ func (f *From) Run(args []string) error {
 	registry := srclient.CreateSchemaRegistryClient(url)
 	registry.SetCredentials(secret.User, secret.Password)
 	zctx := zson.NewContext()
-	consumer, err := fifo.NewConsumer(zctx, config, registry, f.flags.Topic, consumerOffset)
+	consumer, err := fifo.NewConsumer(zctx, config, registry, f.flags.Topic, consumerOffset, true)
 	if err != nil {
 		return err
 	}
-	highWater := int64(consumer.HighWater())
-	if consumerOffset == highWater {
-		fmt.Println("nothing new found to synchronize")
-		return nil
-	}
-	if consumerOffset > highWater {
-		return fmt.Errorf("sync error: lake input offset (%d) is greater than kafka consumer high-water offset (%d) for topic %q", consumerOffset, highWater, f.flags.Topic)
-	}
 	from := fifo.NewFrom(zctx, lk, consumer)
-	ncommit, nrec, err := from.Sync()
+	ncommit, nrec, err := from.Sync(ctx)
 	if ncommit != 0 {
 		fmt.Printf("synchronized %d record%s in %d commit%s\n", nrec, plural(nrec), ncommit, plural(ncommit))
 	} else {

@@ -12,3 +12,5 @@ require (
 	gopkg.in/avro.v0 v0.0.0-20171217001914-a730b5802183 // indirect
 	gopkg.in/confluentinc/confluent-kafka-go.v1 v1.7.0
 )
+
+replace github.com/brimdata/zed => ../zed

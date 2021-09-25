@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"time"
 
 	"github.com/brimdata/zed/cli/outputflags"
 	"github.com/brimdata/zed/pkg/charm"
@@ -42,6 +43,7 @@ func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
 }
 
 func (c *Command) Run(args []string) error {
+	ctx := context.TODO()
 	if len(args) != 0 {
 		return errors.New("extra arguments not allowed")
 	}
@@ -66,11 +68,12 @@ func (c *Command) Run(args []string) error {
 		return err
 	}
 	zctx := zson.NewContext()
-	consumer, err := fifo.NewConsumer(zctx, config, registry, c.flags.Topic, 0)
+	consumer, err := fifo.NewConsumer(zctx, config, registry, c.flags.Topic, 0, false)
 	if err != nil {
 		return err
 	}
-	err = consumer.Run(writer)
+	// XXX make timeout configurable
+	err = consumer.Run(ctx, writer, 10*time.Second)
 	if closeErr := writer.Close(); err == nil {
 		err = closeErr
 	}

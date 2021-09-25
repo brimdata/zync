@@ -1,12 +1,14 @@
 package fifo
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/brimdata/zed/zbuf"
 	"github.com/brimdata/zed/zng"
 	"github.com/brimdata/zed/zson"
+	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
 
 // From  provides a means to sync a kafka topic to a Zed lake in a
@@ -32,7 +34,7 @@ func NewFrom(zctx *zson.Context, dst *Lake, src *Consumer) *From {
 const BatchThresh = 10 * 1024 * 1024
 const BatchTimeout = 5 * time.Second
 
-func (f *From) Sync() (int64, int64, error) {
+func (f *From) Sync(ctx context.Context) (int64, int64, error) {
 	offset, err := f.dst.NextProducerOffset()
 	if err != nil {
 		return 0, 0, err
@@ -41,11 +43,11 @@ func (f *From) Sync() (int64, int64, error) {
 	// commit a batch at a time to the lake.
 	var ncommit, nrec int64
 	for {
-		batch, err := f.src.Read(BatchThresh, BatchTimeout)
+		batch, err := f.src.Read(ctx, BatchThresh, BatchTimeout)
 		if err != nil {
 			return 0, 0, err
 		}
-		batchLen := int64(batch.Length())
+		batchLen := batch.Length()
 		if batchLen == 0 {
 			break
 		}
@@ -57,8 +59,8 @@ func (f *From) Sync() (int64, int64, error) {
 		if _, err := f.dst.LoadBatch(batch); err != nil {
 			return 0, 0, err
 		}
-		offset += batchLen
-		nrec += batchLen
+		offset += kafka.Offset(batchLen)
+		nrec += int64(batchLen)
 		ncommit++
 	}
 	return ncommit, nrec, nil
@@ -67,7 +69,7 @@ func (f *From) Sync() (int64, int64, error) {
 // AdjustOffsets runs a local Zed program to adjust the kafka offset fields
 // for insertion into correct position in the lake and remember the original
 // offset
-func AdjustOffsets(zctx *zson.Context, batch zbuf.Array, offset int64) (zbuf.Array, error) {
+func AdjustOffsets(zctx *zson.Context, batch zbuf.Array, offset kafka.Offset) (zbuf.Array, error) {
 	rec := batch.Index(0)
 	kafkaRec, err := batch.Index(0).Access("kafka")
 	if err != nil {
@@ -90,6 +92,9 @@ func AdjustOffsets(zctx *zson.Context, batch zbuf.Array, offset int64) (zbuf.Arr
 		}
 		return nil, fmt.Errorf("kafka meta-data field is missing 'offset' field: %s", s)
 	}
+	// Send the batch of Zed records through this query to adjust the save
+	// the original input offset and adjust the offset so it fits in sequetentially
+	// we everything else in the target pool.
 	query := fmt.Sprintf("kafka.input_offset:=kafka.offset,kafka.offset:=kafka.offset-%d+%d", first, offset)
 	return RunLocalQuery(zctx, batch, query)
 }

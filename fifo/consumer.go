@@ -1,6 +1,7 @@
 package fifo
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"time"
@@ -32,12 +33,23 @@ type typeSchema struct {
 	avro.Schema
 }
 
-func NewConsumer(zctx *zson.Context, config *kafka.ConfigMap, reg *srclient.SchemaRegistryClient, topic string, at int64) (*Consumer, error) {
-	metaType, err := zson.ParseType(zctx, "{topic:string,partition:int64,offset:int64}")
-	if err != nil {
+func NewConsumer(zctx *zson.Context, config *kafka.ConfigMap, reg *srclient.SchemaRegistryClient, topic string, startAt kafka.Offset, meta bool) (*Consumer, error) {
+	var metaType zng.Type
+	if meta {
+		var err error
+		metaType, err = zson.ParseType(zctx, "{topic:string,partition:int64,offset:int64}")
+		if err != nil {
+			return nil, err
+		}
+	}
+	//XXX this should be a param
+	if err := config.SetKey("group.id", ksuid.New().String()); err != nil {
 		return nil, err
 	}
-	if err := config.SetKey("group.id", ksuid.New().String()); err != nil {
+	if err := config.SetKey("go.events.channel.enable", true); err != nil {
+		return nil, err
+	}
+	if err := config.SetKey("enable.auto.commit", false); err != nil {
 		return nil, err
 	}
 	//if err := config.SetKey("auto.offset.reset", "earliest"); err != nil {
@@ -46,36 +58,32 @@ func NewConsumer(zctx *zson.Context, config *kafka.ConfigMap, reg *srclient.Sche
 	//if err := config.SetKey("go.application.rebalance.enable", true); err != nil {
 	//	return nil, err
 	//}
-	if err := config.SetKey("enable.auto.commit", false); err != nil {
-		return nil, err
-	}
 	c, err := kafka.NewConsumer(config)
 	if err != nil {
 		return nil, err
 	}
-	//c.SubscribeTopics([]string{topic}, nil)
-	// Get the last offset at start time and read up to that point.
+	// Get the last offset at start time.  This way we can stop early
+	// if we know
 	// XXX we should add an option to stream or stop at the end,
 	// and should check that there is only one partition
-	_, offset, err := c.QueryWatermarkOffsets(topic, 0, 5*1000)
-	if err != nil {
-		return nil, err
-	}
+	//_, offset, err := c.QueryWatermarkOffsets(topic, 0, 5*1000)
+	//if err != nil {
+	//	return nil, err
+	//}
 	partition := kafka.TopicPartition{
 		Topic:  &topic,
-		Offset: kafka.Offset(at),
+		Offset: kafka.Offset(startAt),
 	}
 	if err := c.Assign([]kafka.TopicPartition{partition}); err != nil {
 		return nil, err
 	}
 	return &Consumer{
-		zctx:      zctx,
-		consumer:  c,
-		registry:  reg,
-		highWater: kafka.Offset(offset),
-		metaType:  metaType,
-		types:     make(map[zng.Type]map[zng.Type]zng.Type),
-		schemas:   make(map[int]typeSchema),
+		zctx:     zctx,
+		consumer: c,
+		registry: reg,
+		metaType: metaType,
+		types:    make(map[zng.Type]map[zng.Type]zng.Type),
+		schemas:  make(map[int]typeSchema),
 	}, nil
 }
 
@@ -83,77 +91,88 @@ func (c *Consumer) Close() {
 	c.consumer.Close()
 }
 
-func (c *Consumer) HighWater() kafka.Offset {
-	return c.highWater
+type Flusher interface {
+	Flush() error
 }
 
-func (c *Consumer) Run(w zio.Writer) error {
+func (c *Consumer) Run(ctx context.Context, w zio.Writer, timeout time.Duration) error {
+	events := c.consumer.Events()
 	for {
-		msg, err := c.consumer.ReadMessage(time.Second)
-		if err != nil {
-			//XXX
-			fmt.Printf("Error consuming the message: %v (%v)\n", err, msg)
-		} else {
-			key, err := c.decodeAvro(msg.Key)
+		select {
+		case ev := <-events:
+			if ev == nil {
+				// channel closed
+				return nil
+			}
+			rec, err := c.handle(ev)
 			if err != nil {
 				return err
 			}
-			val, err := c.decodeAvro(msg.Value)
-			if err != nil {
-				return err
-			}
-			rec, err := c.wrapRecord(key, val, msg.TopicPartition)
-			if err != nil {
-				return err
+			if rec == nil {
+				// unknown event
+				continue
 			}
 			if err := w.Write(rec); err != nil {
 				return err
 			}
-			if (msg.TopicPartition.Offset + 1) >= c.highWater {
-				break
-			}
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(timeout):
+			return nil
 		}
 	}
-	return nil
 }
 
-func (c *Consumer) Read(thresh int, timeout time.Duration) (zbuf.Array, error) {
+func (c *Consumer) Read(ctx context.Context, thresh int, timeout time.Duration) (zbuf.Array, error) {
 	var batch zbuf.Array
 	var size int
-loop:
+	events := c.consumer.Events()
 	for {
-		// ns to ms
-		ms := int(timeout / 1_000_000)
-		event := c.consumer.Poll(ms)
-		switch event := event.(type) {
-		case nil:
-			break loop
-		case kafka.Error:
-			if event.Code() == kafka.ErrTimedOut {
-				break loop
+		select {
+		case ev := <-events:
+			if ev == nil {
+				// channel closed
+				return batch, nil
 			}
-			return nil, event
-		case *kafka.Message:
-			key, err := c.decodeAvro(event.Key)
+			rec, err := c.handle(ev)
 			if err != nil {
 				return nil, err
 			}
-			val, err := c.decodeAvro(event.Value)
-			if err != nil {
-				return nil, err
-			}
-			rec, err := c.wrapRecord(key, val, event.TopicPartition)
-			if err != nil {
-				return nil, err
+			if rec == nil {
+				// unknown event
+				continue
 			}
 			batch.Append(rec)
 			size += len(rec.Bytes)
-			if (event.TopicPartition.Offset+1) >= c.highWater || size > thresh {
-				break
+			if size > thresh {
+				return batch, nil
 			}
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(timeout):
+			return batch, nil
 		}
 	}
-	return batch, nil
+}
+
+func (c *Consumer) handle(ev kafka.Event) (*zng.Record, error) {
+	switch ev := ev.(type) {
+	case kafka.Error:
+		return nil, ev
+	case *kafka.Message:
+		key, err := c.decodeAvro(ev.Key)
+		if err != nil {
+			return nil, err
+		}
+		val, err := c.decodeAvro(ev.Value)
+		if err != nil {
+			return nil, err
+		}
+		rec, err := c.wrapRecord(key, val, ev.TopicPartition)
+		return rec, nil
+	default:
+		return nil, nil
+	}
 }
 
 func (c *Consumer) wrapRecord(key, val zng.Value, meta kafka.TopicPartition) (*zng.Record, error) {
@@ -162,12 +181,14 @@ func (c *Consumer) wrapRecord(key, val zng.Value, meta kafka.TopicPartition) (*z
 		return nil, err
 	}
 	var b zcode.Builder
-	// {topic:string,partition:int64,offset:int64}
-	b.BeginContainer()
-	b.AppendPrimitive([]byte(*meta.Topic))
-	b.AppendPrimitive(zng.EncodeInt(int64(meta.Partition)))
-	b.AppendPrimitive(zng.EncodeInt(int64(meta.Offset)))
-	b.EndContainer()
+	if c.metaType != nil {
+		// kafka:{topic:string,partition:int64,offset:int64}
+		b.BeginContainer()
+		b.AppendPrimitive([]byte(*meta.Topic))
+		b.AppendPrimitive(zng.EncodeInt(int64(meta.Partition)))
+		b.AppendPrimitive(zng.EncodeInt(int64(meta.Offset)))
+		b.EndContainer()
+	}
 	b.AppendContainer(key.Bytes)
 	b.AppendContainer(val.Bytes)
 	return zng.NewRecord(outerType, b.Bytes()), nil
@@ -229,6 +250,9 @@ func (c *Consumer) makeType(key, val zng.Type) (*zng.TypeRecord, error) {
 		{"kafka", c.metaType},
 		{"key", key},
 		{"value", val},
+	}
+	if c.metaType == nil {
+		cols = cols[1:]
 	}
 	typ, err := c.zctx.LookupTypeRecord(cols)
 	if err != nil {

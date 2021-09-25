@@ -15,6 +15,7 @@ import (
 	"github.com/brimdata/zed/zson"
 	"github.com/segmentio/ksuid"
 	"go.uber.org/zap"
+	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
 
 type Lake struct {
@@ -54,7 +55,7 @@ func (l *Lake) LoadBatch(batch zbuf.Array) (ksuid.KSUID, error) {
 	return l.service.Load(context.TODO(), l.poolID, "main", &batch, api.CommitMessage{})
 }
 
-func (l *Lake) NextProducerOffset() (int64, error) {
+func (l *Lake) NextProducerOffset() (kafka.Offset, error) {
 	//XXX run a query against the lake to get the max output offset
 	// we assume the pool-key is kafka.offset so we just run a head 1
 	//XXX this should be extended to query with a commitID so we can
@@ -75,10 +76,10 @@ func (l *Lake) NextProducerOffset() (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return offset + 1, nil
+	return kafka.Offset(offset + 1), nil
 }
 
-func (l *Lake) NextConsumerOffset(topic string) (int64, error) {
+func (l *Lake) NextConsumerOffset(topic string) (kafka.Offset, error) {
 	//XXX run a query against the lake to get the max output offset
 	// we assume the pool-key is kafka.offset so we just run a head 1
 	//XXX this should be extended to query with a commitID so we can
@@ -100,7 +101,7 @@ func (l *Lake) NextConsumerOffset(topic string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return offset + 1, nil
+	return kafka.Offset(offset + 1), nil
 }
 
 func RunLocalQuery(zctx *zson.Context, batch zbuf.Array, query string) (zbuf.Array, error) {

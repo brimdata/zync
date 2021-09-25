@@ -1,6 +1,7 @@
 package produce
 
 import (
+	"context"
 	"errors"
 	"flag"
 
@@ -46,6 +47,7 @@ func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
 }
 
 func (c *Command) Run(args []string) error {
+	ctx := context.TODO()
 	if len(args) == 0 {
 		return errors.New("no inputs provided")
 	}
@@ -65,7 +67,7 @@ func (c *Command) Run(args []string) error {
 	}
 	registry := srclient.CreateSchemaRegistryClient(url)
 	registry.SetCredentials(secret.User, secret.Password)
-	readers, err := c.inputFlags.Open(zson.NewContext(), storage.NewLocalEngine(), args, true)
+	readers, err := c.inputFlags.Open(ctx, zson.NewContext(), storage.NewLocalEngine(), args, true)
 	if err != nil {
 		return err
 	}
