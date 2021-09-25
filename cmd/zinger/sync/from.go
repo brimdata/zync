@@ -49,13 +49,11 @@ in a transactionally consistent fashion.
 
 type From struct {
 	*Sync
-	pool  string
 	flags cli.Flags
 }
 
 func NewFrom(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
 	f := &From{Sync: parent.(*Sync)}
-	fs.StringVar(&f.pool, "p", "", "name of Zed lake pool")
 	f.flags.SetFlags(fs)
 	return f, nil
 }
@@ -65,7 +63,11 @@ func NewFrom(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
 
 func (f *From) Run(args []string) error {
 	if f.flags.Topic == "" {
-		return errors.New("kafka topic must be specified with -t")
+		return errors.New("no topic provided")
+	}
+	if f.pool == "" {
+		return errors.New("no pool provided")
+
 	}
 	ctx := context.TODO()
 	service, err := lakeapi.OpenRemoteLake(ctx, f.flags.Host)

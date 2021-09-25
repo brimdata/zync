@@ -48,7 +48,7 @@ func (c *Command) Run(args []string) error {
 		return errors.New("extra arguments not allowed")
 	}
 	if c.flags.Topic == "" {
-		return errors.New("no topic (-t) provided")
+		return errors.New("no topic provided")
 	}
 	if err := c.outputFlags.Init(); err != nil {
 		return err

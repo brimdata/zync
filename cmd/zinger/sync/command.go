@@ -30,10 +30,12 @@ func init() {
 
 type Sync struct {
 	*root.Command
+	pool string
 }
 
-func NewSync(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
+func NewSync(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
 	c := &Sync{Command: parent.(*root.Command)}
+	fs.StringVar(&c.pool, "pool", "", "name of Zed lake pool")
 	return c, nil
 }
 

@@ -31,8 +31,8 @@ func DefaultHost() string {
 }
 
 func (f *Flags) SetFlags(fs *flag.FlagSet) {
-	fs.StringVar(&f.Topic, "t", "", "Kafka topic name")
-	fs.StringVar(&f.Namespace, "n", "io.brimdata.zinger", "Kafka name space for new schemas")
+	fs.StringVar(&f.Topic, "topic", "", "Kafka topic name")
+	fs.StringVar(&f.Namespace, "namespace", "io.brimdata.zinger", "Kafka name space for new schemas")
 	//XXX break this out?
 	fs.StringVar(&f.Host, "host", DefaultHost(), "host[:port] of Zed lake service")
 }
