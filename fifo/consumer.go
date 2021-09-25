@@ -96,7 +96,7 @@ func (c *Consumer) Run(w zio.Writer) error {
 	return nil
 }
 
-func (c *Consumer) Read(thresh int, timeout time.Duration) (zbuf.Batch, error) {
+func (c *Consumer) Read(thresh int, timeout time.Duration) (zbuf.Array, error) {
 	var batch zbuf.Array
 	var size int
 	for {

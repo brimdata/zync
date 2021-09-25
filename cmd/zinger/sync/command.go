@@ -8,7 +8,7 @@ import (
 	"github.com/brimdata/zinger/cmd/zinger/root"
 )
 
-var Sync = &charm.Spec{
+var SyncSpec = &charm.Spec{
 	Name:  "sync",
 	Usage: "sync [options]",
 	Short: "sync from a Zed lake pool to a Kafka topic",
@@ -20,22 +20,23 @@ on the specified Kafka topic.
 
 XXX document technique and expected format of lake records.
 `,
-	New: New,
+	New: NewSync,
 }
 
 func init() {
-	root.Zinger.Add(Sync)
+	SyncSpec.Add(FromSpec)
+	root.Zinger.Add(SyncSpec)
 }
 
-type Command struct {
+type Sync struct {
 	*root.Command
 }
 
-func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
-	c := &Command{Command: parent.(*root.Command)}
+func NewSync(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
+	c := &Sync{Command: parent.(*root.Command)}
 	return c, nil
 }
 
-func (c *Command) Run(args []string) error {
+func (s *Sync) Run(args []string) error {
 	return errors.New("TBD")
 }

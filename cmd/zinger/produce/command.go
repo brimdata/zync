@@ -21,7 +21,7 @@ var Produce = &charm.Spec{
 	Short: "produce Zed data into a Kafka topic",
 	Long: `
 The produce command copies the input Zed data into a Kafka topic.
-No effort is made to provide synchronization as data as simply coped from
+No effort is made to provide synchronization as data as simply copied from
 input to the topic and any failures are not recovered from.
 Use the "zinger sync" command to provide synchronization and
 fail-safe, restartable operation.`,

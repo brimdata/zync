@@ -38,6 +38,8 @@ func (f *From) Sync() error {
 	if err != nil {
 		return err
 	}
+	// Loop over the records from the kafka consumer and
+	// commit a batch at a time to the lake.
 	for {
 		batch, err := f.src.Read(BatchThresh, BatchTimeout)
 		if err != nil {
@@ -52,7 +54,8 @@ func (f *From) Sync() error {
 		if err != nil {
 			return err
 		}
-		if err := f.dst.LoadBatch(batch); err != nil {
+		//XXX need to track commitID and use new commit-only-if options
+		if _, err := f.dst.LoadBatch(batch); err != nil {
 			return err
 		}
 		offset += int64(batchLen)
@@ -74,6 +77,7 @@ func (f *From) NextLakeOffset() (int64, error) {
 		return 0, nil
 	}
 	if n != 1 {
+		// This should not happen.
 		return 0, errors.New("'head 1' returned more than one record")
 	}
 	return batch.Index(0).AccessInt("offset")
@@ -82,12 +86,13 @@ func (f *From) NextLakeOffset() (int64, error) {
 // AdjustOffsets runs a local Zed program to adjust the kafka offset fields
 // for insertion into correct position in the lake and remember the original
 // offset
-func AdjustOffsets(zctx *zson.Context, batch zbuf.Batch, offset int64) (zbuf.Batch, error) {
+func AdjustOffsets(zctx *zson.Context, batch zbuf.Array, offset int64) (zbuf.Array, error) {
 	rec := batch.Index(0)
 	kafkaRec, err := batch.Index(0).Access("kafka")
 	if err != nil {
 		s, err := zson.FormatValue(rec.Value)
 		if err != nil {
+			// This should not happen.
 			err = fmt.Errorf("[ERR! %w]", err)
 		}
 		return nil, fmt.Errorf("value read from kafka topic missing kafka meta-data field: %s", s)
