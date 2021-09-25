@@ -24,6 +24,8 @@ type Lake struct {
 }
 
 func NewLake(pool string, server *lakeapi.RemoteSession) (*Lake, error) {
+	//XXX should check that pool key is kafka.offset desc,
+	// it will be easy to forget this when creating zinger pools
 	poolID, err := server.PoolID(context.TODO(), pool)
 	if err != nil {
 		return nil, err
@@ -50,6 +52,55 @@ func (l *Lake) Query(q string) (zbuf.Array, error) {
 
 func (l *Lake) LoadBatch(batch zbuf.Array) (ksuid.KSUID, error) {
 	return l.service.Load(context.TODO(), l.poolID, "main", &batch, api.CommitMessage{})
+}
+
+func (l *Lake) NextProducerOffset() (int64, error) {
+	//XXX run a query against the lake to get the max output offset
+	// we assume the pool-key is kafka.offset so we just run a head 1
+	//XXX this should be extended to query with a commitID so we can
+	// detect multiple writers.
+	batch, err := l.Query("head 1 | offset:=kafka.offset")
+	if err != nil {
+		return 0, err
+	}
+	n := batch.Length()
+	if n == 0 {
+		return 0, nil
+	}
+	if n != 1 {
+		// This should not happen.
+		return 0, errors.New("'head 1' returned more than one record")
+	}
+	offset, err := batch.Index(0).AccessInt("offset")
+	if err != nil {
+		return 0, err
+	}
+	return offset + 1, nil
+}
+
+func (l *Lake) NextConsumerOffset(topic string) (int64, error) {
+	//XXX run a query against the lake to get the max output offset
+	// we assume the pool-key is kafka.offset so we just run a head 1
+	//XXX this should be extended to query with a commitID so we can
+	// detect multiple writers.
+	query := fmt.Sprintf("kafka.topic=='%s' | head 1 | offset:=kafka.input_offset", topic)
+	batch, err := l.Query(query)
+	if err != nil {
+		return 0, err
+	}
+	n := batch.Length()
+	if n == 0 {
+		return 0, nil
+	}
+	if n != 1 {
+		// This should not happen.
+		return 0, errors.New("'head 1' returned more than one record")
+	}
+	offset, err := batch.Index(0).AccessInt("offset")
+	if err != nil {
+		return 0, err
+	}
+	return offset + 1, nil
 }
 
 func RunLocalQuery(zctx *zson.Context, batch zbuf.Array, query string) (zbuf.Array, error) {

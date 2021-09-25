@@ -1,7 +1,6 @@
 package fifo
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -33,54 +32,37 @@ func NewFrom(zctx *zson.Context, dst *Lake, src *Consumer) *From {
 const BatchThresh = 10 * 1024 * 1024
 const BatchTimeout = time.Second //XXX make this bigger
 
-func (f *From) Sync() error {
-	offset, err := f.NextLakeOffset()
+func (f *From) Sync() (int64, int64, error) {
+	offset, err := f.dst.NextProducerOffset()
 	if err != nil {
-		return err
+		return 0, 0, err
 	}
+	fmt.Println("PRODUCER OFFSET", offset)
 	// Loop over the records from the kafka consumer and
 	// commit a batch at a time to the lake.
+	var ncommit, nrec int64
 	for {
 		batch, err := f.src.Read(BatchThresh, BatchTimeout)
 		if err != nil {
-			//XXX check for timeout
-			return err
+			return 0, 0, err
 		}
-		batchLen := batch.Length()
+		batchLen := int64(batch.Length())
 		if batchLen == 0 {
-			return nil
+			break
 		}
 		batch, err = AdjustOffsets(f.zctx, batch, offset)
 		if err != nil {
-			return err
+			return 0, 0, err
 		}
 		//XXX need to track commitID and use new commit-only-if options
 		if _, err := f.dst.LoadBatch(batch); err != nil {
-			return err
+			return 0, 0, err
 		}
-		offset += int64(batchLen)
+		offset += batchLen
+		nrec += batchLen
+		ncommit++
 	}
-	return nil
-}
-
-func (f *From) NextLakeOffset() (int64, error) {
-	//XXX run a query against the lake to get the max output offset
-	// we assume the pool-key is kafka.offset so we just run a head 1
-	//XXX this should be extended to query with a commitID so we can
-	// detect multiple writers.
-	batch, err := f.dst.Query("head 1 | offset:=kafka.offset")
-	if err != nil {
-		return 0, err
-	}
-	n := batch.Length()
-	if n == 0 {
-		return 0, nil
-	}
-	if n != 1 {
-		// This should not happen.
-		return 0, errors.New("'head 1' returned more than one record")
-	}
-	return batch.Index(0).AccessInt("offset")
+	return ncommit, nrec, nil
 }
 
 // AdjustOffsets runs a local Zed program to adjust the kafka offset fields
@@ -95,13 +77,20 @@ func AdjustOffsets(zctx *zson.Context, batch zbuf.Array, offset int64) (zbuf.Arr
 			// This should not happen.
 			err = fmt.Errorf("[ERR! %w]", err)
 		}
+		// This shouldn't happen since the consumer automatically adds
+		// this field.
 		return nil, fmt.Errorf("value read from kafka topic missing kafka meta-data field: %s", s)
 	}
 	// XXX this should be simplified in zed package
-	first, err := zng.NewRecord(kafkaRec.Type, kafkaRec.Bytes).Access("kafka")
+	first, err := zng.NewRecord(kafkaRec.Type, kafkaRec.Bytes).AccessInt("offset")
 	if err != nil {
-		return nil, errors.New("kafka meta-data field is missing 'offset' field")
+		s, err := zson.FormatValue(kafkaRec)
+		if err != nil {
+			// This should not happen.
+			err = fmt.Errorf("[ERR! %w]", err)
+		}
+		return nil, fmt.Errorf("kafka meta-data field is missing 'offset' field: %s", s)
 	}
-	query := fmt.Sprintf("kafka.input_offset:=kafka.offset,kakfa.offset:=kafka.offset-%d+%d", first, offset)
+	query := fmt.Sprintf("kafka.input_offset:=kafka.offset,kafka.offset:=kafka.offset-%d+%d", first, offset)
 	return RunLocalQuery(zctx, batch, query)
 }

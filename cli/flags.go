@@ -12,6 +12,7 @@ import (
 type Flags struct {
 	Topic     string
 	Namespace string
+	Host      string
 }
 
 type Credentials struct {
@@ -19,9 +20,21 @@ type Credentials struct {
 	Password string
 }
 
+const HostEnv = "ZED_LAKE_HOST"
+
+func DefaultHost() string {
+	host := os.Getenv(HostEnv)
+	if host == "" {
+		host = "localhost:9867"
+	}
+	return host
+}
+
 func (f *Flags) SetFlags(fs *flag.FlagSet) {
 	fs.StringVar(&f.Topic, "t", "", "Kafka topic name")
 	fs.StringVar(&f.Namespace, "n", "io.brimdata.zinger", "Kafka name space for new schemas")
+	//XXX break this out?
+	fs.StringVar(&f.Host, "host", DefaultHost(), "host[:port] of Zed lake service")
 }
 
 func SchemaRegistryEndpoint() (string, Credentials, error) {

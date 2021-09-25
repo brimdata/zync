@@ -1,10 +1,17 @@
 package sync
 
 import (
+	"context"
 	"errors"
 	"flag"
+	"fmt"
 
+	lakeapi "github.com/brimdata/zed/lake/api"
 	"github.com/brimdata/zed/pkg/charm"
+	"github.com/brimdata/zed/zson"
+	"github.com/brimdata/zinger/cli"
+	"github.com/brimdata/zinger/fifo"
+	"github.com/riferrei/srclient"
 )
 
 var FromSpec = &charm.Spec{
@@ -42,13 +49,65 @@ in a transactionally consistent fashion.
 
 type From struct {
 	*Sync
+	pool  string
+	flags cli.Flags
 }
 
-func NewFrom(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
-	c := &From{Sync: parent.(*Sync)}
-	return c, nil
+func NewFrom(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
+	f := &From{Sync: parent.(*Sync)}
+	fs.StringVar(&f.pool, "p", "", "name of Zed lake pool")
+	f.flags.SetFlags(fs)
+	return f, nil
 }
+
+//XXX get this working then we need to add Seek() to consumer and start from
+// correct position.
 
 func (f *From) Run(args []string) error {
-	return errors.New("TBD")
+	if f.flags.Topic == "" {
+		return errors.New("kafka topic must be specified with -t")
+	}
+	ctx := context.TODO()
+	service, err := lakeapi.OpenRemoteLake(ctx, f.flags.Host)
+	if err != nil {
+		return err
+	}
+	lk, err := fifo.NewLake(f.pool, service)
+	if err != nil {
+		return err
+	}
+	consumerOffset, err := lk.NextConsumerOffset(f.flags.Topic)
+	if err != nil {
+		return err
+	}
+	url, secret, err := cli.SchemaRegistryEndpoint()
+	if err != nil {
+		return err
+	}
+	config, err := cli.LoadKafkaConfig()
+	if err != nil {
+		return err
+	}
+	registry := srclient.CreateSchemaRegistryClient(url)
+	registry.SetCredentials(secret.User, secret.Password)
+	zctx := zson.NewContext()
+	fmt.Println("CONSUMER OFFSET", consumerOffset)
+	consumer, err := fifo.NewConsumer(zctx, config, registry, f.flags.Topic, consumerOffset)
+	if err != nil {
+		return err
+	}
+	from := fifo.NewFrom(zctx, lk, consumer)
+	ncommit, nrec, err := from.Sync()
+	if ncommit != 0 {
+		fmt.Printf("synchronized %d record%s in %d commit%s\n", nrec, plural(nrec), ncommit, plural(ncommit))
+	}
+	//XXX close consumer?
+	return err
+}
+
+func plural(n int64) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
 }

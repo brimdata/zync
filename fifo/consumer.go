@@ -22,11 +22,12 @@ type Consumer struct {
 	consumer  *kafka.Consumer
 	registry  *srclient.SchemaRegistryClient
 	highWater kafka.Offset
+	pending   bool
 	metaType  zng.Type
 	types     map[zng.Type]map[zng.Type]zng.Type
 }
 
-func NewConsumer(zctx *zson.Context, config *kafka.ConfigMap, reg *srclient.SchemaRegistryClient, topic string) (*Consumer, error) {
+func NewConsumer(zctx *zson.Context, config *kafka.ConfigMap, reg *srclient.SchemaRegistryClient, topic string, at int64) (*Consumer, error) {
 	metaType, err := zson.ParseType(zctx, "{topic:string,partition:int64,offset:int64}")
 	if err != nil {
 		return nil, err
@@ -34,9 +35,9 @@ func NewConsumer(zctx *zson.Context, config *kafka.ConfigMap, reg *srclient.Sche
 	if err := config.SetKey("group.id", ksuid.New().String()); err != nil {
 		return nil, err
 	}
-	if err := config.SetKey("auto.offset.reset", "earliest"); err != nil {
-		return nil, err
-	}
+	//if err := config.SetKey("auto.offset.reset", "earliest"); err != nil {
+	//	return nil, err
+	//}
 	if err := config.SetKey("enable.auto.commit", false); err != nil {
 		return nil, err
 	}
@@ -52,12 +53,19 @@ func NewConsumer(zctx *zson.Context, config *kafka.ConfigMap, reg *srclient.Sche
 	if err != nil {
 		return nil, err
 	}
+	if err := c.Assign([]kafka.TopicPartition{{
+		Topic:  &topic,
+		Offset: kafka.Offset(at),
+	}}); err != nil {
+		return nil, err
+	}
 	return &Consumer{
 		zctx:      zctx,
 		consumer:  c,
 		registry:  reg,
 		highWater: kafka.Offset(offset),
 		metaType:  metaType,
+		pending:   true,
 		types:     make(map[zng.Type]map[zng.Type]zng.Type),
 	}, nil
 }
@@ -99,27 +107,43 @@ func (c *Consumer) Run(w zio.Writer) error {
 func (c *Consumer) Read(thresh int, timeout time.Duration) (zbuf.Array, error) {
 	var batch zbuf.Array
 	var size int
+loop:
 	for {
-		msg, err := c.consumer.ReadMessage(timeout)
-		if err != nil {
-			//XXX
-			fmt.Printf("Error consuming the message: %v (%v)\n", err, msg)
-		} else {
-			key, err := c.decodeAvro(msg.Key)
+		// ns to ms
+		ms := int(timeout / 1_000_000)
+		event := c.consumer.Poll(ms)
+		switch event := event.(type) {
+		case nil:
+			// How is this timeout different from ErrTimeout?
+			break loop
+		case kafka.Error:
+			if event.Code() == kafka.ErrTimedOut {
+				break loop
+			}
+			return nil, event
+		case *kafka.AssignedPartitions:
+			fmt.Println("PENDING CLEAR")
+			c.pending = false
+			continue
+		case *kafka.Message:
+			if c.pending {
+				continue
+			}
+			key, err := c.decodeAvro(event.Key)
 			if err != nil {
 				return nil, err
 			}
-			val, err := c.decodeAvro(msg.Value)
+			val, err := c.decodeAvro(event.Value)
 			if err != nil {
 				return nil, err
 			}
-			rec, err := c.wrapRecord(key, val, msg.TopicPartition)
+			rec, err := c.wrapRecord(key, val, event.TopicPartition)
 			if err != nil {
 				return nil, err
 			}
 			batch.Append(rec)
 			size += len(rec.Bytes)
-			if (msg.TopicPartition.Offset+1) >= c.highWater || size > thresh {
+			if (event.TopicPartition.Offset+1) >= c.highWater || size > thresh {
 				break
 			}
 		}
@@ -152,6 +176,8 @@ func (c *Consumer) decodeAvro(b []byte) (zng.Value, error) {
 		return zng.Value{}, fmt.Errorf("bad kafka-avro value in topic: len %d", len(b))
 	}
 	schemaID := binary.BigEndian.Uint32(b[1:5])
+	//XXX this caching logic isn't quite right... we should do this
+	// schema work for every value
 	schema, err := c.registry.GetSchema(int(schemaID))
 	if err != nil {
 		return zng.Value{}, fmt.Errorf("could not retrieve schema id %d: %w", schemaID, err)
