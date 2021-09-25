@@ -30,14 +30,12 @@ func init() {
 
 type Command struct {
 	*root.Command
-	wrap        bool
 	flags       cli.Flags
 	outputFlags outputflags.Flags
 }
 
 func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
 	c := &Command{Command: parent.(*root.Command)}
-	f.BoolVar(&c.wrap, "k", false, "wrap Kafka meta data around value")
 	c.flags.SetFlags(f)
 	c.outputFlags.SetFlags(f)
 	return c, nil
@@ -67,11 +65,12 @@ func (c *Command) Run(args []string) error {
 	if err != nil {
 		return err
 	}
-	consumer, err := fifo.NewConsumer(config, registry, c.flags.Topic, c.wrap)
+	zctx := zson.NewContext()
+	consumer, err := fifo.NewConsumer(zctx, config, registry, c.flags.Topic)
 	if err != nil {
 		return err
 	}
-	err = consumer.Run(zson.NewContext(), writer)
+	err = consumer.Run(writer)
 	if closeErr := writer.Close(); err == nil {
 		err = closeErr
 	}
