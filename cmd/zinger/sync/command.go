@@ -18,7 +18,8 @@ as a source of Zed data for Kafka.
 The Zed records are transcoded into Avro and published
 on the specified Kafka topic.
 
-XXX document technique and expected format of lake records.
+See http://github.com/brimdata/zinger/README.md for a description
+of the sync algorithm and the layout of the Zed records in the Zed data pool.
 `,
 	New: NewSync,
 }

@@ -44,38 +44,57 @@ func (p *Producer) HeadOffset() (kafka.Offset, error) {
 }
 
 func (p *Producer) Run(ctx context.Context, reader zio.Reader) error {
-	//XXX add header of what we think the offset is for debugging
-	// this loop can take the expected params
+	fmt.Printf("producing messages to topic %q...\n", p.topic)
+	ctx, cancel := context.WithCancel(ctx)
+	done := make(chan error)
 	go func() {
-		//XXX need to handle errors gracefully from this goroutine
-		for e := range p.producer.Events() {
-			switch ev := e.(type) {
-			case *kafka.Message:
-				if ev.TopicPartition.Error != nil {
-					fmt.Printf("Failed to deliver message: %v\n", ev.TopicPartition)
-				} else {
-					//fmt.Printf("Successfully produced record to topic %s partition [%d] @ offset %v\n",
-					//	*ev.TopicPartition.Topic, ev.TopicPartition.Partition, ev.TopicPartition.Offset)
+		defer close(done)
+		for {
+			select {
+			case ev := <-p.producer.Events():
+				msg, ok := ev.(*kafka.Message)
+				if !ok {
+					continue
 				}
+				if msg.TopicPartition.Error != nil {
+					done <- msg.TopicPartition.Error
+					return
+				}
+			case <-ctx.Done():
+				return
 			}
 		}
 	}()
 	var n int
 	var closeErr error
+loop:
 	for {
-		rec, err := reader.Read()
-		if rec == nil || err != nil {
+		select {
+		case err := <-done:
 			closeErr = err
-			break
+			break loop
+		default:
+			rec, err := reader.Read()
+			if rec == nil || err != nil {
+				closeErr = err
+				break loop
+			}
+			if err := p.write(rec); err != nil {
+				closeErr = err
+				break loop
+			}
+			n++
 		}
-		if err := p.write(rec); err != nil {
-			closeErr = err
-			break
-		}
-		n++
 	}
-	// Wait for all messages to be delivered XXX
-	p.producer.Flush(5 * 1000)
+	fmt.Println("waiting for kafka flush...")
+	for {
+		nleft := p.producer.Flush(1000)
+		if nleft == 0 {
+			break
+		}
+		fmt.Printf("waiting for %d kafka events...\n", nleft)
+	}
+	cancel()
 	fmt.Printf("%d messages produced to topic %q\n", n, p.topic)
 	p.producer.Close()
 	return closeErr
@@ -88,34 +107,28 @@ func (p *Producer) Send(ctx context.Context, offset kafka.Offset, batch zbuf.Bat
 	done := make(chan error)
 	ctx, cancel := context.WithCancel(ctx)
 	go func(start, end kafka.Offset) {
+		defer close(done)
 		off := start
 		for {
 			select {
 			case ev := <-p.producer.Events():
-				//fmt.Printf("EV TYPE %T\n", ev)
-				//pretty.Println("EV", ev)
-				switch ev := ev.(type) {
-				case *kafka.Message:
-					fmt.Println("MSG", ev.TopicPartition.Offset)
-					if ev.TopicPartition.Error != nil {
-						done <- ev.TopicPartition.Error
-						close(done)
-						return
-					}
-					if ev.TopicPartition.Offset != off {
-						done <- fmt.Errorf("out of sync: expected %d, got %d (in batch %d,%d)", off, ev.TopicPartition.Offset, start, end)
-						close(done)
-						return
-					}
-					off++
-					if off >= end {
-						//fmt.Println("CLOSE")
-						close(done)
-						return
-					}
+				msg, ok := ev.(*kafka.Message)
+				if !ok {
+					continue
+				}
+				if msg.TopicPartition.Error != nil {
+					done <- msg.TopicPartition.Error
+					return
+				}
+				if msg.TopicPartition.Offset != off {
+					done <- fmt.Errorf("out of sync: expected %d, got %d (in batch %d,%d)", off, msg.TopicPartition.Offset, start, end)
+					return
+				}
+				off++
+				if off >= end {
+					return
 				}
 			case <-ctx.Done():
-				close(done)
 				return
 			}
 		}
@@ -129,10 +142,9 @@ func (p *Producer) Send(ctx context.Context, offset kafka.Offset, batch zbuf.Bat
 			return err
 		}
 	}
-	//XXX don't know if we need to call Flush to kick things out
-	// compared to waiting for all the acks
 	// Wait for all messages to be delivered.
-	p.producer.Flush(10 * 1000)
+	for p.producer.Flush(1000) != 0 {
+	}
 	cancel()
 	return <-done
 }
@@ -162,7 +174,6 @@ func (p *Producer) write(rec *zng.Record) error {
 	if err != nil {
 		return err
 	}
-	//fmt.Println("PRODUCE", rec)
 	p.producer.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{
 			Topic:     &p.topic,

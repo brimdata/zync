@@ -47,11 +47,13 @@ in a transactionally consistent fashion.
 
 type From struct {
 	*Sync
+	group string
 	flags cli.Flags
 }
 
 func NewFrom(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
 	f := &From{Sync: parent.(*Sync)}
+	fs.StringVar(&f.group, "group", "", "kafka consumer group name")
 	f.flags.SetFlags(fs)
 	return f, nil
 }
@@ -67,12 +69,12 @@ func (f *From) Run(args []string) error {
 		return errors.New("no pool provided")
 
 	}
-	ctx := context.TODO()
+	ctx := context.Background()
 	service, err := lakeapi.OpenRemoteLake(ctx, f.flags.Host)
 	if err != nil {
 		return err
 	}
-	lk, err := fifo.NewLake(f.pool, service)
+	lk, err := fifo.NewLake(ctx, f.pool, service)
 	if err != nil {
 		return err
 	}
@@ -91,7 +93,7 @@ func (f *From) Run(args []string) error {
 	registry := srclient.CreateSchemaRegistryClient(url)
 	registry.SetCredentials(secret.User, secret.Password)
 	zctx := zson.NewContext()
-	consumer, err := fifo.NewConsumer(zctx, config, registry, f.flags.Topic, consumerOffset, true)
+	consumer, err := fifo.NewConsumer(zctx, config, registry, f.flags.Topic, f.group, consumerOffset, true)
 	if err != nil {
 		return err
 	}
