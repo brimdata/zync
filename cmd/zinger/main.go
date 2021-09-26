@@ -5,6 +5,7 @@ import (
 	"os"
 
 	_ "github.com/brimdata/zinger/cmd/zinger/consume"
+	_ "github.com/brimdata/zinger/cmd/zinger/info"
 	_ "github.com/brimdata/zinger/cmd/zinger/ls"
 	_ "github.com/brimdata/zinger/cmd/zinger/produce"
 	"github.com/brimdata/zinger/cmd/zinger/root"

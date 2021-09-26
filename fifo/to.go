@@ -34,7 +34,6 @@ func (t *To) Sync(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	offset += 1
 	for {
 		// Query of batch of records that start at the given offset.
 		batch, err := t.src.ReadBatch(ctx, offset, BatchSize)
@@ -43,6 +42,7 @@ func (t *To) Sync(ctx context.Context) error {
 		}
 		batchLen := batch.Length()
 		if batchLen == 0 {
+			fmt.Printf("reached sync at offset %d\n", offset)
 			//XXX should pause and poll again... for now, exit
 			break
 		}

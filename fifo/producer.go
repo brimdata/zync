@@ -3,7 +3,6 @@ package fifo
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/brimdata/zed/zbuf"
@@ -87,38 +86,46 @@ func (p *Producer) Send(ctx context.Context, offset kafka.Offset, batch zbuf.Bat
 	// this loop can take the expected params
 	batchLen := batch.Length()
 	done := make(chan error)
+	ctx, cancel := context.WithCancel(ctx)
 	go func(start, end kafka.Offset) {
 		off := start
-		select {
-		case ev := <-p.producer.Events():
-			switch ev := ev.(type) {
-			case *kafka.Message:
-				if ev.TopicPartition.Error != nil {
-					done <- ev.TopicPartition.Error
-					close(done)
-					return
+		for {
+			select {
+			case ev := <-p.producer.Events():
+				//fmt.Printf("EV TYPE %T\n", ev)
+				//pretty.Println("EV", ev)
+				switch ev := ev.(type) {
+				case *kafka.Message:
+					fmt.Println("MSG", ev.TopicPartition.Offset)
+					if ev.TopicPartition.Error != nil {
+						done <- ev.TopicPartition.Error
+						close(done)
+						return
+					}
+					if ev.TopicPartition.Offset != off {
+						done <- fmt.Errorf("out of sync: expected %d, got %d (in batch %d,%d)", off, ev.TopicPartition.Offset, start, end)
+						close(done)
+						return
+					}
+					off++
+					if off >= end {
+						//fmt.Println("CLOSE")
+						close(done)
+						return
+					}
 				}
-				if ev.TopicPartition.Offset != off {
-					done <- errors.New("offsets are out of whack")
-					close(done)
-					return
-				}
-				off++
-				if off >= end {
-					close(done)
-					return
-				}
+			case <-ctx.Done():
+				close(done)
+				return
 			}
-		case <-ctx.Done():
-			close(done)
-			return
 		}
-		close(done)
 	}(offset, offset+kafka.Offset(batchLen))
 	for k := 0; k < batchLen; k++ {
 		rec := batch.Index(k)
 		if err := p.write(rec); err != nil {
 			//XXX need to shut down goroutine, use ctx cancel()
+			cancel()
+			fmt.Println("WRITE ERR!!!", err)
 			return err
 		}
 	}
@@ -126,6 +133,7 @@ func (p *Producer) Send(ctx context.Context, offset kafka.Offset, batch zbuf.Bat
 	// compared to waiting for all the acks
 	// Wait for all messages to be delivered.
 	p.producer.Flush(10 * 1000)
+	cancel()
 	return <-done
 }
 
@@ -154,10 +162,11 @@ func (p *Producer) write(rec *zng.Record) error {
 	if err != nil {
 		return err
 	}
+	//fmt.Println("PRODUCE", rec)
 	p.producer.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{
 			Topic:     &p.topic,
-			Partition: kafka.PartitionAny,
+			Partition: 0,
 		},
 		Key:   keyBytes,
 		Value: valBytes},

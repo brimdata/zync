@@ -19,13 +19,13 @@ import (
 )
 
 type Consumer struct {
-	zctx      *zson.Context
-	consumer  *kafka.Consumer
-	registry  *srclient.SchemaRegistryClient
-	highWater kafka.Offset
-	metaType  zng.Type
-	types     map[zng.Type]map[zng.Type]zng.Type
-	schemas   map[int]typeSchema
+	zctx     *zson.Context
+	consumer *kafka.Consumer
+	registry *srclient.SchemaRegistryClient
+	topic    string
+	metaType zng.Type
+	types    map[zng.Type]map[zng.Type]zng.Type
+	schemas  map[int]typeSchema
 }
 
 type typeSchema struct {
@@ -81,6 +81,7 @@ func NewConsumer(zctx *zson.Context, config *kafka.ConfigMap, reg *srclient.Sche
 		zctx:     zctx,
 		consumer: c,
 		registry: reg,
+		topic:    topic,
 		metaType: metaType,
 		types:    make(map[zng.Type]map[zng.Type]zng.Type),
 		schemas:  make(map[int]typeSchema),
@@ -265,4 +266,8 @@ func (c *Consumer) makeType(key, val zng.Type) (*zng.TypeRecord, error) {
 	}
 	m[val] = typ
 	return typ, nil
+}
+
+func (c *Consumer) Watermarks() (int64, int64, error) {
+	return c.consumer.QueryWatermarkOffsets(c.topic, 0, 5*1000)
 }
