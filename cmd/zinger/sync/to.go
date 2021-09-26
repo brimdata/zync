@@ -55,12 +55,16 @@ func (t *To) Run(args []string) error {
 		return errors.New("no pool provided")
 
 	}
+	shaper, err := t.loadShaper()
+	if err != nil {
+		return err
+	}
 	ctx := context.Background()
 	service, err := lakeapi.OpenRemoteLake(ctx, t.flags.Host)
 	if err != nil {
 		return err
 	}
-	lk, err := fifo.NewLake(ctx, t.pool, service)
+	lk, err := fifo.NewLake(ctx, t.pool, shaper, service)
 	if err != nil {
 		return err
 	}

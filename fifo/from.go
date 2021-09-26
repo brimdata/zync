@@ -16,17 +16,19 @@ import (
 // is assigned a target offset in the lake that may be used to then sync
 // the merged lake's data back to another Kafka queue using To.
 type From struct {
-	zctx  *zson.Context
-	dst   *Lake
-	src   *Consumer
-	batch zbuf.Batch
+	zctx   *zson.Context
+	dst    *Lake
+	src    *Consumer
+	shaper string
+	batch  zbuf.Batch
 }
 
-func NewFrom(zctx *zson.Context, dst *Lake, src *Consumer) *From {
+func NewFrom(zctx *zson.Context, dst *Lake, src *Consumer, shaper string) *From {
 	return &From{
-		zctx: zctx,
-		dst:  dst,
-		src:  src,
+		zctx:   zctx,
+		dst:    dst,
+		src:    src,
+		shaper: shaper,
 	}
 }
 
@@ -51,7 +53,7 @@ func (f *From) Sync(ctx context.Context) (int64, int64, error) {
 		if batchLen == 0 {
 			break
 		}
-		batch, err = AdjustOffsets(f.zctx, batch, offset)
+		batch, err = AdjustOffsets(f.zctx, batch, offset, f.shaper)
 		if err != nil {
 			return 0, 0, err
 		}
@@ -72,7 +74,7 @@ func (f *From) Sync(ctx context.Context) (int64, int64, error) {
 // AdjustOffsets runs a local Zed program to adjust the kafka offset fields
 // for insertion into correct position in the lake and remember the original
 // offset
-func AdjustOffsets(zctx *zson.Context, batch zbuf.Array, offset kafka.Offset) (zbuf.Array, error) {
+func AdjustOffsets(zctx *zson.Context, batch zbuf.Array, offset kafka.Offset, shaper string) (zbuf.Array, error) {
 	rec := batch.Index(0)
 	kafkaRec, err := batch.Index(0).Access("kafka")
 	if err != nil {
@@ -99,6 +101,9 @@ func AdjustOffsets(zctx *zson.Context, batch zbuf.Array, offset kafka.Offset) (z
 	// the original input offset and adjust the offset so it fits in sequetentially
 	// we everything else in the target pool.
 	query := fmt.Sprintf("kafka.input_offset:=kafka.offset,kafka.offset:=kafka.offset-%d+%d", first, offset)
+	if shaper != "" {
+		query = fmt.Sprintf("%s | %s", query, shaper)
+	}
 	return RunLocalQuery(zctx, batch, query)
 }
 

@@ -56,12 +56,16 @@ func (f *From) Run(args []string) error {
 		return errors.New("no pool provided")
 
 	}
+	shaper, err := f.loadShaper()
+	if err != nil {
+		return err
+	}
 	ctx := context.Background()
 	service, err := lakeapi.OpenRemoteLake(ctx, f.flags.Host)
 	if err != nil {
 		return err
 	}
-	lk, err := fifo.NewLake(ctx, f.pool, service)
+	lk, err := fifo.NewLake(ctx, f.pool, "", service)
 	if err != nil {
 		return err
 	}
@@ -84,7 +88,7 @@ func (f *From) Run(args []string) error {
 	if err != nil {
 		return err
 	}
-	from := fifo.NewFrom(zctx, lk, consumer)
+	from := fifo.NewFrom(zctx, lk, consumer, shaper)
 	ncommit, nrec, err := from.Sync(ctx)
 	if ncommit != 0 {
 		fmt.Printf("synchronized %d record%s in %d commit%s\n", nrec, plural(nrec), ncommit, plural(ncommit))

@@ -22,11 +22,12 @@ var ErrBadPoolKey = errors.New("pool key must be kafka.offset in descending orde
 
 type Lake struct {
 	service *lakeapi.RemoteSession
+	shaper  string
 	pool    string
 	poolID  ksuid.KSUID
 }
 
-func NewLake(ctx context.Context, poolName string, server *lakeapi.RemoteSession) (*Lake, error) {
+func NewLake(ctx context.Context, poolName, shaper string, server *lakeapi.RemoteSession) (*Lake, error) {
 	pool, err := lakeapi.LookupPoolByName(ctx, server, poolName)
 	if err != nil {
 		return nil, err
@@ -39,6 +40,7 @@ func NewLake(ctx context.Context, poolName string, server *lakeapi.RemoteSession
 		pool:    poolName,
 		poolID:  pool.ID,
 		service: server,
+		shaper:  shaper,
 	}, nil
 }
 
@@ -105,13 +107,21 @@ func (l *Lake) NextConsumerOffset(topic string) (kafka.Offset, error) {
 }
 
 func (l *Lake) ReadBatch(ctx context.Context, offset kafka.Offset, size int) (zbuf.Batch, error) {
-	query := fmt.Sprintf("kafka.offset >= %d | head %d | sort kafka.offset", offset, size)
+	query := fmt.Sprintf("kafka.offset >= %d | head %d", offset, size)
+	if l.shaper != "" {
+		query = fmt.Sprintf("%s | %s  | sort kafka.offset", query, l.shaper)
+	} else {
+		query += "| sort kafka.offset"
+	}
 	return l.Query(query)
 }
 
 func RunLocalQuery(zctx *zson.Context, batch zbuf.Array, query string) (zbuf.Array, error) {
 	//XXX We should make this API easier in package Zed.
-	program := compiler.MustParseProc(query)
+	program, err := compiler.ParseProc(query)
+	if err != nil {
+		return nil, err
+	}
 	var result zbuf.Array
 	if err := driver.Copy(context.TODO(), &result, program, zctx, &batch, zap.NewNop()); err != nil {
 		return nil, err

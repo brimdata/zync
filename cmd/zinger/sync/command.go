@@ -3,6 +3,7 @@ package sync
 import (
 	"errors"
 	"flag"
+	"os"
 
 	"github.com/brimdata/zed/pkg/charm"
 	"github.com/brimdata/zinger/cmd/zinger/root"
@@ -32,15 +33,25 @@ func init() {
 
 type Sync struct {
 	*root.Command
-	pool string
+	pool   string
+	shaper string
 }
 
 func NewSync(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
 	c := &Sync{Command: parent.(*root.Command)}
 	fs.StringVar(&c.pool, "pool", "", "name of Zed data pool")
+	fs.StringVar(&c.shaper, "shaper", "", "path of optional Zed script for shaping")
 	return c, nil
 }
 
 func (s *Sync) Run(args []string) error {
 	return errors.New("TBD")
+}
+
+func (s *Sync) loadShaper() (string, error) {
+	if s.shaper == "" {
+		return "", nil
+	}
+	b, err := os.ReadFile(s.shaper)
+	return string(b), err
 }

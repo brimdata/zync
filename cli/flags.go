@@ -57,7 +57,7 @@ func getKey() (apiKey, error) {
 	if err != nil {
 		return apiKey{}, err
 	}
-	path := filepath.Join(home, ".confluent", "schema_registry.json")
+	path := filepath.Join(home, ".zinger", "schema_registry.json")
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return apiKey{}, err
@@ -81,7 +81,7 @@ func LoadKafkaConfig() (*kafka.ConfigMap, error) {
 	if err != nil {
 		return nil, err
 	}
-	path := filepath.Join(home, ".confluent", "kafka_config.json")
+	path := filepath.Join(home, ".zinger", "kafka_config.json")
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err

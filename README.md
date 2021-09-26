@@ -1,6 +1,8 @@
 # zinger
 
-`zinger` is a connector between Kafka topics and Zed lakes.
+`zinger` is a connector between [Kafka](https://kafka.apache.org/)
+topics and
+[Zed lakes](https://github.com/brimdata/zed/tree/main/docs/lake).
 It can run in either direction: syncing a Zed data pool to a Kafka topic or
 syncing a Kafka topic to a Zed pool.
 
@@ -15,11 +17,35 @@ make install
 Make sure you have Go installed in your environment and that GOPATH is
 in your shell path.
 
-## Usage
+## Quick Start
 
 For built-in help, run
 ```
 zinger -h
+```
+Make sure your config files are setup for the Kafka cluster and schema registry,
+then run some tests.
+
+List schemas in the registry:
+```
+zinger ls
+```
+Post some data to a topic:
+```
+echo '{s:"hello,world"}' | zinger produce -topic my-topic -
+```
+Consume some data from the topic:
+```
+zinger consume -topic my-topic
+```
+Sync data from Kafka to a Zed lake:
+```
+zapi create PoolA -orderby kafka.offset:desc
+zinger sync from -topic MyTopic -pool PoolA
+```
+Sync data from a Zed pool back to Kafka:
+```
+zinger sync to -topic MyTargetTopic -pool PoolA
 ```
 
 ## Configuration
@@ -113,8 +139,8 @@ on any given Zed topic.
 
 ### Use with Debezium
 
-`zinger` can be used with [Debezium]() to perform database ETL and replication
-by syncing Debezium's CDC logs to a Zed data pool with `sync to`,
+`zinger` can be used with [Debezium](https://debezium.io) to perform database ETL
+and replication by syncing Debezium's CDC logs to a Zed data pool with `sync to`,
 shaping the logs for a target database schema,
 and replicating the shaped CDC logs to a Kafka database
 sink connector using `sync to`.
