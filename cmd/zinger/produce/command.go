@@ -47,12 +47,12 @@ func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
 }
 
 func (c *Command) Run(args []string) error {
-	ctx := context.TODO()
+	ctx := context.Background()
 	if len(args) == 0 {
 		return errors.New("no inputs provided")
 	}
 	if c.flags.Topic == "" {
-		return errors.New("no topic (-t) provided")
+		return errors.New("no topic provided")
 	}
 	if err := c.inputFlags.Init(); err != nil {
 		return err

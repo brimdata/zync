@@ -33,7 +33,7 @@ type typeSchema struct {
 	avro.Schema
 }
 
-func NewConsumer(zctx *zson.Context, config *kafka.ConfigMap, reg *srclient.SchemaRegistryClient, topic string, startAt kafka.Offset, meta bool) (*Consumer, error) {
+func NewConsumer(zctx *zson.Context, config *kafka.ConfigMap, reg *srclient.SchemaRegistryClient, topic, group string, startAt kafka.Offset, meta bool) (*Consumer, error) {
 	var metaType zng.Type
 	if meta {
 		var err error
@@ -42,8 +42,10 @@ func NewConsumer(zctx *zson.Context, config *kafka.ConfigMap, reg *srclient.Sche
 			return nil, err
 		}
 	}
-	//XXX this should be a param
-	if err := config.SetKey("group.id", ksuid.New().String()); err != nil {
+	if group == "" {
+		group = ksuid.New().String()
+	}
+	if err := config.SetKey("group.id", group); err != nil {
 		return nil, err
 	}
 	if err := config.SetKey("go.events.channel.enable", true); err != nil {
