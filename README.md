@@ -30,22 +30,34 @@ List schemas in the registry:
 ```
 zinger ls
 ```
-Post some data to a topic:
+Create a topic called `MyTopic` with one partition using your Kafka admin tools,
+then post some data to a topic:
 ```
-echo '{s:"hello,world"}' | zinger produce -topic my-topic -
+echo '{s:"hello,world"}' | zinger produce -topic MyTopic -
 ```
-Consume some data from the topic:
+See the record you created:
 ```
-zinger consume -topic my-topic
+zinger consume -topic MyTopic
 ```
-Sync data from Kafka to a Zed lake:
+In another shell, run a Zed lake service:
 ```
-zapi create PoolA -orderby kafka.offset:desc
+mkdir scratch
+cd scratch
+zed lake serve
+```
+Now, sync data from Kafka to a Zed lake:
+```
+zapi create -orderby kafka.offset:desc PoolA
 zinger sync from -topic MyTopic -pool PoolA
 ```
-Sync data from a Zed pool back to Kafka:
+See the data in the Zed pool:
 ```
-zinger sync to -topic MyTargetTopic -pool PoolA
+zapi query "from PoolA"
+```
+Finally, create a topic called `MyTarget` with one partition using your Kafka admin tools,
+sync data from a Zed pool back to Kafka, and check that it made it:
+```
+zinger sync to -topic MyTarget -pool PoolA
 ```
 
 ## Configuration
@@ -81,6 +93,9 @@ An arbitrary Zed script can be applied to the Zed records in either direction.
 The Zed pool used by `zinger` must have its pool key set to `kafka.offset` in
 descending order.  `zinger` will detect and report an error if syncing
 is attempted using a pool without this configuration.
+
+Each Kafka topic must have a single partition as the system relies upon
+the offset to indicate the FIFO order of all records.
 
 ### `zinger sync from`
 
