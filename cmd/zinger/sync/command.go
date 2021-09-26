@@ -25,6 +25,7 @@ XXX document technique and expected format of lake records.
 
 func init() {
 	SyncSpec.Add(FromSpec)
+	SyncSpec.Add(ToSpec)
 	root.Zinger.Add(SyncSpec)
 }
 

@@ -19,12 +19,10 @@ var FromSpec = &charm.Spec{
 	Usage: "from [options]",
 	Short: "sync a Kafka topic to a Zed lake pool",
 	Long: `
-The from command syncs data from a Zed lake to a Kafka topic acting
-as a source of Zed data for Kafka.
+The "from" command syncs data a Kafka topic to a Zed lake pool.
 The Zed records are transcoded from Avro into Zed and synced
-to the target Zed data pool and branch specified by the use flag.
-The data pool is expected to have the pool key "kafka.offset" sorted
-in descending order.
+to the target Zed data pool and branch specified by the "use" flag.
+The data pool's key must be "kafka.offset" sorted in descending order.
 
 Each kafka key and value appears as a sub-record in the transcoded Zed record
 along with a meta-data record called "kafka", i.e., having this Zed type signature:
