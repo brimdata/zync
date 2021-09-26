@@ -35,7 +35,8 @@ then post some data to a topic:
 ```
 echo '{s:"hello,world"}' | zinger produce -topic MyTopic -
 ```
-See the record you created:
+See the record you created (type ctrl-C to interrupt `zinger consume` as
+it will wait indefinitely for data to arrive on the topic):
 ```
 zinger consume -topic MyTopic
 ```
@@ -54,10 +55,23 @@ See the data in the Zed pool:
 ```
 zapi query "from PoolA"
 ```
-Finally, create a topic called `MyTarget` with one partition using your Kafka admin tools,
+Next, create a topic called `MyTarget` with one partition using your Kafka admin tools,
 sync data from a Zed pool back to Kafka, and check that it made it:
 ```
 zinger sync to -topic MyTarget -pool PoolA
+zinger consume -topic MyTarget
+```
+Finally, try out shaping.  Put a Zed script in shape.zed, e.g.,
+```
+cat shape.zed
+
+mymeta.foo:=string(2*(kafka.offset+1))
+```
+And shape the record from `MyTopic` into a new `PoolB`:
+```
+zapi create -orderby kafka.offset:desc PoolB
+zinger sync from -topic MyTopic -pool PoolB -shaper shape.zed
+zapi query "from PoolB"
 ```
 
 ## Configuration
