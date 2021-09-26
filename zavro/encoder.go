@@ -111,6 +111,8 @@ func encodeScalar(dst []byte, typ zng.Type, body zcode.Bytes) ([]byte, error) {
 		return dst, nil
 	}
 	switch typ.ID() {
+	case zng.IDNull:
+		return dst, nil
 	case zng.IDIP:
 		// IP addresses are turned into strings...
 		ip, err := zng.DecodeIP(body)
