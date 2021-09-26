@@ -18,13 +18,24 @@ var Zinger = &charm.Spec{
 	Usage: "zinger command [options] [arguments...]",
 	Short: "synchronize a Zed lake with Kafka",
 	Long: `
-Zinger interconnects a Zed lake with Kafka/Acvro using the Kafka Schema Registery.
+Zinger interconnects a Zed lake with Kafka/Avro using the Kafka Schema Registery.
 Syncronization can flow in either direction with the "sync from" or "sync to"
 subcommands.  Zinger also includes some simple support for consuming and
 producing data on Kafka topic as Avro to/from the Zed formats.  See the
 "consume" and "produce" subcommands for more details.
 
-XXX document cluster and schema registry config.
+Zinger requires a schema registry and is configured using two files
+in ~/.confluent.
+
+Currently, zinger supports only SASL authentication but it will be
+easy to add support for any other schemes supported by your Kafka
+installation.
+
+The kafka_config.json file should have the form
+of http://github.com/brimdata/zinger/kafka_config.json.
+
+The schema_registry.json file should have the form
+of http://github.com/brimdata/zinger/schema_registry.json.
 `,
 	New: New,
 }
