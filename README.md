@@ -148,18 +148,18 @@ it is best to configure `zinger` with a single writer per pool.
 > and requires a small change to the Zed lake load endpoint.  In the meantime,
 > if you run with a single `zinger` writer per pool, this will not be a problem.
 
-### `zinger sync from`
+### `zinger sync to`
 
-`zinger sync from` formats data from a Zed data pool as Avro and "produces"
+`zinger sync to` formats data from a Zed data pool as Avro and "produces"
 records that arrive in the pool to the Kafka topic specified.
 
-The synchronization algorithm is very simple: when `sync from` comes up,
+The synchronization algorithm is very simple: when `sync to` comes up,
 it queries the pool for the largest `kafka.offset` present and queries
 the Kafka topic for its high-water mark, then it reads, shapes, and
 produces all records from the Zed pool at the high-water mark and beyond.
 
 There is currently no logic to detect multiple concurrent writers, so
-care must be taken to only run a single `sync from` process at a time
+care must be taken to only run a single `sync to` process at a time
 on any given Zed topic.
 
 > Currently, `sync from` exits after syncing to the highest offset.
@@ -169,7 +169,7 @@ on any given Zed topic.
 ### Use with Debezium
 
 `zinger` can be used with [Debezium](https://debezium.io) to perform database ETL
-and replication by syncing Debezium's CDC logs to a Zed data pool with `sync to`,
+and replication by syncing Debezium's CDC logs to a Zed data pool with `sync from`,
 shaping the logs for a target database schema,
 and replicating the shaped CDC logs to a Kafka database
 sink connector using `sync to`.
@@ -179,7 +179,7 @@ In this same way, we can scale out the Zed lake and `zinger` processes.
 
 It might be desirable to sync multiple downstream databases with different
 schemas to a single upstream database with a unified schema.  This can be
-accomplished by having `sync to` read from Kafka multiple topics in parallel
+accomplished by having `sync from` read from multiple Kafka topics in parallel
 (e,g., reading multiple table formats from different downstream databases),
 shape each downstream table accordingly, and store the shaped data in the
 unified pool.
@@ -195,9 +195,9 @@ as a switch statement on the name field of the inbound Kafka topic, e.g.,
   )
 ```
 
-> Note that `zinger sync to` does not currently support multiplexing multiple
-> inbound topics, but support for this is straighforward and we will add it soon.
+> Note that `zinger sync from` does not currently support multiplexing multiple
+> inbound topics, but support for this is straightforward and we will add it soon.
 >
-> We also need to adapt `sync to` so it updates te consumer commit offsets,
+> We also need to adapt `sync from` so it updates te consumer commit offsets,
 > allowing aggressive kafka retention policies to drop data that has been  
 > safely replicated into the Zed lake.
