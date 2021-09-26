@@ -19,28 +19,15 @@ var FromSpec = &charm.Spec{
 	Usage: "from [options]",
 	Short: "sync a Kafka topic to a Zed lake pool",
 	Long: `
-The "from" command syncs data a Kafka topic to a Zed lake pool.
+The "from" command syncs data on a Kafka topic to a Zed lake pool.
 The Zed records are transcoded from Avro into Zed and synced
-to the target Zed data pool and branch specified by the "use" flag.
+to the main branch of the Zed data pool specified.
+
 The data pool's key must be "kafka.offset" sorted in descending order.
 
-Each kafka key and value appears as a sub-record in the transcoded Zed record
-along with a meta-data record called "kafka", i.e., having this Zed type signature:
-{
-        kafka:{topic:string,offset:int64,input_offset:int64,partition:int64},
-        key:{...},
-        value:{...},
-}
+See https://github.com/brimdata/zinger/README.md for a description
+of how this works.
 
-The kafka.offset field is a transactionally consistent offset in the target
-pool where all commits to the pool have consectutive offsets in the same order
-as the consumed data.  Multiple kafka queues may be sync'd and mixed together
-in the target pool and the merged kafka.offsets are always serially consistent.
-
-The field kafka.input_offset is the original offset from the inbound kafka queue,
-allowing the from command to be restartable and crash-recoverable as the largest
-kafka.input_offset for any given topic can easily be queried on restart
-in a transactionally consistent fashion.
 `,
 	New: NewFrom,
 }

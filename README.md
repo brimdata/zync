@@ -1,31 +1,8 @@
 # zinger
 
 `zinger` is a connector between Kafka topics and Zed lakes.
-It can run in either direction: syncing a Zed lake to a Kafka topic or
-syncing a Kafka topic to a Zed lake.
-
-Currently, only the binary
-[Kavka/Avro format](https://docs.confluent.io/current/schema-registry/serializer-formatter.html#wire-format)
-is supported where the Avro schemas are obtained from a configured
-[schema registry]((https://github.com/confluentinc/schema-registry)).
-
-An arbitrary Zed script can be applied to the Zed records in either direction.
-
-Zinger formats records received from Kafka using the Zed envelope
-```
-{
-        kafka: {topic:string,offset:int64,partition:int32},
-        record: {...}
-}
-```
-where `...` indicates the Zed record that results from the configured Zed script
-applied to the decoded Avro record.
-If there is no such script, the record is simply the verbatim result obtained
-from decoding Avro into Zed.
-
-By including the Kafka offset in the Zed records, `zinger` can query the Zed
-lake for the largest offset seen and resume synchronization in a reliable and
-consistent fashion.
+It can run in either direction: syncing a Zed data pool to a Kafka topic or
+syncing a Kafka topic to a Zed pool.
 
 ## Installation
 
@@ -44,3 +21,124 @@ For built-in help, run
 ```
 zinger -h
 ```
+
+## Configuration
+
+To configure `zinger` to talk to a Kafka cluster and a schema registry,
+you must create two files in `$HOME/.zinger`:
+[`kafka_config.json`](kafka_config.json) and
+[`schema_registry.json`](schema_registry.json).
+
+This Kafka config file contains the Kafka bootstrap server
+addresses and access credentials.
+
+This schema registry config file contains the URI of the service and
+access credentials.
+
+> We currently support just SASL authentication though it will be easy
+> to add other authentication options (or no auth).  Please let us know if
+> you have a requirement here.
+
+## Description
+
+`zinger` has two sub-commands for synchronizing data:
+* `zinger sync from` - syncs data from a Kafka topic to a Zed data pool
+* `zinger sync to` - syncs data from a Zed data pool to a Kafka topic
+
+Currently, only the binary
+[Kavka/Avro format](https://docs.confluent.io/current/schema-registry/serializer-formatter.html#wire-format)
+is supported where the Avro schemas are obtained from a configured
+[schema registry]((https://github.com/confluentinc/schema-registry)).
+
+An arbitrary Zed script can be applied to the Zed records in either direction.
+
+The Zed pool used by `zinger` must have its pool key set to `kafka.offset` in
+descending order.  `zinger` will detect and report an error if syncing
+is attempted using a pool without this configuration.
+
+### `zinger sync from`
+
+`zinger sync from` formats records received from Kafka using the Zed envelope
+```
+{
+        kafka: {topic:string,partition:int64,offset:int64,input_offset:int64},
+        key: {...}
+        value: {...}
+}
+```
+where the `key` and `value` fields represent the key/value data pulled from
+Kafka and transcoded from Avro to Zed.
+
+If a Zed script is provided, it is applied to each such record before
+syncing the data to the Zed pool.  While the script has access to the
+meta-data in the `kafka`, it should not modify these values as this
+would cause the synchronization algorithm to fail.
+
+After optionally shaping each record with a Zed script, the data is committed
+into the Zed data pool in a transactionally consistent fashion where any and
+all data committed by zinger writers has monotonically increasing `kafka.offset`.
+If multiple writers attempt to commit to records at the same time containing
+overlapping offsets, only one will succeed.  The others will detect the conflict,
+recompute the `kafka.offset`'s accounting for the data provided in the
+conflicting commit, and retry the commit.
+
+`sync to` records the original input offset in `kafka.input_offset` so when
+it comes up, it can query the maximum input offset in the pool and resume
+syncing from where it last left off.
+
+To avoid the inefficiencies of write-sharing conflicts and retries,
+it is best to configure `zinger` with a single writer per pool.
+
+> Note: the optimisitic locking and retry algorithm is not yet implemented
+> and requires a small change to the Zed lake load endpoint.  In the meantime,
+> if you run with a single `zinger` writer per pool, this will not be a problem.
+
+### `zinger sync from`
+
+`zinger sync from` formats data from a Zed data pool as Avro and "produces"
+records that arrive in the pool to the Kafka topic specified.
+
+The synchronization algorithm is very simple: when `sync from` comes up,
+it queries the pool for the largest `kafka.offset` present and queries
+the Kafka topic for its high-water mark, then it reads, shapes, and
+produces all records from the Zed pool at the high-water mark and beyond.
+
+There is currently no logic to detect multiple concurrent writers, so
+care must be taken to only run a single `sync from` process at a time
+on any given Zed topic.
+
+> Currently, `sync from` exits after syncing to the highest offset.
+> We plan to soon modify it so it will run continuously, listening for
+> commits to the pool, then push any new to Kafka with minimal latency.
+
+### Use with Debezium
+
+`zinger` can be used with [Debezium]() to perform database ETL and replication
+by syncing Debezium's CDC logs to a Zed data pool with `sync to`,
+shaping the logs for a target database schema,
+and replicating the shaped CDC logs to a Kafka database
+sink connector using `sync to`.
+
+Debezium recommends using a single Kakfa topic for database table.
+In this same way, we can scale out the Zed lake and `zinger` processes.
+
+It might be desirable to sync multiple downstream databases with different
+schemas to a single upstream database with a unified schema.  This can be
+accomplished by having `sync to` read from Kafka multiple topics in parallel
+(e,g., reading multiple table formats from different downstream databases),
+shape each downstream table accordingly, and store the shaped data in the
+unified pool.
+
+A Zed script to shape different schemas to a unified schema is as simple
+as a switch statement on the name field of the inbound Kafka topic, e.g.,
+```
+  switch kafka.topic (
+    "legacy-oracle-1" => ... ;
+    "legacy-oracle-2" => ... ;
+    "legacy-mysql-1" => ... ;
+    default => ... ;
+  )
+```
+
+> Note that `zinger sync to` does not currently support multiplexing multiple
+> inbound topics, but support for this is straighforward and we will add it soon.

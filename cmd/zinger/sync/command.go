@@ -37,7 +37,7 @@ type Sync struct {
 
 func NewSync(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
 	c := &Sync{Command: parent.(*root.Command)}
-	fs.StringVar(&c.pool, "pool", "", "name of Zed lake pool")
+	fs.StringVar(&c.pool, "pool", "", "name of Zed data pool")
 	return c, nil
 }
 
