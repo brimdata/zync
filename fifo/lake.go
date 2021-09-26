@@ -104,8 +104,13 @@ func (l *Lake) NextConsumerOffset(topic string) (kafka.Offset, error) {
 	return kafka.Offset(offset + 1), nil
 }
 
+func (l *Lake) ReadBatch(ctx context.Context, offset kafka.Offset, size int) (zbuf.Batch, error) {
+	query := fmt.Sprintf("kafka.offset >= %d | head %d | sort kafka.offset", offset, size)
+	return l.Query(query)
+}
+
 func RunLocalQuery(zctx *zson.Context, batch zbuf.Array, query string) (zbuf.Array, error) {
-	//XXX this stuff should be wrapped into an easier entry point
+	//XXX this stuff should be wrapped into an easier API csall
 	program := compiler.MustParseProc(query)
 	var result zbuf.Array
 	if err := driver.Copy(context.TODO(), &result, program, zctx, &batch, zap.NewNop()); err != nil {

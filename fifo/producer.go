@@ -1,9 +1,12 @@
 package fifo
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
+	"github.com/brimdata/zed/zbuf"
 	"github.com/brimdata/zed/zio"
 	"github.com/brimdata/zed/zng"
 	"github.com/brimdata/zinger/zavro"
@@ -20,6 +23,9 @@ type Producer struct {
 }
 
 func NewProducer(config *kafka.ConfigMap, reg *srclient.SchemaRegistryClient, topic, namespace string) (*Producer, error) {
+	if err := config.SetKey("enable.idempotence", true); err != nil {
+		return nil, err
+	}
 	p, err := kafka.NewProducer(config)
 	if err != nil {
 		return nil, err
@@ -33,7 +39,14 @@ func NewProducer(config *kafka.ConfigMap, reg *srclient.SchemaRegistryClient, to
 	}, nil
 }
 
-func (p *Producer) Run(reader zio.Reader) error {
+func (p *Producer) HeadOffset() (kafka.Offset, error) {
+	_, high, err := p.producer.QueryWatermarkOffsets(p.topic, 0, 1000*10)
+	return kafka.Offset(high), err
+}
+
+func (p *Producer) Run(ctx context.Context, reader zio.Reader) error {
+	//XXX add header of what we think the offset is for debugging
+	// this loop can take the expected params
 	go func() {
 		//XXX need to handle errors gracefully from this goroutine
 		for e := range p.producer.Events() {
@@ -67,6 +80,53 @@ func (p *Producer) Run(reader zio.Reader) error {
 	fmt.Printf("%d messages produced to topic %q\n", n, p.topic)
 	p.producer.Close()
 	return closeErr
+}
+
+func (p *Producer) Send(ctx context.Context, offset kafka.Offset, batch zbuf.Batch) error {
+	//XXX add header of what we think the offset is for debugging
+	// this loop can take the expected params
+	batchLen := batch.Length()
+	done := make(chan error)
+	go func(start, end kafka.Offset) {
+		off := start
+		select {
+		case ev := <-p.producer.Events():
+			switch ev := ev.(type) {
+			case *kafka.Message:
+				if ev.TopicPartition.Error != nil {
+					done <- ev.TopicPartition.Error
+					close(done)
+					return
+				}
+				if ev.TopicPartition.Offset != off {
+					done <- errors.New("offsets are out of whack")
+					close(done)
+					return
+				}
+				off++
+				if off >= end {
+					close(done)
+					return
+				}
+			}
+		case <-ctx.Done():
+			close(done)
+			return
+		}
+		close(done)
+	}(offset, offset+kafka.Offset(batchLen))
+	for k := 0; k < batchLen; k++ {
+		rec := batch.Index(k)
+		if err := p.write(rec); err != nil {
+			//XXX need to shut down goroutine, use ctx cancel()
+			return err
+		}
+	}
+	//XXX don't know if we need to call Flush to kick things out
+	// compared to waiting for all the acks
+	// Wait for all messages to be delivered.
+	p.producer.Flush(10 * 1000)
+	return <-done
 }
 
 func (p *Producer) write(rec *zng.Record) error {

@@ -76,5 +76,5 @@ func (c *Command) Run(args []string) error {
 	if err != nil {
 		return err
 	}
-	return producer.Run(zio.ConcatReader(readers...))
+	return producer.Run(ctx, zio.ConcatReader(readers...))
 }

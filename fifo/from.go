@@ -11,22 +11,22 @@ import (
 	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
 
-// From  provides a means to sync a kafka topic to a Zed lake in a
+// From  provides a means to sync from a kafka topic to a Zed lake in a
 // consistent and crash-recoverable fashion.  The data sync'd to the lake
 // is assigned a target offset in the lake that may be used to then sync
 // the merged lake's data back to another Kafka queue using To.
 type From struct {
 	zctx  *zson.Context
-	src   *Consumer
 	dst   *Lake
+	src   *Consumer
 	batch zbuf.Batch
 }
 
 func NewFrom(zctx *zson.Context, dst *Lake, src *Consumer) *From {
 	return &From{
 		zctx: zctx,
-		src:  src,
 		dst:  dst,
+		src:  src,
 	}
 }
 
@@ -56,9 +56,12 @@ func (f *From) Sync(ctx context.Context) (int64, int64, error) {
 			return 0, 0, err
 		}
 		//XXX need to track commitID and use new commit-only-if options
-		if _, err := f.dst.LoadBatch(batch); err != nil {
+		commit, err := f.dst.LoadBatch(batch)
+		if err != nil {
 			return 0, 0, err
 		}
+		//XXX logger
+		fmt.Printf("commit %s %d record%s\n", commit, batchLen, plural(batchLen))
 		offset += kafka.Offset(batchLen)
 		nrec += int64(batchLen)
 		ncommit++
@@ -97,4 +100,11 @@ func AdjustOffsets(zctx *zson.Context, batch zbuf.Array, offset kafka.Offset) (z
 	// we everything else in the target pool.
 	query := fmt.Sprintf("kafka.input_offset:=kafka.offset,kafka.offset:=kafka.offset-%d+%d", first, offset)
 	return RunLocalQuery(zctx, batch, query)
+}
+
+func plural(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
 }
