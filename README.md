@@ -35,11 +35,13 @@ then post some data to a topic:
 ```
 echo '{s:"hello,world"}' | zinger produce -topic MyTopic -
 ```
-See the record you created (type ctrl-C to interrupt `zinger consume` as
-it will wait indefinitely for data to arrive on the topic):
+See the record you created:
 ```
 zinger consume -topic MyTopic
 ```
+> Hit Ctrl-C to interrupt `zinger consume` as it will wait indefinitely
+> for data to arrive on the topic.
+
 In another shell, run a Zed lake service:
 ```
 mkdir scratch
@@ -61,7 +63,7 @@ sync data from a Zed pool back to Kafka, and check that it made it:
 zinger sync to -topic MyTarget -pool PoolA
 zinger consume -topic MyTarget
 ```
-Finally, try out shaping.  Put a Zed script in shape.zed, e.g.,
+Finally, try out shaping.  Put a Zed script in `shape.zed`, e.g.,
 ```
 cat shape.zed
 
