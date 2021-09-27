@@ -117,11 +117,11 @@ the offset to indicate the FIFO order of all records.
 
 `zinger sync from` formats records received from Kafka using the Zed envelope
 ```
-{
-        kafka: {topic:string,partition:int64,offset:int64,input_offset:int64},
-        key: {...}
-        value: {...}
-}
+  {
+    kafka: {topic:string,partition:int64,offset:int64,input_offset:int64},
+    key: {...}
+    value: {...}
+  }
 ```
 where the `key` and `value` fields represent the key/value data pulled from
 Kafka and transcoded from Avro to Zed.
