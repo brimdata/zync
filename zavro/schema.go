@@ -9,8 +9,6 @@ import (
 	"github.com/go-avro/avro"
 )
 
-//XXX need to add maps
-
 func EncodeSchema(typ zng.Type, namespace string) (avro.Schema, error) {
 	switch typ := typ.(type) {
 	case *zng.TypeRecord:
@@ -73,6 +71,8 @@ func encodeSetSchema(typ *zng.TypeSet, namespace string) (avro.Schema, error) {
 
 func encodeScalarSchema(typ zng.Type) (avro.Schema, error) {
 	switch typ.ID() {
+	case zng.IDNull:
+		return &avro.NullSchema{}, nil
 	case zng.IDIP:
 		// IP addresses are turned into strings...
 		return &avro.StringSchema{}, nil
@@ -170,8 +170,8 @@ func decodeUnionSchema(zctx *zson.Context, schema *avro.UnionSchema) (zng.Type, 
 }
 
 func decodeScalarSchema(schema avro.Schema) (zng.Type, error) {
-	//XXX IPs need meta-data/alias, could also try to parse string as option
-	//XXX meta-data, alias to recover unsigneds?
+	//XXX IPs need metadata/alias, could also try to parse string as option
+	//XXX metadata, alias to recover unsigneds?
 	switch schema := schema.(type) {
 	case *avro.BooleanSchema:
 		return zng.TypeBool, nil
@@ -181,6 +181,8 @@ func decodeScalarSchema(schema avro.Schema) (zng.Type, error) {
 		return zng.TypeFloat64, nil
 	case *avro.StringSchema:
 		return zng.TypeString, nil
+	case *avro.NullSchema:
+		return zng.TypeNull, nil
 	default:
 		return nil, fmt.Errorf("unsupported avro schema type: %T", schema)
 	}

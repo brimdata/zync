@@ -1,0 +1,7 @@
+{
+  "bootstrap_servers": "<YOUR KAFKA BOOTSTRAP SERVERS>",
+  "security_protocol": "SASL_SSL",
+  "sasl_mechanisms": "PLAIN",
+  "sasl_username": "<YOUR KAFKA USERNAME>",
+  "sasl_password": "<YOUR KAFKA PASSWORD>"
+}

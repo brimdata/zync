@@ -3,12 +3,13 @@ package sync
 import (
 	"errors"
 	"flag"
+	"os"
 
 	"github.com/brimdata/zed/pkg/charm"
 	"github.com/brimdata/zinger/cmd/zinger/root"
 )
 
-var Sync = &charm.Spec{
+var SyncSpec = &charm.Spec{
 	Name:  "sync",
 	Usage: "sync [options]",
 	Short: "sync from a Zed lake pool to a Kafka topic",
@@ -18,24 +19,39 @@ as a source of Zed data for Kafka.
 The Zed records are transcoded into Avro and published
 on the specified Kafka topic.
 
-XXX document technique and expected format of lake records.
+See http://github.com/brimdata/zinger/README.md for a description
+of the sync algorithm and the layout of the Zed records in the Zed data pool.
 `,
-	New: New,
+	New: NewSync,
 }
 
 func init() {
-	root.Zinger.Add(Sync)
+	SyncSpec.Add(FromSpec)
+	SyncSpec.Add(ToSpec)
+	root.Zinger.Add(SyncSpec)
 }
 
-type Command struct {
+type Sync struct {
 	*root.Command
+	pool   string
+	shaper string
 }
 
-func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
-	c := &Command{Command: parent.(*root.Command)}
+func NewSync(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
+	c := &Sync{Command: parent.(*root.Command)}
+	fs.StringVar(&c.pool, "pool", "", "name of Zed data pool")
+	fs.StringVar(&c.shaper, "shaper", "", "path of optional Zed script for shaping")
 	return c, nil
 }
 
-func (c *Command) Run(args []string) error {
+func (s *Sync) Run(args []string) error {
 	return errors.New("TBD")
+}
+
+func (s *Sync) loadShaper() (string, error) {
+	if s.shaper == "" {
+		return "", nil
+	}
+	b, err := os.ReadFile(s.shaper)
+	return string(b), err
 }
