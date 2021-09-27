@@ -40,7 +40,7 @@ type From struct {
 
 func NewFrom(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
 	f := &From{Sync: parent.(*Sync)}
-	fs.StringVar(&f.group, "group", "", "kafka consumer group name")
+	fs.StringVar(&f.group, "group", "", "Kafka consumer group name")
 	f.flags.SetFlags(fs)
 	return f, nil
 }
@@ -58,7 +58,7 @@ func (f *From) Run(args []string) error {
 		return err
 	}
 	ctx := context.Background()
-	service, err := lakeapi.OpenRemoteLake(ctx, f.flags.Host)
+	service, err := lakeapi.OpenRemoteLake(ctx, f.flags.ZedLakeHost)
 	if err != nil {
 		return err
 	}

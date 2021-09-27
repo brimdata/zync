@@ -1,5 +1,5 @@
 {
-  "url": "<URI OF REGISTRY>",
-  "user":"<YOUR SECRET>",
-  "password":"<YOUR SECRET>"
+  "url": "<YOUR SCHEMA REGISTRY URL>",
+  "user":"<YOUR SCHEMA REGISTRY USER>",
+  "password":"<YOUR SCHEMA REGISTRY PASSWORD>"
 }

@@ -10,9 +10,9 @@ import (
 )
 
 type Flags struct {
-	Topic     string
-	Namespace string
-	Host      string
+	Topic       string
+	Namespace   string
+	ZedLakeHost string
 }
 
 type Credentials struct {
@@ -33,7 +33,7 @@ func DefaultHost() string {
 func (f *Flags) SetFlags(fs *flag.FlagSet) {
 	fs.StringVar(&f.Topic, "topic", "", "Kafka topic name")
 	fs.StringVar(&f.Namespace, "namespace", "io.brimdata.zinger", "Kafka name space for new schemas")
-	fs.StringVar(&f.Host, "host", DefaultHost(), "host[:port] of Zed lake service")
+	fs.StringVar(&f.ZedLakeHost, "host", DefaultHost(), "host[:port] of Zed lake service")
 }
 
 func SchemaRegistryEndpoint() (string, Credentials, error) {
@@ -78,7 +78,7 @@ func LoadKafkaConfig() (*kafka.ConfigMap, error) {
 	if err != nil {
 		return nil, err
 	}
-	path := filepath.Join(home, ".zinger", "kafka_config.json")
+	path := filepath.Join(home, ".zinger", "kafka.json")
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err

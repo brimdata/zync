@@ -86,13 +86,13 @@ loop:
 			n++
 		}
 	}
-	fmt.Println("waiting for kafka flush...")
+	fmt.Println("waiting for Kafka flush...")
 	for {
 		nleft := p.producer.Flush(1000)
 		if nleft == 0 {
 			break
 		}
-		fmt.Printf("waiting for %d kafka events...\n", nleft)
+		fmt.Printf("waiting for %d Kafka events...\n", nleft)
 	}
 	cancel()
 	fmt.Printf("%d messages produced to topic %q\n", n, p.topic)

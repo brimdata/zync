@@ -189,7 +189,7 @@ func (c *Consumer) decodeAvro(b []byte) (zng.Value, error) {
 		return zng.Value{Type: zng.TypeNull}, nil
 	}
 	if len(b) < 5 {
-		return zng.Value{}, fmt.Errorf("bad kafka-avro value in topic: len %d", len(b))
+		return zng.Value{}, fmt.Errorf("Kafka-Avro header is too short: len %d", len(b))
 	}
 	schemaID := binary.BigEndian.Uint32(b[1:5])
 	schema, typ, err := c.getSchema(int(schemaID))

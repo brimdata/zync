@@ -21,7 +21,7 @@ var ToSpec = &charm.Spec{
 The "to" command syncs data from a Zed lake to a Kafka topic acting
 as a source of Zed data for Kafka.
 The Zed records are transcoded from Zed to Avro and synced
-to the target kafka topic.
+to the target Kafka topic.
 The data pool is expected to have the pool key "kafka.offset" sorted
 in descending order.
 
@@ -57,7 +57,7 @@ func (t *To) Run(args []string) error {
 		return err
 	}
 	ctx := context.Background()
-	service, err := lakeapi.OpenRemoteLake(ctx, t.flags.Host)
+	service, err := lakeapi.OpenRemoteLake(ctx, t.flags.ZedLakeHost)
 	if err != nil {
 		return err
 	}

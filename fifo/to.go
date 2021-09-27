@@ -9,8 +9,8 @@ import (
 	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
 
-// To provides a means to sync from a Zed data pool to a kafka topic in a
-// consistent and crash-recoverable fashion.  The data sync'd to the topic
+// To provides a means to sync from a Zed data pool to a Kafka topic in a
+// consistent and crash-recoverable fashion.  The data synced to the topic
 // has the same offset as the kafka.offset field in the records in the pool.
 type To struct {
 	zctx  *zson.Context

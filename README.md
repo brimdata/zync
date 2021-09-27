@@ -1,21 +1,19 @@
 # zinger
 
-`zinger` is a connector between [Kafka](https://kafka.apache.org/)
-topics and
+zinger` is a connector between [Kafka](https://kafka.apache.org/) and
 [Zed lakes](https://github.com/brimdata/zed/tree/main/docs/lake).
-It can run in either direction: syncing a Zed data pool to a Kafka topic or
-syncing a Kafka topic to a Zed pool.
+It can run in either direction, syncing a Kafka topic to a Zed lake data pool
+or vice versa.
 
 ## Installation
 
 To install `zinger`, clone this repo and run `make install`:
 ```
 git clone https://github.com/brimdata/zinger.git
-cd zinger
-make install
+make -C zinger install
 ```
-Make sure you have Go installed in your environment and that GOPATH is
-in your shell path.
+Make sure you have Go 1.16 or later installed in your environment and
+that your shell path includes Go.
 
 ## Quick Start
 
@@ -45,8 +43,7 @@ zinger consume -topic MyTopic
 In another shell, run a Zed lake service:
 ```
 mkdir scratch
-cd scratch
-zed lake serve
+zed lake serve -R scratch
 ```
 Now, sync data from Kafka to a Zed lake:
 ```
@@ -65,22 +62,20 @@ zinger consume -topic MyTarget
 ```
 Finally, try out shaping.  Put a Zed script in `shape.zed`, e.g.,
 ```
-cat shape.zed
-
-mymeta.foo:=string(2*(kafka.offset+1))
+echo 'value:={upper:to_upper(value.s),words:split(value.s, ",")}' > shape.zed
 ```
 And shape the record from `MyTopic` into a new `PoolB`:
 ```
 zapi create -orderby kafka.offset:desc PoolB
 zinger sync from -topic MyTopic -pool PoolB -shaper shape.zed
-zapi query "from PoolB"
+zapi query -Z "from PoolB"
 ```
 
 ## Configuration
 
 To configure `zinger` to talk to a Kafka cluster and a schema registry,
 you must create two files in `$HOME/.zinger`:
-[`kafka_config.json`](kafka_config.json) and
+[`kafka.json`](kafka.json) and
 [`schema_registry.json`](schema_registry.json).
 
 This Kafka config file contains the Kafka bootstrap server
@@ -123,12 +118,12 @@ the offset to indicate the FIFO order of all records.
   value: {...}
 }
 ```
-where the `key` and `value` fields represent the key/value data pulled from
+where the `key` and `value` fields represent the key/value data pair pulled from
 Kafka and transcoded from Avro to Zed.
 
 If a Zed script is provided, it is applied to each such record before
 syncing the data to the Zed pool.  While the script has access to the
-meta-data in the `kafka`, it should not modify these values as this
+metadata in the `kafka` field, it should not modify these values as this
 would cause the synchronization algorithm to fail.
 
 After optionally shaping each record with a Zed script, the data is committed
@@ -200,6 +195,6 @@ switch kafka.topic (
 > Note that `zinger sync from` does not currently support multiplexing multiple
 > inbound topics, but support for this is straightforward and we will add it soon.
 >
-> We also need to adapt `sync from` so it updates te consumer commit offsets,
-> allowing aggressive kafka retention policies to drop data that has been
+> We also need to adapt `sync from` so it updates the consumer commit offsets,
+> allowing aggressive Kafka retention policies to drop data that has been
 > safely replicated into the Zed lake.

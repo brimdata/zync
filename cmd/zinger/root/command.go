@@ -31,8 +31,8 @@ Currently, zinger supports only SASL authentication but it will be
 easy to add support for any other schemes supported by your Kafka
 installation.
 
-The kafka_config.json file should have the form
-of http://github.com/brimdata/zinger/kafka_config.json.
+The kafka.json file should have the form
+of http://github.com/brimdata/zinger/kafka.json.
 
 The schema_registry.json file should have the form
 of http://github.com/brimdata/zinger/schema_registry.json.

@@ -11,10 +11,10 @@ import (
 	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
 
-// From  provides a means to sync from a kafka topic to a Zed lake in a
-// consistent and crash-recoverable fashion.  The data sync'd to the lake
+// From syncs data from a Kafka topic to a Zed lake in a
+// consistent and crash-recoverable fashion.  The data synced to the lake
 // is assigned a target offset in the lake that may be used to then sync
-// the merged lake's data back to another Kafka queue using To.
+// the merged lake's data back to another Kafka topic using To.
 type From struct {
 	zctx   *zson.Context
 	dst    *Lake
@@ -41,7 +41,7 @@ func (f *From) Sync(ctx context.Context) (int64, int64, error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	// Loop over the records from the kafka consumer and
+	// Loop over the records from the Kafka consumer and
 	// commit a batch at a time to the lake.
 	var ncommit, nrec int64
 	for {
@@ -85,7 +85,7 @@ func AdjustOffsetsAndShape(zctx *zson.Context, batch zbuf.Array, offset kafka.Of
 		}
 		// This shouldn't happen since the consumer automatically adds
 		// this field.
-		return nil, fmt.Errorf("value read from kafka topic missing kafka meta-data field: %s", s)
+		return nil, fmt.Errorf("value read from Kafka topic missing kafka metadata field: %s", s)
 	}
 	// XXX this should be simplified in zed package
 	first, err := zng.NewRecord(kafkaRec.Type, kafkaRec.Bytes).AccessInt("offset")

@@ -34,7 +34,7 @@ Consume reads each record as Avro and transcodes it to Zed using the configured
 schema registry.  Any of the output formats used by the "zed" command may be
 specified in the same way as in the zed query commands (i.e., zq, zapi query, etc).
 
-Once consume reaches the head of the kafka topic, it blocks and waits for more
+Once consume reaches the head of the Kafka topic, it blocks and waits for more
 data and gives up and exits if a timeout is provided.  Note that if the duration
 is too short, consume may exit before any available records are ready
 asynchronously from the topic.
@@ -58,8 +58,8 @@ type Command struct {
 func New(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
 	c := &Command{Command: parent.(*root.Command)}
 	fs.StringVar(&c.timeout, "timeout", "", "timeout in ZSON duration syntax (5s, 1m30s, ...)")
-	fs.StringVar(&c.group, "group", "", "kafka consumer group name")
-	fs.Int64Var(&c.offset, "offset", 0, "kafka offset in topic to begin at")
+	fs.StringVar(&c.group, "group", "", "Kafka consumer group name")
+	fs.Int64Var(&c.offset, "offset", 0, "Kafka offset in topic to begin at")
 	c.flags.SetFlags(fs)
 	c.outputFlags.SetFlags(fs)
 	return c, nil

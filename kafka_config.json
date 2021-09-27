@@ -1,7 +1,0 @@
-{
-  "bootstrap_servers": "<YOUR BOOTSTRAP SERVERS>",
-  "security_protocol": "SASL_SSL",
-  "sasl_mechanisms":"PLAIN",
-  "sasl_username": "<YOUR SECRET>",
-  "sasl_password": "<YOUR SECRET>"
-}

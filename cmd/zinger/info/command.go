@@ -37,7 +37,7 @@ type Command struct {
 
 func New(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
 	c := &Command{Command: parent.(*root.Command)}
-	fs.StringVar(&c.group, "group", "", "kafka consumer group name")
+	fs.StringVar(&c.group, "group", "", "Kafka consumer group name")
 	c.flags.SetFlags(fs)
 	return c, nil
 }
