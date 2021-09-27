@@ -21,7 +21,7 @@ func Encode(dst []byte, id uint32, zv zng.Value) ([]byte, error) {
 	return encodeAny(dst, zv)
 }
 
-//XXX move this to zval
+//XXX move this to zed/zcode.
 func zlen(zv zcode.Bytes) (int, error) {
 	it := zcode.Iter(zv)
 	cnt := 0

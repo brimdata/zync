@@ -23,8 +23,8 @@ For built-in help, run
 ```
 zinger -h
 ```
-Make sure your config files are setup for the Kafka cluster and schema registry,
-then run some tests.
+Make sure your config files are setup for the Kafka cluster
+and schema registry (see below), then run some tests.
 
 List schemas in the registry:
 ```
@@ -111,7 +111,7 @@ is attempted using a pool without this configuration.
 Each Kafka topic must have a single partition as the system relies upon
 the offset to indicate the FIFO order of all records.
 
-### `zinger sync from`
+### Sync From
 
 `zinger sync from` formats records received from Kafka using the Zed envelope
 ```
@@ -148,7 +148,7 @@ it is best to configure `zinger` with a single writer per pool.
 > and requires a small change to the Zed lake load endpoint.  In the meantime,
 > if you run with a single `zinger` writer per pool, this will not be a problem.
 
-### `zinger sync to`
+### Sync To
 
 `zinger sync to` formats data from a Zed data pool as Avro and "produces"
 records that arrive in the pool to the Kafka topic specified.
@@ -166,7 +166,7 @@ on any given Zed topic.
 > We plan to soon modify it so it will run continuously, listening for
 > commits to the pool, then push any new to Kafka with minimal latency.
 
-### Use with Debezium
+## Debezium Integration
 
 `zinger` can be used with [Debezium](https://debezium.io) to perform database ETL
 and replication by syncing Debezium's CDC logs to a Zed data pool with `sync from`,

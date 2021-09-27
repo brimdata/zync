@@ -9,8 +9,6 @@ import (
 	"github.com/go-avro/avro"
 )
 
-//XXX need to add maps
-
 func EncodeSchema(typ zng.Type, namespace string) (avro.Schema, error) {
 	switch typ := typ.(type) {
 	case *zng.TypeRecord:

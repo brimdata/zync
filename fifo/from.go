@@ -32,7 +32,7 @@ func NewFrom(zctx *zson.Context, dst *Lake, src *Consumer, shaper string) *From 
 	}
 }
 
-// Make theae configurable
+// These should be configurable.  See issue #18.
 const BatchThresh = 10 * 1024 * 1024
 const BatchTimeout = 5 * time.Second
 
@@ -53,7 +53,7 @@ func (f *From) Sync(ctx context.Context) (int64, int64, error) {
 		if batchLen == 0 {
 			break
 		}
-		batch, err = AdjustOffsets(f.zctx, batch, offset, f.shaper)
+		batch, err = AdjustOffsetsAndShape(f.zctx, batch, offset, f.shaper)
 		if err != nil {
 			return 0, 0, err
 		}
@@ -71,10 +71,10 @@ func (f *From) Sync(ctx context.Context) (int64, int64, error) {
 	return ncommit, nrec, nil
 }
 
-// AdjustOffsets runs a local Zed program to adjust the kafka offset fields
+// AdjustOffsetsAndShape runs a local Zed program to adjust the kafka offset fields
 // for insertion into correct position in the lake and remember the original
-// offset
-func AdjustOffsets(zctx *zson.Context, batch zbuf.Array, offset kafka.Offset, shaper string) (zbuf.Array, error) {
+// offset along with applying a user-defined shaper.
+func AdjustOffsetsAndShape(zctx *zson.Context, batch zbuf.Array, offset kafka.Offset, shaper string) (zbuf.Array, error) {
 	rec := batch.Index(0)
 	kafkaRec, err := batch.Index(0).Access("kafka")
 	if err != nil {

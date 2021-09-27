@@ -159,8 +159,7 @@ func (c *Consumer) handle(ev kafka.Event) (*zng.Record, error) {
 		if err != nil {
 			return nil, err
 		}
-		rec, err := c.wrapRecord(key, val, ev.TopicPartition)
-		return rec, nil
+		return c.wrapRecord(key, val, ev.TopicPartition)
 	default:
 		return nil, nil
 	}

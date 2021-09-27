@@ -18,7 +18,7 @@ import (
 	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
 
-var ErrBadPoolKey = errors.New("pool key must be kafka.offset in descending order")
+var ErrBadPoolKey = errors.New("pool key must be 'kafka.offset' in descending order")
 
 type Lake struct {
 	service *lakeapi.RemoteSession

@@ -134,9 +134,7 @@ func (p *Producer) Send(ctx context.Context, offset kafka.Offset, batch zbuf.Bat
 	for k := 0; k < batchLen; k++ {
 		rec := batch.Index(k)
 		if err := p.write(rec); err != nil {
-			//XXX need to shut down goroutine, use ctx cancel()
 			cancel()
-			fmt.Println("WRITE ERR!!!", err)
 			return err
 		}
 	}
