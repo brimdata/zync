@@ -25,7 +25,7 @@ producing data on Kafka topic as Avro to/from the Zed formats.  See the
 "consume" and "produce" subcommands for more details.
 
 Zinger requires a schema registry and is configured using two files
-in ~/.confluent.
+in ~/.zinger.
 
 Currently, zinger supports only SASL authentication but it will be
 easy to add support for any other schemes supported by your Kafka
