@@ -164,7 +164,7 @@ There is currently no logic to detect multiple concurrent writers, so
 care must be taken to only run a single `sync to` process at a time
 on any given Zed topic.
 
-> Currently, `sync from` exits after syncing to the highest offset.
+> Currently, `sync to` exits after syncing to the highest offset.
 > We plan to soon modify it so it will run continuously, listening for
 > commits to the pool, then push any new to Kafka with minimal latency.
 
@@ -201,5 +201,5 @@ as a switch statement on the name field of the inbound Kafka topic, e.g.,
 > inbound topics, but support for this is straightforward and we will add it soon.
 >
 > We also need to adapt `sync from` so it updates te consumer commit offsets,
-> allowing aggressive kafka retention policies to drop data that has been  
+> allowing aggressive kafka retention policies to drop data that has been
 > safely replicated into the Zed lake.
