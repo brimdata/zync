@@ -117,11 +117,11 @@ the offset to indicate the FIFO order of all records.
 
 `zinger sync from` formats records received from Kafka using the Zed envelope
 ```
-  {
-    kafka: {topic:string,partition:int64,offset:int64,input_offset:int64},
-    key: {...}
-    value: {...}
-  }
+{
+  kafka: {topic:string,partition:int64,offset:int64,input_offset:int64},
+  key: {...}
+  value: {...}
+}
 ```
 where the `key` and `value` fields represent the key/value data pulled from
 Kafka and transcoded from Avro to Zed.
@@ -139,7 +139,7 @@ overlapping offsets, only one will succeed.  The others will detect the conflict
 recompute the `kafka.offset`'s accounting for the data provided in the
 conflicting commit, and retry the commit.
 
-`sync to` records the original input offset in `kafka.input_offset` so when
+`sync from` records the original input offset in `kafka.input_offset` so when
 it comes up, it can query the maximum input offset in the pool and resume
 syncing from where it last left off.
 
@@ -189,12 +189,12 @@ unified pool.
 A Zed script to shape different schemas to a unified schema is as simple
 as a switch statement on the name field of the inbound Kafka topic, e.g.,
 ```
-  switch kafka.topic (
-    "legacy-oracle-1" => ... ;
-    "legacy-oracle-2" => ... ;
-    "legacy-mysql-1" => ... ;
-    default => ... ;
-  )
+switch kafka.topic (
+  "legacy-oracle-1" => ... ;
+  "legacy-oracle-2" => ... ;
+  "legacy-mysql-1" => ... ;
+  default => ... ;
+)
 ```
 
 > Note that `zinger sync from` does not currently support multiplexing multiple
