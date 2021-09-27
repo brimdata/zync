@@ -71,7 +71,7 @@ func (f *From) Sync(ctx context.Context) (int64, int64, error) {
 	return ncommit, nrec, nil
 }
 
-// AdjustOffsetsAndShape runs a local Zed program to adjust the kafka offset fields
+// AdjustOffsetsAndShape runs a local Zed program to adjust the Kafka offset fields
 // for insertion into correct position in the lake and remember the original
 // offset along with applying a user-defined shaper.
 func AdjustOffsetsAndShape(zctx *zson.Context, batch zbuf.Array, offset kafka.Offset, shaper string) (zbuf.Array, error) {
@@ -85,7 +85,7 @@ func AdjustOffsetsAndShape(zctx *zson.Context, batch zbuf.Array, offset kafka.Of
 		}
 		// This shouldn't happen since the consumer automatically adds
 		// this field.
-		return nil, fmt.Errorf("value read from Kafka topic missing kafka metadata field: %s", s)
+		return nil, fmt.Errorf("value read from Kafka topic missing 'kafka' metadata field: %s", s)
 	}
 	// XXX this should be simplified in zed package
 	first, err := zng.NewRecord(kafkaRec.Type, kafkaRec.Bytes).AccessInt("offset")
@@ -95,7 +95,7 @@ func AdjustOffsetsAndShape(zctx *zson.Context, batch zbuf.Array, offset kafka.Of
 			// This should not happen.
 			err = fmt.Errorf("[ERR! %w]", err)
 		}
-		return nil, fmt.Errorf("kafka meta-data field is missing 'offset' field: %s", s)
+		return nil, fmt.Errorf("'kafka' metadata field is missing 'offset' field: %s", s)
 	}
 	// Send the batch of Zed records through this query to adjust the save
 	// the original input offset and adjust the offset so it fits in sequetentially

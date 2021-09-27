@@ -1,6 +1,6 @@
 # zinger
 
-zinger` is a connector between [Kafka](https://kafka.apache.org/) and
+`zinger` is a connector between [Kafka](https://kafka.apache.org/) and
 [Zed lakes](https://github.com/brimdata/zed/tree/main/docs/lake).
 It can run in either direction, syncing a Kafka topic to a Zed lake data pool
 or vice versa.

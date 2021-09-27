@@ -170,8 +170,8 @@ func decodeUnionSchema(zctx *zson.Context, schema *avro.UnionSchema) (zng.Type, 
 }
 
 func decodeScalarSchema(schema avro.Schema) (zng.Type, error) {
-	//XXX IPs need meta-data/alias, could also try to parse string as option
-	//XXX meta-data, alias to recover unsigneds?
+	//XXX IPs need metadata/alias, could also try to parse string as option
+	//XXX metadata, alias to recover unsigneds?
 	switch schema := schema.(type) {
 	case *avro.BooleanSchema:
 		return zng.TypeBool, nil
