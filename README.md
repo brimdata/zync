@@ -16,7 +16,7 @@ Make sure you have Go 1.16 or later installed in your environment and
 that your shell path includes Go.
 
 You'll also need `zed` installed to run a Zed lake.  Installation instructions
-for `zed` are in the [`zed repo`](https://github.com/brimdata/zed).
+for `zed` are in the [Zed repository](https://github.com/brimdata/zed).
 
 ## Quick Start
 
