@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/brimdata/zed"
 	"github.com/brimdata/zed/zbuf"
-	"github.com/brimdata/zed/zng"
 	"github.com/brimdata/zed/zson"
 	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
@@ -16,14 +16,14 @@ import (
 // is assigned a target offset in the lake that may be used to then sync
 // the merged lake's data back to another Kafka topic using To.
 type From struct {
-	zctx   *zson.Context
+	zctx   *zed.Context
 	dst    *Lake
 	src    *Consumer
 	shaper string
 	batch  zbuf.Batch
 }
 
-func NewFrom(zctx *zson.Context, dst *Lake, src *Consumer, shaper string) *From {
+func NewFrom(zctx *zed.Context, dst *Lake, src *Consumer, shaper string) *From {
 	return &From{
 		zctx:   zctx,
 		dst:    dst,
@@ -74,7 +74,7 @@ func (f *From) Sync(ctx context.Context) (int64, int64, error) {
 // AdjustOffsetsAndShape runs a local Zed program to adjust the Kafka offset fields
 // for insertion into correct position in the lake and remember the original
 // offset along with applying a user-defined shaper.
-func AdjustOffsetsAndShape(zctx *zson.Context, batch zbuf.Array, offset kafka.Offset, shaper string) (zbuf.Array, error) {
+func AdjustOffsetsAndShape(zctx *zed.Context, batch zbuf.Array, offset kafka.Offset, shaper string) (zbuf.Array, error) {
 	rec := batch.Index(0)
 	kafkaRec, err := batch.Index(0).Access("kafka")
 	if err != nil {
@@ -88,7 +88,7 @@ func AdjustOffsetsAndShape(zctx *zson.Context, batch zbuf.Array, offset kafka.Of
 		return nil, fmt.Errorf("value read from Kafka topic missing 'kafka' metadata field: %s", s)
 	}
 	// XXX this should be simplified in zed package
-	first, err := zng.NewRecord(kafkaRec.Type, kafkaRec.Bytes).AccessInt("offset")
+	first, err := zed.NewRecord(kafkaRec.Type, kafkaRec.Bytes).AccessInt("offset")
 	if err != nil {
 		s, err := zson.FormatValue(kafkaRec)
 		if err != nil {

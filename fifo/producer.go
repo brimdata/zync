@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/brimdata/zed"
 	"github.com/brimdata/zed/zbuf"
 	"github.com/brimdata/zed/zio"
-	"github.com/brimdata/zed/zng"
 	"github.com/brimdata/zinger/zavro"
 	"github.com/riferrei/srclient"
 	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
@@ -18,7 +18,7 @@ type Producer struct {
 	registry  *srclient.SchemaRegistryClient
 	topic     string
 	namespace string
-	mapper    map[zng.Type]int
+	mapper    map[zed.Type]int
 }
 
 func NewProducer(config *kafka.ConfigMap, reg *srclient.SchemaRegistryClient, topic, namespace string) (*Producer, error) {
@@ -34,7 +34,7 @@ func NewProducer(config *kafka.ConfigMap, reg *srclient.SchemaRegistryClient, to
 		registry:  reg,
 		topic:     topic,
 		namespace: namespace,
-		mapper:    make(map[zng.Type]int),
+		mapper:    make(map[zed.Type]int),
 	}, nil
 }
 
@@ -145,10 +145,10 @@ func (p *Producer) Send(ctx context.Context, offset kafka.Offset, batch zbuf.Bat
 	return <-done
 }
 
-func (p *Producer) write(rec *zng.Record) error {
+func (p *Producer) write(rec *zed.Record) error {
 	key, err := rec.Access("key")
 	if err != nil {
-		key = zng.Value{Type: zng.TypeNull}
+		key = zed.Value{Type: zed.TypeNull}
 	}
 	keySchemaID, err := p.lookupSchema(key.Type)
 	if err != nil {
@@ -181,7 +181,7 @@ func (p *Producer) write(rec *zng.Record) error {
 	return err
 }
 
-func (p *Producer) lookupSchema(typ zng.Type) (int, error) {
+func (p *Producer) lookupSchema(typ zed.Type) (int, error) {
 	id, ok := p.mapper[typ]
 	if !ok {
 		s, err := zavro.EncodeSchema(typ, p.namespace)

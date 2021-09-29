@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/brimdata/zed"
 	"github.com/brimdata/zed/zbuf"
 	"github.com/brimdata/zed/zcode"
 	"github.com/brimdata/zed/zio"
-	"github.com/brimdata/zed/zng"
 	"github.com/brimdata/zed/zson"
 	"github.com/brimdata/zinger/zavro"
 	"github.com/go-avro/avro"
@@ -19,22 +19,22 @@ import (
 )
 
 type Consumer struct {
-	zctx     *zson.Context
+	zctx     *zed.Context
 	consumer *kafka.Consumer
 	registry *srclient.SchemaRegistryClient
 	topic    string
-	metaType zng.Type
-	types    map[zng.Type]map[zng.Type]zng.Type
+	metaType zed.Type
+	types    map[zed.Type]map[zed.Type]zed.Type
 	schemas  map[int]typeSchema
 }
 
 type typeSchema struct {
-	zng.Type
+	zed.Type
 	avro.Schema
 }
 
-func NewConsumer(zctx *zson.Context, config *kafka.ConfigMap, reg *srclient.SchemaRegistryClient, topic, group string, startAt kafka.Offset, meta bool) (*Consumer, error) {
-	var metaType zng.Type
+func NewConsumer(zctx *zed.Context, config *kafka.ConfigMap, reg *srclient.SchemaRegistryClient, topic, group string, startAt kafka.Offset, meta bool) (*Consumer, error) {
+	var metaType zed.Type
 	if meta {
 		var err error
 		metaType, err = zson.ParseType(zctx, "{topic:string,partition:int64,offset:int64}")
@@ -73,7 +73,7 @@ func NewConsumer(zctx *zson.Context, config *kafka.ConfigMap, reg *srclient.Sche
 		registry: reg,
 		topic:    topic,
 		metaType: metaType,
-		types:    make(map[zng.Type]map[zng.Type]zng.Type),
+		types:    make(map[zed.Type]map[zed.Type]zed.Type),
 		schemas:  make(map[int]typeSchema),
 	}, nil
 }
@@ -146,7 +146,7 @@ func (c *Consumer) Read(ctx context.Context, thresh int, timeout time.Duration) 
 	}
 }
 
-func (c *Consumer) handle(ev kafka.Event) (*zng.Record, error) {
+func (c *Consumer) handle(ev kafka.Event) (*zed.Record, error) {
 	switch ev := ev.(type) {
 	case kafka.Error:
 		return nil, ev
@@ -165,7 +165,7 @@ func (c *Consumer) handle(ev kafka.Event) (*zng.Record, error) {
 	}
 }
 
-func (c *Consumer) wrapRecord(key, val zng.Value, meta kafka.TopicPartition) (*zng.Record, error) {
+func (c *Consumer) wrapRecord(key, val zed.Value, meta kafka.TopicPartition) (*zed.Record, error) {
 	outerType, err := c.outerType(key.Type, val.Type)
 	if err != nil {
 		return nil, err
@@ -175,35 +175,35 @@ func (c *Consumer) wrapRecord(key, val zng.Value, meta kafka.TopicPartition) (*z
 		// kafka:{topic:string,partition:int64,offset:int64}
 		b.BeginContainer()
 		b.AppendPrimitive([]byte(*meta.Topic))
-		b.AppendPrimitive(zng.EncodeInt(int64(meta.Partition)))
-		b.AppendPrimitive(zng.EncodeInt(int64(meta.Offset)))
+		b.AppendPrimitive(zed.EncodeInt(int64(meta.Partition)))
+		b.AppendPrimitive(zed.EncodeInt(int64(meta.Offset)))
 		b.EndContainer()
 	}
 	b.AppendContainer(key.Bytes)
 	b.AppendContainer(val.Bytes)
-	return zng.NewRecord(outerType, b.Bytes()), nil
+	return zed.NewRecord(outerType, b.Bytes()), nil
 }
 
-func (c *Consumer) decodeAvro(b []byte) (zng.Value, error) {
+func (c *Consumer) decodeAvro(b []byte) (zed.Value, error) {
 	if len(b) == 0 {
-		return zng.Value{Type: zng.TypeNull}, nil
+		return zed.Value{Type: zed.TypeNull}, nil
 	}
 	if len(b) < 5 {
-		return zng.Value{}, fmt.Errorf("Kafka-Avro header is too short: len %d", len(b))
+		return zed.Value{}, fmt.Errorf("Kafka-Avro header is too short: len %d", len(b))
 	}
 	schemaID := binary.BigEndian.Uint32(b[1:5])
 	schema, typ, err := c.getSchema(int(schemaID))
 	if err != nil {
-		return zng.Value{}, fmt.Errorf("could not retrieve schema id %d: %w", schemaID, err)
+		return zed.Value{}, fmt.Errorf("could not retrieve schema id %d: %w", schemaID, err)
 	}
 	bytes, err := zavro.Decode(b[5:], schema)
 	if err != nil {
-		return zng.Value{}, err
+		return zed.Value{}, err
 	}
-	return zng.Value{typ, bytes}, nil
+	return zed.Value{typ, bytes}, nil
 }
 
-func (c *Consumer) getSchema(id int) (avro.Schema, zng.Type, error) {
+func (c *Consumer) getSchema(id int) (avro.Schema, zed.Type, error) {
 	if both, ok := c.schemas[id]; ok {
 		return both.Schema, both.Type, nil
 	}
@@ -223,7 +223,7 @@ func (c *Consumer) getSchema(id int) (avro.Schema, zng.Type, error) {
 	return avroSchema, typ, nil
 }
 
-func (c *Consumer) outerType(key, val zng.Type) (zng.Type, error) {
+func (c *Consumer) outerType(key, val zed.Type) (zed.Type, error) {
 	m, ok := c.types[key]
 	if !ok {
 		c.makeType(key, val)
@@ -235,8 +235,8 @@ func (c *Consumer) outerType(key, val zng.Type) (zng.Type, error) {
 	return c.types[key][val], nil
 }
 
-func (c *Consumer) makeType(key, val zng.Type) (*zng.TypeRecord, error) {
-	cols := []zng.Column{
+func (c *Consumer) makeType(key, val zed.Type) (*zed.TypeRecord, error) {
+	cols := []zed.Column{
 		{"kafka", c.metaType},
 		{"key", key},
 		{"value", val},
@@ -250,7 +250,7 @@ func (c *Consumer) makeType(key, val zng.Type) (*zng.TypeRecord, error) {
 	}
 	m, ok := c.types[key]
 	if !ok {
-		m = make(map[zng.Type]zng.Type)
+		m = make(map[zed.Type]zed.Type)
 		c.types[key] = m
 	}
 	m[val] = typ

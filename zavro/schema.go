@@ -4,25 +4,24 @@ import (
 	"crypto/md5"
 	"fmt"
 
-	"github.com/brimdata/zed/zng"
-	"github.com/brimdata/zed/zson"
+	"github.com/brimdata/zed"
 	"github.com/go-avro/avro"
 )
 
-func EncodeSchema(typ zng.Type, namespace string) (avro.Schema, error) {
+func EncodeSchema(typ zed.Type, namespace string) (avro.Schema, error) {
 	switch typ := typ.(type) {
-	case *zng.TypeRecord:
+	case *zed.TypeRecord:
 		return encodeRecordSchema(typ, namespace)
-	case *zng.TypeArray:
+	case *zed.TypeArray:
 		return encodeArraySchema(typ, namespace)
-	case *zng.TypeSet:
+	case *zed.TypeSet:
 		return encodeSetSchema(typ, namespace)
 	default:
 		return encodeScalarSchema(typ)
 	}
 }
 
-func encodeRecordSchema(typ *zng.TypeRecord, namespace string) (avro.Schema, error) {
+func encodeRecordSchema(typ *zed.TypeRecord, namespace string) (avro.Schema, error) {
 	var fields []*avro.SchemaField
 	for _, col := range typ.Columns {
 		schema, err := EncodeSchema(col.Type, namespace)
@@ -51,55 +50,55 @@ func encodeRecordSchema(typ *zng.TypeRecord, namespace string) (avro.Schema, err
 	}, nil
 }
 
-func encodeArraySchema(typ *zng.TypeArray, namespace string) (avro.Schema, error) {
-	inner, err := EncodeSchema(zng.InnerType(typ), namespace)
+func encodeArraySchema(typ *zed.TypeArray, namespace string) (avro.Schema, error) {
+	inner, err := EncodeSchema(zed.InnerType(typ), namespace)
 	if err != nil {
 		return nil, err
 	}
 	return &avro.ArraySchema{Items: inner}, nil
 }
 
-func encodeSetSchema(typ *zng.TypeSet, namespace string) (avro.Schema, error) {
+func encodeSetSchema(typ *zed.TypeSet, namespace string) (avro.Schema, error) {
 	// XXX this looks the same as array for now but we will want to add
 	// more meta-info to disnguish the two cases
-	inner, err := EncodeSchema(zng.InnerType(typ), namespace)
+	inner, err := EncodeSchema(zed.InnerType(typ), namespace)
 	if err != nil {
 		return nil, err
 	}
 	return &avro.ArraySchema{Items: inner}, nil
 }
 
-func encodeScalarSchema(typ zng.Type) (avro.Schema, error) {
+func encodeScalarSchema(typ zed.Type) (avro.Schema, error) {
 	switch typ.ID() {
-	case zng.IDNull:
+	case zed.IDNull:
 		return &avro.NullSchema{}, nil
-	case zng.IDIP:
+	case zed.IDIP:
 		// IP addresses are turned into strings...
 		return &avro.StringSchema{}, nil
-	case zng.IDBool:
+	case zed.IDBool:
 		return &avro.BooleanSchema{}, nil
-	case zng.IDInt64:
+	case zed.IDInt64:
 		return &avro.LongSchema{}, nil
-	case zng.IDUint64:
+	case zed.IDUint64:
 		return &avro.LongSchema{}, nil
-	case zng.IDFloat64:
+	case zed.IDFloat64:
 		return &avro.DoubleSchema{}, nil
-	case zng.IDFloat32:
+	case zed.IDFloat32:
 		return &avro.FloatSchema{}, nil
-	case zng.IDDuration:
+	case zed.IDDuration:
 		return &MicroTimeSchema{}, nil
-	case zng.IDString, zng.IDBstring:
+	case zed.IDString, zed.IDBstring:
 		return &avro.StringSchema{}, nil
-	case zng.IDNet:
+	case zed.IDNet:
 		return &avro.StringSchema{}, nil
-	case zng.IDTime:
+	case zed.IDTime:
 		return &MicroTimeSchema{}, nil
 	default:
 		return nil, fmt.Errorf("encodeScalarSchema: unknown type %q", typ)
 	}
 }
 
-func DecodeSchema(zctx *zson.Context, schema avro.Schema) (zng.Type, error) {
+func DecodeSchema(zctx *zed.Context, schema avro.Schema) (zed.Type, error) {
 	switch schema := schema.(type) {
 	case *avro.RecordSchema:
 		return decodeRecordSchema(zctx, schema)
@@ -112,8 +111,8 @@ func DecodeSchema(zctx *zson.Context, schema avro.Schema) (zng.Type, error) {
 	}
 }
 
-func decodeRecordSchema(zctx *zson.Context, schema *avro.RecordSchema) (zng.Type, error) {
-	cols := make([]zng.Column, 0, len(schema.Fields))
+func decodeRecordSchema(zctx *zed.Context, schema *avro.RecordSchema) (zed.Type, error) {
+	cols := make([]zed.Column, 0, len(schema.Fields))
 	for _, fld := range schema.Fields {
 		fieldType := fld.Type
 		// If this field is a union of one type and the null type,
@@ -129,7 +128,7 @@ func decodeRecordSchema(zctx *zson.Context, schema *avro.RecordSchema) (zng.Type
 		if err != nil {
 			return nil, err
 		}
-		cols = append(cols, zng.Column{fld.Name, typ})
+		cols = append(cols, zed.Column{fld.Name, typ})
 	}
 	return zctx.LookupTypeRecord(cols)
 }
@@ -149,7 +148,7 @@ func isOptional(schema avro.Schema) avro.Schema {
 	return nil
 }
 
-func decodeArraySchema(zctx *zson.Context, schema *avro.ArraySchema) (zng.Type, error) {
+func decodeArraySchema(zctx *zed.Context, schema *avro.ArraySchema) (zed.Type, error) {
 	inner, err := DecodeSchema(zctx, schema.Items)
 	if err != nil {
 		return nil, err
@@ -157,8 +156,8 @@ func decodeArraySchema(zctx *zson.Context, schema *avro.ArraySchema) (zng.Type, 
 	return zctx.LookupTypeArray(inner), nil
 }
 
-func decodeUnionSchema(zctx *zson.Context, schema *avro.UnionSchema) (zng.Type, error) {
-	types := make([]zng.Type, 0, len(schema.Types))
+func decodeUnionSchema(zctx *zed.Context, schema *avro.UnionSchema) (zed.Type, error) {
+	types := make([]zed.Type, 0, len(schema.Types))
 	for _, avroType := range schema.Types {
 		typ, err := DecodeSchema(zctx, avroType)
 		if err != nil {
@@ -169,20 +168,20 @@ func decodeUnionSchema(zctx *zson.Context, schema *avro.UnionSchema) (zng.Type, 
 	return zctx.LookupTypeUnion(types), nil
 }
 
-func decodeScalarSchema(schema avro.Schema) (zng.Type, error) {
+func decodeScalarSchema(schema avro.Schema) (zed.Type, error) {
 	//XXX IPs need metadata/alias, could also try to parse string as option
 	//XXX metadata, alias to recover unsigneds?
 	switch schema := schema.(type) {
 	case *avro.BooleanSchema:
-		return zng.TypeBool, nil
+		return zed.TypeBool, nil
 	case *avro.LongSchema:
-		return zng.TypeInt64, nil
+		return zed.TypeInt64, nil
 	case *avro.DoubleSchema, *avro.FloatSchema:
-		return zng.TypeFloat64, nil
+		return zed.TypeFloat64, nil
 	case *avro.StringSchema:
-		return zng.TypeString, nil
+		return zed.TypeString, nil
 	case *avro.NullSchema:
-		return zng.TypeNull, nil
+		return zed.TypeNull, nil
 	default:
 		return nil, fmt.Errorf("unsupported avro schema type: %T", schema)
 	}

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/brimdata/zed"
 	"github.com/brimdata/zed/zcode"
-	"github.com/brimdata/zed/zng"
 	"github.com/go-avro/avro"
 )
 
@@ -99,7 +99,7 @@ func decodeUnion(b *zcode.Builder, in []byte, schema *avro.UnionSchema) ([]byte,
 		return decodeAny(b, in, schema)
 	}
 	b.BeginContainer()
-	b.AppendPrimitive(zng.EncodeInt(int64(selector)))
+	b.AppendPrimitive(zed.EncodeInt(int64(selector)))
 	in, err := decodeAny(b, in, schema.Types[selector])
 	b.EndContainer()
 	return in, err
@@ -139,7 +139,7 @@ func decodeScalar(b *zcode.Builder, in []byte, schema avro.Schema) ([]byte, erro
 		if in == nil {
 			return nil, errors.New("error decoding avro long")
 		}
-		b.AppendPrimitive(zng.EncodeInt(v))
+		b.AppendPrimitive(zed.EncodeInt(v))
 		return in, nil
 	case *avro.FloatSchema, *avro.DoubleSchema: //XXX see zinger issue #19
 		// avro says this is Java's doubleToLongBits...
