@@ -8,11 +8,11 @@ import (
 	"math"
 	"time"
 
+	"github.com/brimdata/zed"
 	"github.com/brimdata/zed/cli/outputflags"
 	"github.com/brimdata/zed/pkg/charm"
 	"github.com/brimdata/zed/pkg/nano"
 	"github.com/brimdata/zed/pkg/storage"
-	"github.com/brimdata/zed/zson"
 	"github.com/brimdata/zinger/cli"
 	"github.com/brimdata/zinger/cmd/zinger/root"
 	"github.com/brimdata/zinger/fifo"
@@ -90,7 +90,7 @@ func (c *Command) Run(args []string) error {
 	if err != nil {
 		return err
 	}
-	zctx := zson.NewContext()
+	zctx := zed.NewContext()
 	consumer, err := fifo.NewConsumer(zctx, config, registry, c.flags.Topic, c.group, kafka.Offset(0), false)
 	if err != nil {
 		return err

@@ -5,9 +5,9 @@ import (
 	"errors"
 	"flag"
 
+	"github.com/brimdata/zed"
 	lakeapi "github.com/brimdata/zed/lake/api"
 	"github.com/brimdata/zed/pkg/charm"
-	"github.com/brimdata/zed/zson"
 	"github.com/brimdata/zinger/cli"
 	"github.com/brimdata/zinger/fifo"
 	"github.com/riferrei/srclient"
@@ -75,7 +75,7 @@ func (t *To) Run(args []string) error {
 	}
 	registry := srclient.CreateSchemaRegistryClient(url)
 	registry.SetCredentials(secret.User, secret.Password)
-	zctx := zson.NewContext()
+	zctx := zed.NewContext()
 	producer, err := fifo.NewProducer(config, registry, t.flags.Topic, t.flags.Namespace)
 	if err != nil {
 		return err

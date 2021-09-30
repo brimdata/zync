@@ -4,8 +4,8 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/brimdata/zed"
 	"github.com/brimdata/zed/pkg/charm"
-	"github.com/brimdata/zed/zson"
 	"github.com/brimdata/zinger/cli"
 	"github.com/brimdata/zinger/cmd/zinger/root"
 	"github.com/brimdata/zinger/fifo"
@@ -53,7 +53,7 @@ func (c *Command) Run(args []string) error {
 	}
 	registry := srclient.CreateSchemaRegistryClient(url)
 	registry.SetCredentials(secret.User, secret.Password)
-	zctx := zson.NewContext()
+	zctx := zed.NewContext()
 	consumer, err := fifo.NewConsumer(zctx, config, registry, c.flags.Topic, c.group, 0, false)
 	if err != nil {
 		return err

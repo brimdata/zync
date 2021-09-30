@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/brimdata/zed"
 	"github.com/brimdata/zed/zbuf"
-	"github.com/brimdata/zed/zson"
 	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
 
@@ -13,13 +13,13 @@ import (
 // consistent and crash-recoverable fashion.  The data synced to the topic
 // has the same offset as the kafka.offset field in the records in the pool.
 type To struct {
-	zctx  *zson.Context
+	zctx  *zed.Context
 	dst   *Producer
 	src   *Lake
 	batch zbuf.Batch
 }
 
-func NewTo(zctx *zson.Context, dst *Producer, src *Lake) *To {
+func NewTo(zctx *zed.Context, dst *Producer, src *Lake) *To {
 	return &To{
 		zctx: zctx,
 		dst:  dst,

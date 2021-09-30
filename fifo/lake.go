@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/brimdata/zed"
 	"github.com/brimdata/zed/api"
 	"github.com/brimdata/zed/compiler"
 	"github.com/brimdata/zed/driver"
@@ -12,7 +13,6 @@ import (
 	lakeapi "github.com/brimdata/zed/lake/api"
 	"github.com/brimdata/zed/order"
 	"github.com/brimdata/zed/zbuf"
-	"github.com/brimdata/zed/zson"
 	"github.com/segmentio/ksuid"
 	"go.uber.org/zap"
 	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
@@ -114,7 +114,7 @@ func (l *Lake) ReadBatch(ctx context.Context, offset kafka.Offset, size int) (zb
 	return l.Query(query)
 }
 
-func RunLocalQuery(zctx *zson.Context, batch zbuf.Array, query string) (zbuf.Array, error) {
+func RunLocalQuery(zctx *zed.Context, batch zbuf.Array, query string) (zbuf.Array, error) {
 	//XXX We need to make this API easier in package zed...
 	program, err := compiler.ParseProc(query)
 	if err != nil {
