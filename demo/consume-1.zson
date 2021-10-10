@@ -1,0 +1,47 @@
+{
+  seqno: 1,
+  kafka: {
+    topic: "order",
+    offset: 1,
+  },
+  value: {
+    txn: 10000,
+    done: false,
+    row: {
+      customer: "jane",
+      product: "taco",
+      qty: 2,
+    }
+  }
+}
+{
+  seqno: 2,
+  kafka: {
+    topic: "order",
+    offset: 2,
+  },
+  value: {
+    txn: 10001,
+    done: false,
+    row: {
+      customer: "bob",
+      product: "burrito",
+      qty: 1,
+    }
+  }
+}
+{
+  seqno: 3,
+  kafka: {
+    topic: "menu",
+    offset: 1,
+  },
+  value: {
+    txn: 10000,
+    done: true,
+    row: {
+      product: "taco",
+      price: 1.99,
+    }
+  }
+}
