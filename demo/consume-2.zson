@@ -1,0 +1,15 @@
+{
+  seqno: 4,
+  kafka: {
+    topic: "menu",
+    offset: 2,
+  },
+  value: {
+    txn: 10001,
+    done: true,
+    row: {
+      product: "burrito",
+      price: 5.99,
+    }
+  }
+}

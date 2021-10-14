@@ -1,0 +1,6 @@
+{
+  seqno:3,
+  kafka:{topic:"order",offset:1},
+  row:{customerID:1,menuID:200,qty:2,total:3.98}
+}
+{seqno:2}(=cursor)

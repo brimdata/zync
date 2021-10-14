@@ -1,0 +1,19 @@
+const customerIDs = |{
+        "jane": 1,
+        "bob": 2,
+        "sarah": 3
+}|;
+const menuIDs = |{
+        "burrito": 100,
+        "taco": 200,
+        "chips": 300
+}|;
+from raw
+| records:=collect(this),seqno:=max(seqno),done:=or(value.done) by txn:=value.txn
+| done==true
+| cut this:={
+    customerID:customerIDs[records[0].value.row.customer],
+    menuID:menuIDs[records[0].value.row.product],
+    qty: records[0].value.row.qty,
+    total: records[0].value.row.qty * records[1].value.row.price
+  }
