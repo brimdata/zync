@@ -8,7 +8,8 @@ const menuIDs = |{
         "taco": 200,
         "chips": 300
 }|;
-from raw | records:=collect(this),seqno:=max(seqno),done:=or(value.done) by txn:=value.txn
+from raw
+| records:=collect(this),seqno:=max(seqno),done:=or(value.done) by txn:=value.txn
 | done==true
 | cut this:={
     customerID:customerIDs[records[0].value.row.customer],
