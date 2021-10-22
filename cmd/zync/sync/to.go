@@ -8,8 +8,8 @@ import (
 	"github.com/brimdata/zed"
 	lakeapi "github.com/brimdata/zed/lake/api"
 	"github.com/brimdata/zed/pkg/charm"
-	"github.com/brimdata/zinger/cli"
-	"github.com/brimdata/zinger/fifo"
+	"github.com/brimdata/zync/cli"
+	"github.com/brimdata/zync/fifo"
 	"github.com/riferrei/srclient"
 )
 

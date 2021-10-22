@@ -1,4 +1,4 @@
-module github.com/brimdata/zinger
+module github.com/brimdata/zync
 
 go 1.16
 
