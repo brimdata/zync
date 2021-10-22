@@ -11,7 +11,7 @@ import (
 	"github.com/brimdata/zed/zcode"
 	"github.com/brimdata/zed/zio"
 	"github.com/brimdata/zed/zson"
-	"github.com/brimdata/zinger/zavro"
+	"github.com/brimdata/zync/zavro"
 	"github.com/go-avro/avro"
 	"github.com/riferrei/srclient"
 	"github.com/segmentio/ksuid"

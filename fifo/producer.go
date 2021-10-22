@@ -8,7 +8,7 @@ import (
 	"github.com/brimdata/zed"
 	"github.com/brimdata/zed/zbuf"
 	"github.com/brimdata/zed/zio"
-	"github.com/brimdata/zinger/zavro"
+	"github.com/brimdata/zync/zavro"
 	"github.com/riferrei/srclient"
 	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )

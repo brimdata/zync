@@ -10,9 +10,9 @@ import (
 	"github.com/brimdata/zed/pkg/charm"
 	"github.com/brimdata/zed/pkg/storage"
 	"github.com/brimdata/zed/zio"
-	"github.com/brimdata/zinger/cli"
-	"github.com/brimdata/zinger/cmd/zinger/root"
-	"github.com/brimdata/zinger/fifo"
+	"github.com/brimdata/zync/cli"
+	"github.com/brimdata/zync/cmd/zync/root"
+	"github.com/brimdata/zync/fifo"
 	"github.com/riferrei/srclient"
 )
 
@@ -24,13 +24,13 @@ var Produce = &charm.Spec{
 The produce command copies the input Zed data into a Kafka topic.
 No effort is made to provide synchronization as data as simply copied from
 input to the topic and any failures are not recovered from.
-Use the "zinger sync" command to provide synchronization and
+Use the "zync sync" command to provide synchronization and
 fail-safe, restartable operation.`,
 	New: New,
 }
 
 func init() {
-	root.Zinger.Add(Produce)
+	root.Zync.Add(Produce)
 }
 
 type Command struct {

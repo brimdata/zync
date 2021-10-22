@@ -15,7 +15,7 @@ ETL'd to staging,
 by processing only the most recent set of records comprising all of the
 uncompleted and unexpired records at any given time.
 
-> Zinger doesn't quite work as described here right now, but the changes
+> Zync doesn't quite work as described here right now, but the changes
 > required are small and easy.
 
 We will demonstrate the ideas here with some example ZSON files that can be run
@@ -24,9 +24,9 @@ by hand with `zapi` and a Zed lake to emulate how this would all work.
 We envision a sync command that syncs from a "raw" pool to a "staging" pool,
 e.g.,
 ```
-zinger sync raw staging
+zync sync raw staging
 ```
-> TBD: implement `zinger sync`
+> TBD: implement `zync sync`
 
 
 ### Data Model
@@ -58,7 +58,7 @@ In the example here, all of the data in the "raw" pool has this Zed type signatu
 In practice, the transaction ID (`txn`) and the `done` condition would be stored
 inside of the row data, but here, we separate them for clarity.
 
-The pool key of "raw" is configured to be `seqno` and zinger assigns a monotonically
+The pool key of "raw" is configured to be `seqno` and zync assigns a monotonically
 increasing integer as the `seqno` of each record committed to the pool.
 This way, all of the records in the "raw" pool are always sorted by `seqno`
 and records can be efficiently processed with range scans over `seqno`.
@@ -189,7 +189,7 @@ zapi create -orderby seqno:desc staging
 Given the above assumptions, suppose the following records are received from
 Kafka as each indicated batch (a batch may be terminated by a timeout,
 a max number of records, etc. but here we just impose batch boundaries to support
-the example) and the ZSON batches here depict the data that `zinger` would
+the example) and the ZSON batches here depict the data that `zync` would
 create by reading and converting Avro records off the two Kafka topics
 "order" and "inventory".
 
@@ -287,7 +287,7 @@ And we get this:
 ```
 {customerID:1,menuID:200,qty:2,total:3.98}
 ```
-`zinger sync` would then sync this result --- which here is a single record
+`zync sync` would then sync this result --- which here is a single record
 but would more generally be multiple records --- by wrapping it in Kafka meta
 info and updating the cursor, e.g., as follows:
 ```
@@ -301,7 +301,7 @@ info and updating the cursor, e.g., as follows:
 The cursor is now at 2 since there still is pending data with
 a `seqno` of 2.
 
-> NOTE this encapsulation will automatically run be `zinger sync` once
+> NOTE this encapsulation will automatically run be `zync sync` once
 > we add this capability.
 
 To illustrate the steps here, you can manually load this data into
@@ -315,7 +315,7 @@ Next suppose new data arrives that complete the pending one.  Load it with:
 zapi load -use raw@main demo/consume-2.zson
 ```
 
-Now, suppose zinger restarts in this sitaution.  Here are the steps needed to
+Now, suppose zync restarts in this sitaution.  Here are the steps needed to
 merge the new transaction into "staging".
 
 First, we need to find the current cursor stored in "staging":
@@ -359,7 +359,7 @@ zapi query -I demo/update-etl.zed
 {customerID:2,menuID:100,qty:1,total:5.99}
 ```
 
-`zinger sync` would then generate this update for "staging"
+`zync sync` would then generate this update for "staging"
 ```
 {
   seqno:4,

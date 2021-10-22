@@ -32,7 +32,7 @@ func DefaultHost() string {
 
 func (f *Flags) SetFlags(fs *flag.FlagSet) {
 	fs.StringVar(&f.Topic, "topic", "", "Kafka topic name")
-	fs.StringVar(&f.Namespace, "namespace", "io.brimdata.zinger", "Kafka name space for new schemas")
+	fs.StringVar(&f.Namespace, "namespace", "io.brimdata.zync", "Kafka name space for new schemas")
 	fs.StringVar(&f.ZedLakeHost, "host", DefaultHost(), "host[:port] of Zed lake service")
 }
 
@@ -55,7 +55,7 @@ func getKey() (apiKey, error) {
 	if err != nil {
 		return apiKey{}, err
 	}
-	path := filepath.Join(home, ".zinger", "schema_registry.json")
+	path := filepath.Join(home, ".zync", "schema_registry.json")
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return apiKey{}, err
@@ -78,7 +78,7 @@ func LoadKafkaConfig() (*kafka.ConfigMap, error) {
 	if err != nil {
 		return nil, err
 	}
-	path := filepath.Join(home, ".zinger", "kafka.json")
+	path := filepath.Join(home, ".zync", "kafka.json")
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err

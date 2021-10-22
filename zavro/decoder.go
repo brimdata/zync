@@ -141,7 +141,7 @@ func decodeScalar(b *zcode.Builder, in []byte, schema avro.Schema) ([]byte, erro
 		}
 		b.AppendPrimitive(zed.EncodeInt(v))
 		return in, nil
-	case *avro.FloatSchema, *avro.DoubleSchema: //XXX see zinger issue #19
+	case *avro.FloatSchema, *avro.DoubleSchema: //XXX see zync issue #19
 		// avro says this is Java's doubleToLongBits...
 		// we need to check if Go math lib is the same
 		if len(in) < 8 {

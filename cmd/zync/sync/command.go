@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/brimdata/zed/pkg/charm"
-	"github.com/brimdata/zinger/cmd/zinger/root"
+	"github.com/brimdata/zync/cmd/zync/root"
 )
 
 var SyncSpec = &charm.Spec{
@@ -19,7 +19,7 @@ as a source of Zed data for Kafka.
 The Zed records are transcoded into Avro and published
 on the specified Kafka topic.
 
-See http://github.com/brimdata/zinger/README.md for a description
+See http://github.com/brimdata/zync/README.md for a description
 of the sync algorithm and the layout of the Zed records in the Zed data pool.
 `,
 	New: NewSync,
@@ -28,7 +28,7 @@ of the sync algorithm and the layout of the Zed records in the Zed data pool.
 func init() {
 	SyncSpec.Add(FromSpec)
 	SyncSpec.Add(ToSpec)
-	root.Zinger.Add(SyncSpec)
+	root.Zync.Add(SyncSpec)
 }
 
 type Sync struct {

@@ -43,7 +43,7 @@ func encodeRecordSchema(typ *zed.TypeRecord, namespace string) (avro.Schema, err
 	return &avro.RecordSchema{
 		Name:       fmt.Sprintf("zng_%x", sum),
 		Namespace:  namespace,
-		Doc:        "Created by zinger from zng type " + typ.String(),
+		Doc:        "Created by zync from zng type " + typ.String(),
 		Aliases:    nil,
 		Properties: nil,
 		Fields:     fields,

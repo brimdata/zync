@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/brimdata/zed/pkg/charm"
-	"github.com/brimdata/zinger/cli"
-	"github.com/brimdata/zinger/cmd/zinger/root"
+	"github.com/brimdata/zync/cli"
+	"github.com/brimdata/zync/cmd/zync/root"
 	"github.com/riferrei/srclient"
 )
 
@@ -25,7 +25,7 @@ This runs a bit slow as each schema entry is fetched synchronously from the regi
 }
 
 func init() {
-	root.Zinger.Add(Ls)
+	root.Zync.Add(Ls)
 }
 
 type Command struct {

@@ -13,9 +13,9 @@ import (
 	"github.com/brimdata/zed/pkg/charm"
 	"github.com/brimdata/zed/pkg/nano"
 	"github.com/brimdata/zed/pkg/storage"
-	"github.com/brimdata/zinger/cli"
-	"github.com/brimdata/zinger/cmd/zinger/root"
-	"github.com/brimdata/zinger/fifo"
+	"github.com/brimdata/zync/cli"
+	"github.com/brimdata/zync/cmd/zync/root"
+	"github.com/brimdata/zync/fifo"
 	"github.com/riferrei/srclient"
 	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
@@ -43,7 +43,7 @@ asynchronously from the topic.
 }
 
 func init() {
-	root.Zinger.Add(Consume)
+	root.Zync.Add(Consume)
 }
 
 type Command struct {

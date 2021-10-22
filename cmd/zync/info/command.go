@@ -6,9 +6,9 @@ import (
 
 	"github.com/brimdata/zed"
 	"github.com/brimdata/zed/pkg/charm"
-	"github.com/brimdata/zinger/cli"
-	"github.com/brimdata/zinger/cmd/zinger/root"
-	"github.com/brimdata/zinger/fifo"
+	"github.com/brimdata/zync/cli"
+	"github.com/brimdata/zync/cmd/zync/root"
+	"github.com/brimdata/zync/fifo"
 	"github.com/riferrei/srclient"
 )
 
@@ -26,7 +26,7 @@ if no group is given.
 }
 
 func init() {
-	root.Zinger.Add(Info)
+	root.Zync.Add(Info)
 }
 
 type Command struct {
