@@ -1,0 +1,70 @@
+// Invoices
+// ID  customer item
+// 100 Alice    taco
+// 101 Bob      burrito
+// 102 Charlie  enchilada
+// 103 Dan      beans
+
+// InvoiceStatus
+// ID  InvoiceID status
+// 80  101       pending
+// 32  100       pending
+// 77  102       paid
+// 192 103       pending
+
+{
+  kafka: {
+    topic: "Invoices",
+    offset: 1
+  },
+  value: {
+    op:"r",
+    after:{
+      ID:100,
+      customer: "Alice",
+      item: "taco"
+    }
+  }
+}
+{
+  kafka: {
+    topic: "Invoices",
+    offset: 2
+  },
+  value: {
+    op:"r",
+    after:{
+      ID:101,
+      customer: "Bob",
+      item: "burrito"
+    }
+  }
+}
+{
+  kafka: {
+    topic: "InvoiceStatus",
+    offset: 1
+  },
+  value: {
+    op:"r",
+    after:{
+      ID:80,
+      InvoiceID: 101,
+      status: "pending",
+    }
+  }
+}
+{
+  kafka: {
+    topic: "InvoiceStatus",
+    offset: 2
+  },
+  value: {
+    op:"r",
+    after:{
+      ID:32,
+      InvoiceID: 100,
+      status: "pending",
+    }
+  }
+}

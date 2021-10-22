@@ -18,7 +18,7 @@ import (
 	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
 
-var ErrBadPoolKey = errors.New("pool key must be 'kafka.offset' in descending order")
+var ErrBadPoolKey = errors.New("pool key must be 'kafka.offset' in ascending order")
 
 type Lake struct {
 	service *lakeapi.RemoteSession
@@ -32,8 +32,8 @@ func NewLake(ctx context.Context, poolName, shaper string, server *lakeapi.Remot
 	if err != nil {
 		return nil, err
 	}
-	// The sync algorithm relies on the pool key being kafka.offset desc.
-	if pool.Layout.Order != order.Desc || len(pool.Layout.Keys) == 0 || !pool.Layout.Keys[0].Equal(field.Dotted("kafka.offset")) {
+	// The sync algorithm relies on the pool key being kafka.offset asc.
+	if pool.Layout.Order != order.Asc || len(pool.Layout.Keys) == 0 || !pool.Layout.Keys[0].Equal(field.Dotted("kafka.offset")) {
 		return nil, ErrBadPoolKey
 	}
 	return &Lake{
@@ -66,7 +66,8 @@ func (l *Lake) NextProducerOffset() (kafka.Offset, error) {
 	if err != nil {
 		return 0, err
 	}
-	n := batch.Length()
+	vals := batch.Values()
+	n := len(vals)
 	if n == 0 {
 		return 0, nil
 	}
@@ -74,7 +75,7 @@ func (l *Lake) NextProducerOffset() (kafka.Offset, error) {
 		// This should not happen.
 		return 0, errors.New("'head 1' returned more than one record")
 	}
-	offset, err := batch.Index(0).AccessInt("offset")
+	offset, err := vals[0].AccessInt("offset")
 	if err != nil {
 		return 0, err
 	}
@@ -89,7 +90,8 @@ func (l *Lake) NextConsumerOffset(topic string) (kafka.Offset, error) {
 	if err != nil {
 		return 0, err
 	}
-	n := batch.Length()
+	vals := batch.Values()
+	n := len(vals)
 	if n == 0 {
 		return 0, nil
 	}
@@ -97,7 +99,7 @@ func (l *Lake) NextConsumerOffset(topic string) (kafka.Offset, error) {
 		// This should not happen.
 		return 0, errors.New("'head 1' returned more than one record")
 	}
-	offset, err := batch.Index(0).AccessInt("offset")
+	offset, err := vals[0].AccessInt("offset")
 	if err != nil {
 		return 0, err
 	}
@@ -135,15 +137,16 @@ func (b *batchDriver) Write(cid int, batch zbuf.Batch) error {
 	if cid != 0 {
 		return errors.New("internal error: multiple tails not allowed")
 	}
-	for i := 0; i < batch.Length(); i++ {
-		rec := batch.Index(i)
-		rec.Keep()
-		b.Append(rec)
+	vals := batch.Values()
+	for i := range vals {
+		vals[i].Keep() //XXX
+		b.Append(&vals[i])
 	}
 	batch.Unref()
 	return nil
 }
 
-func (*batchDriver) Warn(warning string) error          { return nil }
-func (*batchDriver) Stats(stats api.ScannerStats) error { return nil }
-func (*batchDriver) ChannelEnd(cid int) error           { return nil }
+func (*batchDriver) Warn(warning string) error { return nil }
+
+func (*batchDriver) Stats(stats zbuf.ScannerStats) error { return nil }
+func (*batchDriver) ChannelEnd(cid int) error            { return nil }
