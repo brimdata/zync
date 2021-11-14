@@ -1,6 +1,6 @@
 ## Design Thoughts
 
-> This is deprecated by design outline in the README.
+> This is deprecated by the design outlined in the README.
 > We need update the implemented algorithm with cursors to limit the
 > scans to only the ranges needed.  After we do this, we will move
 > the design from the README back to this file.  See issue #29.

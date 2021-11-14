@@ -31,7 +31,7 @@ type Pool struct {
 	poolID  ksuid.KSUID
 }
 
-func NewPool(ctx context.Context, poolName string, server lakeapi.Interface) (*Pool, error) {
+func OpenPool(ctx context.Context, poolName string, server lakeapi.Interface) (*Pool, error) {
 	pool, err := lakeapi.LookupPoolByName(ctx, server, poolName)
 	if err != nil {
 		return nil, err

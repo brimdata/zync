@@ -1,4 +1,4 @@
-package from_kafka
+package fromkafka
 
 import (
 	"context"

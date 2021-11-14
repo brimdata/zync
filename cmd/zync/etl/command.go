@@ -18,10 +18,10 @@ var Spec = &charm.Spec{
 	Usage: "etl [options] config.yaml",
 	Short: "transform data from a Zed lake pool to another pool",
 	Long: `
-The "etl" command transforms data on a source data pool storing the
-results in a destination pool.
+The "etl" command reads data from input pools, transforms it, and
+writes it to output pools according to config.yaml.
 
-The data pool's keys must be "kafka.offset" sorted in ascending order.
+The data pool's key must be "kafka.offset" sorted in ascending order.
 
 See https://github.com/brimdata/zync/README.md for a description
 of how this works.
@@ -41,14 +41,14 @@ type Command struct {
 
 func New(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
 	c := &Command{Command: parent.(*root.Command)}
-	fs.BoolVar(&c.zed, "zed", false, "dump compiled zed to stdout and exit)")
+	fs.BoolVar(&c.zed, "zed", false, "dump compiled Zed to stdout and exit)")
 	c.flags.SetFlags(fs)
 	return c, nil
 }
 
 func (c *Command) Run(args []string) error {
 	if len(args) == 0 {
-		return errors.New("no yaml config file provided")
+		return errors.New("no YAML config file provided")
 	}
 	if len(args) > 1 {
 		return errors.New("too many arguments")

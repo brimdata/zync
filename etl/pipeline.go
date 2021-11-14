@@ -31,13 +31,13 @@ func NewPipeline(ctx context.Context, transform *Transform, service lakeapi.Inte
 		return nil, err
 	}
 	p := &Pipeline{
-		zctx:       zed.NewContext(),
+		zctx:       zctx,
 		transform:  transform,
 		inputPools: make(map[string]*Pool),
 		cursors:    make(map[string]kafka.Offset),
 		doneType:   doneType,
 	}
-	if p.outputPool, err = NewPool(ctx, transform.Output.Pool, service); err != nil {
+	if p.outputPool, err = OpenPool(ctx, transform.Output.Pool, service); err != nil {
 		return nil, err
 	}
 	for _, route := range transform.Inputs {
@@ -45,7 +45,7 @@ func NewPipeline(ctx context.Context, transform *Transform, service lakeapi.Inte
 		if _, ok := p.inputPools[name]; ok {
 			continue
 		}
-		pool, err := NewPool(ctx, name, service)
+		pool, err := OpenPool(ctx, name, service)
 		if err != nil {
 			return nil, err
 		}
@@ -183,10 +183,9 @@ func (p *Pipeline) writeToOutputPool(ctx context.Context, batch zbuf.Array) erro
 	}
 	vals := batch.Values()
 	for k := range vals {
-		// This pointer comparison should work but it doesn't right now.
-		// Are they all allocated in the same zctx?
+		//XXX This still doesn't work with the zctx bug fix.  See issue #31
 		//if vals[k].Type == p.doneType {
-		//   out.Append(&vals[k])
+		//	out.Append(&vals[k])
 		//}
 		if typedef, ok := vals[k].Type.(*zed.TypeAlias); ok && typedef.Name == "done" {
 			out.Append(&vals[k])

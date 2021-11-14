@@ -9,7 +9,7 @@ import (
 type Transform struct {
 	Inputs []Route `yaml:"inputs"`
 	Output Route   `yaml:"output"`
-	ETLs   []Rule  `yaml:"ETLs"`
+	ETLs   []Rule  `yaml:"transforms"`
 }
 
 type Route struct {
