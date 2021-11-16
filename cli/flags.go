@@ -10,9 +10,9 @@ import (
 )
 
 type Flags struct {
-	Topic       string
-	Namespace   string
-	ZedLakeHost string
+	Lake      string
+	Topic     string
+	Namespace string
 }
 
 type Credentials struct {
@@ -20,20 +20,14 @@ type Credentials struct {
 	Password string
 }
 
-const HostEnv = "ZED_LAKE_HOST"
-
-func DefaultHost() string {
-	host := os.Getenv(HostEnv)
-	if host == "" {
-		host = "localhost:9867"
-	}
-	return host
-}
-
 func (f *Flags) SetFlags(fs *flag.FlagSet) {
+	lake := os.Getenv("ZED_LAKE")
+	if lake == "" {
+		lake = "http://localhost:9867"
+	}
+	fs.StringVar(&f.Lake, "lake", lake, "Zed lake service URL")
 	fs.StringVar(&f.Topic, "topic", "", "Kafka topic name")
 	fs.StringVar(&f.Namespace, "namespace", "io.brimdata.zync", "Kafka name space for new schemas")
-	fs.StringVar(&f.ZedLakeHost, "host", DefaultHost(), "host[:port] of Zed lake service")
 }
 
 func SchemaRegistryEndpoint() (string, Credentials, error) {

@@ -144,7 +144,7 @@ func RunLocalJoin(zctx *zed.Context, left, right zio.Reader, query string) (zbuf
 	readers := []zio.Reader{left, right}
 	d := &batchDriver{}
 	dummy := &adaptor{}
-	_, err = driver.RunJoinWithFileSystem(context.TODO(), d, program, zctx, readers, dummy)
+	_, err = driver.RunWithFileSystem(context.TODO(), d, program, zctx, readers, dummy)
 	return d.Array, err
 }
 
@@ -159,9 +159,7 @@ func (b *batchDriver) Write(cid int, batch zbuf.Batch) error {
 	}
 	vals := batch.Values()
 	for i := range vals {
-		rec := &vals[i]
-		rec.Keep() //XXX
-		b.Append(rec)
+		b.Append(vals[i].Copy())
 	}
 	batch.Unref()
 	return nil

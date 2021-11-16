@@ -139,8 +139,7 @@ func (b *batchDriver) Write(cid int, batch zbuf.Batch) error {
 	}
 	vals := batch.Values()
 	for i := range vals {
-		vals[i].Keep() //XXX
-		b.Append(&vals[i])
+		b.Append(vals[i].Copy())
 	}
 	batch.Unref()
 	return nil

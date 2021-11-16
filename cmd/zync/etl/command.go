@@ -62,7 +62,7 @@ func (c *Command) Run(args []string) error {
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT)
 	defer cancel()
-	lake, err := lakeapi.OpenRemoteLake(ctx, c.flags.ZedLakeHost)
+	lake, err := lakeapi.OpenRemoteLake(ctx, c.flags.Lake)
 	if err != nil {
 		return err
 	}

@@ -62,7 +62,7 @@ func (t *To) Run(args []string) error {
 		return err
 	}
 	ctx := context.Background()
-	service, err := lakeapi.OpenRemoteLake(ctx, t.flags.ZedLakeHost)
+	service, err := lakeapi.OpenRemoteLake(ctx, t.flags.Lake)
 	if err != nil {
 		return err
 	}
