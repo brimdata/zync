@@ -52,8 +52,8 @@ Next, post some data to the topic:
 ```
 echo '{s:"hello,world"}' | zync produce -topic MyTopic -
 ```
-This transform the Zed input to Avro and posts it to the topic.
-The consumer then converts the Avro back to Zed and displays it.
+This transforms the ZSON input to Avro and posts it to the topic.
+The consumer then converts the Avro back to ZSON and displays it.
 
 > Hit Ctrl-C to interrupt `zync consume` as it will wait indefinitely
 > for data to arrive on the topic.
@@ -127,7 +127,7 @@ is attempted using a pool without this configuration.
 
 ### Syncing From Kafka
 
-`zync from-kafka` formats records received from Kafka using the Zed envelope
+`zync from-kafka` encapusulates records received from Kafka using the envelope
 ```
 {
   kafka: {topic:string,partition:int64,offset:int64},
@@ -146,7 +146,7 @@ metadata in the `kafka` field, it should not modify these values as
 
 After optionally shaping each record with a Zed script, the data is committed
 into the Zed data pool in a transactionally consistent fashion where any and
-all data committed by zync writers must have monotonically increasing `kafka.offset`
+all data committed by `zync` writers must have monotonically increasing `kafka.offset`
 relative to each topic indicated in `kafka.topic`.
 
 As the Kafka topic and offset is stored in each record,
@@ -179,7 +179,7 @@ same Kafka output topic, so
 care must be taken to only run a single `zync to-kafka` process at a time
 for any given Kafka topic.
 
-> Note: `to-kafka` currently exits after syncing to the highest contiguous offset.
+> Note: `zync to-kafka` currently exits after syncing to the highest contiguous offset.
 > We plan to soon modify it so it will run continuously, listening for
 > commits to the pool, then push any new to Kafka with minimal latency.
 
@@ -195,7 +195,7 @@ The goal of `zync etl` is to do sophisticated ETL that may involve the denormali
 of multiple tables into one.
 
 The model here is that `zync etl` processes data from an input pool to an output
-pool where `from-kafka` is populating the input pool and `to-kafka` is processing
+pool where `zync from-kafka` is populating the input pool and `zync to-kafka` is processing
 the output pool.
 
 Each Kafka topic must have a single partition as Debezium relies upon
@@ -213,21 +213,21 @@ We assume the following Debezium event types:
 * `d` events indicate the deletion of an existing row.
 
 To perform denormalization, we need to collect multiple input events to
-produce a single output event.  For example, a `c` event" on input table A
-and another `c` event on table B might need to be collated into a
+produce a single output event.  For example, a `c` event on input table A
+and another `c` event on table B might need to be coalesced into a
 mixed `c` event on output table C.  There must be some way to correlate
-such events, e.g., by presuming there is unique ID present between the
-two records, or there is a foreign key in record A that can be used to locate
+such events, e.g., by presuming there is a unique ID present in both records,
+or a foreign key in record A that can be used to locate
 the primary key in record B.
 
-Also, it might be desirable for a `u` event on table A to wait for an
+Also, it might be desirable for a `u` event on table A to wait for a
 `u` event on table B to perform a denormalized `u` event on table C
 where the ETL needs info from both the A update and the B update to produce the
 combined C update.
-Or, in other cases,
+In other cases,
 it might be more straightforward to simply allow the individual updates to
 be transformed to table C updates.   This would mean the ETL steps should be
-specified in pieces so the `etl` command could apply a single configuration
+specified in pieces so the `zync etl` command could apply a single configuration
 to a combined A/B update versus a single A or a single B update.
 
 The `zync etl` command assumes that each input record participates in exactly
@@ -237,7 +237,7 @@ pool all the Kafka offsets by topic, exactly once, of each input event processed
 
 Also, for now, we will assume that prior to processing by the pipeline ETLs,
 the `zync etl` command pre-maps each
-Debezium event into the form:
+Debezium event into the form
 ```
 {
   kafka: {topic:string,partition:int64,offset:int64},
@@ -262,13 +262,13 @@ Internally, the code applies this Zed when reading events from the input/"raw" p
 ### `zync etl` configuration
 
 The `zync etl` command syncs one Zed data pool to another where the
-input pool is created with `from-kafka` and the output pool is formatted
-for `to-kafka`.
+input pool is created with `zync from-kafka` and the output pool is formatted
+for `zync to-kafka`.
 
 Since configuration can be complex with multiple ETLs of varying types,
 the command is configured with YAML.
 
-> These yaml options are preliminary and will be iterated upon and change.
+> These YAML options are preliminary and will be iterated upon and change.
 
 Configuration is currently all in a single YAML file.
 
@@ -287,10 +287,10 @@ outputs:
   - topic: TableC
     pool: Staging
 
-# ETLs define transformation rules from one or more input tables to
+# Transforms define rules from one or more input tables to
 # to an output table, using the routes to determine the pools where each
 # topic is stored.
-ETLs:
+transforms:
   - type: denorm // denorm or stateless
     where: |
       optional Zed Boolean expression to select this rule
@@ -313,7 +313,7 @@ ETLs:
 > Note that this YAML design is only configuring a single ETL pipeline between
 > Zed data pools without any Kafka integration.  We need to work out another layer of
 > YAML config that can embed these ETL configurations and additional logic
-> to wire up the `from-kafka` and `to-kafka` processes and run many instances
+> to wire up the `zync from-kafka` and `zync to-kafka` processes and run many instances
 > over a cluster.  The current plan is to have a `zync build` command that will take
 > the `zync` YAMLs and produce `helm` charts to deploy all the needed `zync` processes
 > across a Kubernetes cluster.
@@ -321,7 +321,7 @@ ETLs:
 ### The ETL Algorithm
 
 The algorithm here describes how the ETLs are stitched together to perform the
-desired transformations.  Note that the YAML config above needs know nothing
+desired transformations.  Note that the YAML config above knows nothing
 about the details below.  However, it's useful to know how things work so you
 can debug problems that arise (and perhaps performance issues).
 
@@ -362,24 +362,24 @@ is(type(done)) | max(kafka.offset) by kafka.topic
 We can then enumerate the unprocessed records, by scanning the raw pool
 from the smallest cursor up and doing an anti join for each topic.
 
-The following (pseudo)Zed would be stitched together from the YAML config by `zync`
-(assuming two input topics "TableA" and "TableB").
+The following  pseudo Zed would be stitched together from the YAML config by `zync`
+(assuming two input topics, "TableA" and "TableB").
 ```
 split (
     => from (
         Raw range from $cursor["TableA"] to MAXINT64 => kafka.topic=="TableA";
         Staging range from $cursor["TableA"] to MAXINT64 => is(type(done)) && kafka.topic=="TableA";
-      ) | anti join on kafka.offset=kafka.offset ;
+      ) | anti join on kafka.offset=kafka.offset;
     => from (
         Raw range from $cursor["TableB"] to MAXINT64 => kafka.topic=="TableB";
         Staging range from $cursor["TableB"] to MAXINT64 => is(type(done)) && kafka.topic=="TableB";
-      ) | anti join on kafka.offset=kafka.offset ;
+      ) | anti join on kafka.offset=kafka.offset;
   )
   | switch (
     <where-denorm> =>
       split (
-        => kafka.topic==<left> | this[<left>]:=value.after | sort <right-key> ;
-        => kafka.topic==<right> | this[<right>]:=value.after | sort <left-key> ;
+        => kafka.topic==<left> | this[<left>]:=value.after | sort <right-key>;
+        => kafka.topic==<right> | this[<right>]:=value.after | sort <left-key>;
       )
       | join on <join-on>
       | <zed>
@@ -400,7 +400,7 @@ split (
 Start a Zed lake service.
 ```
 mkdir scratch
-zed lake service -R scratch
+zed lake serve -R scratch
 ```
 Create `Raw` and `Staging` pools:
 ```
@@ -417,7 +417,7 @@ You can easily see the Debezium table updates loaded into `Raw` with `zapi query
 zapi query -f table "from Raw | kafka.topic=='Invoices' | this:=value.after"
 zapi query -f table "from Raw | kafka.topic=='InvoiceStatus' | this:=value.after"
 ```
-These are all type "r" (read) Debezium logs and represent two new rows in each
+These are all type `r` (read) Debezium logs and represent two new rows in each
 of the `Invoice` and `InvoiceStatus` tables.  Transform them to `Staging` with
 ```
 zync etl demo/invoices.yaml
@@ -480,13 +480,13 @@ Now we can see the Dan row made it to `Staging`:
 zapi query -f table "from Staging | not is(type(done)) | this:={seqno:kafka.offset,op:value.op,row:value.after} | fuse"
 ```
 
-> NOTE: we formatted this output a bit differently as the updates are getting
+> NOTE: We formatted this output a bit differently as the updates are getting
 > more complex.  Here we numbered each update according to CDC order,
 > included the Debezium `op` field, and fused the tables so you can see where
 > the updates fall in the table.
 
 Finally, in the last batch, the remaining invoices marked "pending" are
-all updated...
+all updated.
 
 ```
 zapi load -use Raw@main demo/batch-4.zson

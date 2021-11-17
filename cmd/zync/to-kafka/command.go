@@ -1,4 +1,4 @@
-package to_kafka
+package tokafka
 
 import (
 	"context"
@@ -23,7 +23,7 @@ The "to-kafka" command syncs data from a Zed lake to a Kafka topic acting
 as a source of Zed data for Kafka.
 The Zed records are transcoded from Zed to Avro and synced
 to the target Kafka topic.
-The data pool is expected to have the pool key "kafka.offset" sorted
+The data pool must have the pool key "kafka.offset" sorted
 in ascending order.
 
 Only a single writer is allowed at any given time to the Kafka topic.

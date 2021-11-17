@@ -40,8 +40,7 @@ func (t *To) Sync(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		vals := batch.Values()
-		batchLen := len(vals)
+		batchLen := len(batch.Values())
 		if batchLen == 0 {
 			fmt.Printf("reached sync at offset %d\n", offset)
 			//XXX should pause and poll again... for now, exit

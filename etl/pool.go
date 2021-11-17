@@ -167,22 +167,22 @@ func (b *batchDriver) Write(cid int, batch zbuf.Batch) error {
 	return nil
 }
 
-func (*batchDriver) Warn(warning string) error           { return nil }
-func (*batchDriver) Stats(stats zbuf.ScannerStats) error { return nil }
-func (*batchDriver) ChannelEnd(cid int) error            { return nil }
+func (*batchDriver) Warn(string) error             { return nil }
+func (*batchDriver) Stats(zbuf.ScannerStats) error { return nil }
+func (*batchDriver) ChannelEnd(int) error          { return nil }
 
 type adaptor struct{}
 
-func (*adaptor) Layout(_ context.Context, src dag.Source) order.Layout {
+func (*adaptor) Layout(context.Context, dag.Source) order.Layout {
 	return order.Nil
 }
 
 func (*adaptor) NewScheduler(context.Context, *zed.Context, dag.Source, extent.Span, zbuf.Filter, *dag.Filter) (proc.Scheduler, error) {
-	return nil, fmt.Errorf("mock.Lake.NewScheduler() should not be called")
+	return nil, errors.New("mock.Lake.NewScheduler() should not be called")
 }
 
-func (*adaptor) Open(_ context.Context, _ *zed.Context, _ string, _ zbuf.Filter) (zbuf.PullerCloser, error) {
-	return nil, fmt.Errorf("mock.Lake.Open() should not be called")
+func (*adaptor) Open(context.Context, *zed.Context, string, zbuf.Filter) (zbuf.PullerCloser, error) {
+	return nil, errors.New("mock.Lake.Open() should not be called")
 }
 
 func (*adaptor) PoolID(context.Context, string) (ksuid.KSUID, error) {

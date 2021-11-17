@@ -5,6 +5,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os/signal"
+	"strings"
+	"syscall"
 
 	lakeapi "github.com/brimdata/zed/lake/api"
 	"github.com/brimdata/zed/pkg/charm"
@@ -21,7 +24,7 @@ var Spec = &charm.Spec{
 The "etl" command reads data from input pools, transforms it, and
 writes it to output pools according to config.yaml.
 
-The data pool's key must be "kafka.offset" sorted in ascending order.
+All data pool keys must be "kafka.offset" sorted in ascending order.
 
 See https://github.com/brimdata/zync/README.md for a description
 of how this works.
@@ -57,7 +60,8 @@ func (c *Command) Run(args []string) error {
 	if err != nil {
 		return err
 	}
-	ctx := context.Background()
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT)
+	defer cancel()
 	lake, err := lakeapi.OpenRemoteLake(ctx, c.flags.ZedLakeHost)
 	if err != nil {
 		return err
@@ -71,12 +75,7 @@ func (c *Command) Run(args []string) error {
 		if err != nil {
 			return err
 		}
-		for k, s := range zeds {
-			if k > 0 {
-				fmt.Println("===")
-			}
-			fmt.Println(s)
-		}
+		fmt.Println(strings.Join(zeds, "\n===\n"))
 		return nil
 	}
 	n, err := pipeline.Run(ctx)
