@@ -146,7 +146,7 @@ func (c *Consumer) Read(ctx context.Context, thresh int, timeout time.Duration) 
 	}
 }
 
-func (c *Consumer) handle(ev kafka.Event) (*zed.Record, error) {
+func (c *Consumer) handle(ev kafka.Event) (*zed.Value, error) {
 	switch ev := ev.(type) {
 	case kafka.Error:
 		return nil, ev
@@ -165,7 +165,7 @@ func (c *Consumer) handle(ev kafka.Event) (*zed.Record, error) {
 	}
 }
 
-func (c *Consumer) wrapRecord(key, val zed.Value, meta kafka.TopicPartition) (*zed.Record, error) {
+func (c *Consumer) wrapRecord(key, val zed.Value, meta kafka.TopicPartition) (*zed.Value, error) {
 	outerType, err := c.outerType(key.Type, val.Type)
 	if err != nil {
 		return nil, err
@@ -181,7 +181,7 @@ func (c *Consumer) wrapRecord(key, val zed.Value, meta kafka.TopicPartition) (*z
 	}
 	b.AppendContainer(key.Bytes)
 	b.AppendContainer(val.Bytes)
-	return zed.NewRecord(outerType, b.Bytes()), nil
+	return zed.NewValue(outerType, b.Bytes()), nil
 }
 
 func (c *Consumer) decodeAvro(b []byte) (zed.Value, error) {

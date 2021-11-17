@@ -1,0 +1,28 @@
+{
+  kafka: {
+    topic: "InvoiceStatus",
+    offset: 4
+  },
+  value: {
+    op:"c",
+    after:{
+      ID:192,
+      InvoiceID: 103,
+      status: "pending",
+    }
+  }
+}
+{
+  kafka: {
+    topic: "InvoiceStatus",
+    offset: 5
+  },
+  value: {
+    op:"u",
+    after:{
+      ID:32,
+      InvoiceID: 100,
+      status: "closed",
+    }
+  }
+}

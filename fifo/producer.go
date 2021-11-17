@@ -101,7 +101,8 @@ loop:
 }
 
 func (p *Producer) Send(ctx context.Context, offset kafka.Offset, batch zbuf.Batch) error {
-	batchLen := batch.Length()
+	vals := batch.Values()
+	batchLen := len(vals)
 	done := make(chan error)
 	ctx, cancel := context.WithCancel(ctx)
 	go func(start, end kafka.Offset) {
@@ -131,9 +132,8 @@ func (p *Producer) Send(ctx context.Context, offset kafka.Offset, batch zbuf.Bat
 			}
 		}
 	}(offset, offset+kafka.Offset(batchLen))
-	for k := 0; k < batchLen; k++ {
-		rec := batch.Index(k)
-		if err := p.write(rec); err != nil {
+	for k := range vals {
+		if err := p.write(&vals[k]); err != nil {
 			cancel()
 			return err
 		}
@@ -145,7 +145,7 @@ func (p *Producer) Send(ctx context.Context, offset kafka.Offset, batch zbuf.Bat
 	return <-done
 }
 
-func (p *Producer) write(rec *zed.Record) error {
+func (p *Producer) write(rec *zed.Value) error {
 	key, err := rec.Access("key")
 	if err != nil {
 		key = zed.Value{Type: zed.TypeNull}
@@ -156,7 +156,7 @@ func (p *Producer) write(rec *zed.Record) error {
 	}
 	val, err := rec.Access("value")
 	if err != nil {
-		val = rec.Value
+		val = *rec
 	}
 	valSchemaID, err := p.lookupSchema(val.Type)
 	if err != nil {

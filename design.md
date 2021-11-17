@@ -1,5 +1,10 @@
 ## Design Thoughts
 
+> This is deprecated by the design outlined in the README.
+> We need update the implemented algorithm with cursors to limit the
+> scans to only the ranges needed.  After we do this, we will move
+> the design from the README back to this file.  See issue #29.
+
 This document describes a proposed Zed-based design for
 * syncing one or more Kafka topics to a "raw" data pool in a transactionally
 consistent fashion,
@@ -270,7 +275,8 @@ const menuIDs = |{
         "taco": 200,
         "chips": 300
 }|;
-from raw | records:=collect(this),seqno:=max(seqno),done:=or(value.done) by txn:=value.txn
+from raw
+| records:=collect(this),offsets:=max(seqno),done:=or(value.done) by txn:=value.txn
 | done==true
 | cut this:={
     customerID:customerIDs[records[0].value.row.customer],

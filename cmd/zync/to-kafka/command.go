@@ -1,4 +1,4 @@
-package sync
+package tokafka
 
 import (
 	"context"
@@ -9,21 +9,22 @@ import (
 	lakeapi "github.com/brimdata/zed/lake/api"
 	"github.com/brimdata/zed/pkg/charm"
 	"github.com/brimdata/zync/cli"
+	"github.com/brimdata/zync/cmd/zync/root"
 	"github.com/brimdata/zync/fifo"
 	"github.com/riferrei/srclient"
 )
 
 var ToSpec = &charm.Spec{
-	Name:  "to",
-	Usage: "to [options]",
+	Name:  "to-kafka",
+	Usage: "to-kafka [options]",
 	Short: "sync a Zed lake pool to a Kafka topic",
 	Long: `
-The "to" command syncs data from a Zed lake to a Kafka topic acting
+The "to-kafka" command syncs data from a Zed lake to a Kafka topic acting
 as a source of Zed data for Kafka.
 The Zed records are transcoded from Zed to Avro and synced
 to the target Kafka topic.
-The data pool is expected to have the pool key "kafka.offset" sorted
-in descending order.
+The data pool must have the pool key "kafka.offset" sorted
+in ascending order.
 
 Only a single writer is allowed at any given time to the Kafka topic.
 At start up, the to command queries the topic for its high-water mark
@@ -34,13 +35,17 @@ according to the kafka.offset value in the data pool.
 }
 
 type To struct {
-	*Sync
-	flags cli.Flags
+	*root.Command
+	flags  cli.Flags
+	shaper cli.ShaperFlags
+	pool   string
 }
 
 func NewTo(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
-	f := &To{Sync: parent.(*Sync)}
+	f := &To{Command: parent.(*root.Command)}
+	fs.StringVar(&f.pool, "pool", "", "name of Zed data pool")
 	f.flags.SetFlags(fs)
+	f.shaper.SetFlags(fs)
 	return f, nil
 }
 
@@ -52,7 +57,7 @@ func (t *To) Run(args []string) error {
 		return errors.New("no pool provided")
 
 	}
-	shaper, err := t.loadShaper()
+	shaper, err := t.shaper.Load()
 	if err != nil {
 		return err
 	}

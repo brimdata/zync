@@ -49,8 +49,9 @@ func (f *From) Sync(ctx context.Context) (int64, int64, error) {
 		if err != nil {
 			return 0, 0, err
 		}
-		batchLen := batch.Length()
-		if batchLen == 0 {
+		vals := batch.Values()
+		n := len(vals)
+		if n == 0 {
 			break
 		}
 		batch, err = AdjustOffsetsAndShape(f.zctx, batch, offset, f.shaper)
@@ -63,9 +64,9 @@ func (f *From) Sync(ctx context.Context) (int64, int64, error) {
 		if err != nil {
 			return 0, 0, err
 		}
-		fmt.Printf("commit %s %d record%s\n", commit, batchLen, plural(batchLen))
-		offset += kafka.Offset(batchLen)
-		nrec += int64(batchLen)
+		fmt.Printf("commit %s %d record%s\n", commit, n, plural(n))
+		offset += kafka.Offset(n)
+		nrec += int64(n)
 		ncommit++
 	}
 	return ncommit, nrec, nil
@@ -75,10 +76,10 @@ func (f *From) Sync(ctx context.Context) (int64, int64, error) {
 // for insertion into correct position in the lake and remember the original
 // offset along with applying a user-defined shaper.
 func AdjustOffsetsAndShape(zctx *zed.Context, batch zbuf.Array, offset kafka.Offset, shaper string) (zbuf.Array, error) {
-	rec := batch.Index(0)
-	kafkaRec, err := batch.Index(0).Access("kafka")
+	vals := batch.Values()
+	kafkaRec, err := vals[0].Access("kafka")
 	if err != nil {
-		s, err := zson.FormatValue(rec.Value)
+		s, err := zson.FormatValue(vals[0])
 		if err != nil {
 			// This should not happen.
 			err = fmt.Errorf("[ERR! %w]", err)
@@ -88,7 +89,7 @@ func AdjustOffsetsAndShape(zctx *zed.Context, batch zbuf.Array, offset kafka.Off
 		return nil, fmt.Errorf("value read from Kafka topic missing 'kafka' metadata field: %s", s)
 	}
 	// XXX this should be simplified in zed package
-	first, err := zed.NewRecord(kafkaRec.Type, kafkaRec.Bytes).AccessInt("offset")
+	first, err := zed.NewValue(kafkaRec.Type, kafkaRec.Bytes).AccessInt("offset")
 	if err != nil {
 		s, err := zson.FormatValue(kafkaRec)
 		if err != nil {

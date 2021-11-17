@@ -1,0 +1,47 @@
+inputs:
+  - topic: Invoices
+    pool: Raw
+  - topic: InvoiceStatus
+    pool: Raw
+
+output:
+  topic: NewInvoices
+  pool: Staging
+
+transforms:
+  - type: denorm
+    where: value.op in ["c", "r"]
+    left: Invoices
+    right: InvoiceStatus
+    join-on: Invoices.ID=InvoiceStatus.InvoiceID
+    out: NewInvoices
+    zed: |
+      | NewInvoices:={
+          ID: Invoices.ID,
+          customer: Invoices.customer,
+          item: Invoices.item,
+          invoice_status: InvoiceStatus.status
+        }
+  - type: stateless
+    where: value.op=="u"
+    in: InvoiceStatus
+    out: NewInvoices
+    zed: |
+      | NewInvoices:={
+          ID: InvoiceStatus.InvoiceID,
+          invoice_status: InvoiceStatus.status
+        }
+  - type: stateless
+    where: value.op=="u"
+    in: Invoices
+    out: NewInvoices
+    zed: |
+      | NewInvoices:=Invoices
+  # We could get an update on InvoiceStatus after this delete and presumably
+  # that would cause on update error, but maybe that's ok?
+  - type: stateless
+    where: value.op=="d"
+    in: Invoices
+    out: NewInvoices
+    zed: |
+      | NewInvoices.ID:=Invoices.ID

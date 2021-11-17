@@ -1,0 +1,42 @@
+{
+  kafka: {
+    topic: "Invoices",
+    offset: 3
+  },
+  value: {
+    op:"c",
+    after:{
+      ID:102,
+      customer: "Charlie",
+      item: "enchilada"
+    }
+  }
+}
+{
+  kafka: {
+    topic: "Invoices",
+    offset: 4
+  },
+  value: {
+    op:"c",
+    after:{
+      ID:103,
+      customer: "Dan",
+      item: "beans"
+    }
+  }
+}
+{
+  kafka: {
+    topic: "InvoiceStatus",
+    offset: 3
+  },
+  value: {
+    op:"c",
+    after:{
+      ID:77,
+      InvoiceID: 102,
+      status: "pending",
+    }
+  }
+}
