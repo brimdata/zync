@@ -36,7 +36,7 @@ func zlen(zv zcode.Bytes) (int, error) {
 }
 
 func encodeAny(dst []byte, zv zed.Value) ([]byte, error) {
-	switch typ := zv.Type.(type) {
+	switch typ := zed.AliasOf(zv.Type).(type) {
 	case *zed.TypeRecord:
 		return encodeRecord(dst, typ, zv.Bytes)
 	case *zed.TypeArray:

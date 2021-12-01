@@ -9,7 +9,7 @@ import (
 )
 
 func EncodeSchema(typ zed.Type, namespace string) (avro.Schema, error) {
-	switch typ := typ.(type) {
+	switch typ := zed.AliasOf(typ).(type) {
 	case *zed.TypeRecord:
 		return encodeRecordSchema(typ, namespace)
 	case *zed.TypeArray:
