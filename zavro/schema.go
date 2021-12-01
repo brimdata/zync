@@ -70,29 +70,29 @@ func encodeSetSchema(typ *zed.TypeSet, namespace string) (avro.Schema, error) {
 
 func encodeScalarSchema(typ zed.Type) (avro.Schema, error) {
 	switch typ.ID() {
-	case zed.IDNull:
-		return &avro.NullSchema{}, nil
-	case zed.IDIP:
-		// IP addresses are turned into strings...
-		return &avro.StringSchema{}, nil
-	case zed.IDBool:
-		return &avro.BooleanSchema{}, nil
-	case zed.IDInt64:
-		return &avro.LongSchema{}, nil
+	case zed.IDUint8, zed.IDUint16, zed.IDUint32:
+		return &avro.IntSchema{}, nil
 	case zed.IDUint64:
 		return &avro.LongSchema{}, nil
-	case zed.IDFloat64:
-		return &avro.DoubleSchema{}, nil
+	case zed.IDInt8, zed.IDInt16, zed.IDInt32:
+		return &avro.IntSchema{}, nil
+	case zed.IDInt64:
+		return &avro.LongSchema{}, nil
+	case zed.IDDuration, zed.IDTime:
+		return &MicroTimeSchema{}, nil
 	case zed.IDFloat32:
 		return &avro.FloatSchema{}, nil
-	case zed.IDDuration:
-		return &MicroTimeSchema{}, nil
-	case zed.IDString, zed.IDBstring:
+	case zed.IDFloat64:
+		return &avro.DoubleSchema{}, nil
+	case zed.IDBool:
+		return &avro.BooleanSchema{}, nil
+	case zed.IDBytes:
+		return &avro.BytesSchema{}, nil
+	case zed.IDString, zed.IDBstring, zed.IDIP, zed.IDNet, zed.IDType, zed.IDError:
+		// IP addresses, networks, types, and errors are turned into strings.
 		return &avro.StringSchema{}, nil
-	case zed.IDNet:
-		return &avro.StringSchema{}, nil
-	case zed.IDTime:
-		return &MicroTimeSchema{}, nil
+	case zed.IDNull:
+		return &avro.NullSchema{}, nil
 	default:
 		return nil, fmt.Errorf("encodeScalarSchema: unknown type %q", typ)
 	}
@@ -172,16 +172,22 @@ func decodeScalarSchema(schema avro.Schema) (zed.Type, error) {
 	//XXX IPs need metadata/alias, could also try to parse string as option
 	//XXX metadata, alias to recover unsigneds?
 	switch schema := schema.(type) {
-	case *avro.BooleanSchema:
-		return zed.TypeBool, nil
-	case *avro.LongSchema:
-		return zed.TypeInt64, nil
-	case *avro.DoubleSchema, *avro.FloatSchema:
-		return zed.TypeFloat64, nil
-	case *avro.StringSchema:
-		return zed.TypeString, nil
 	case *avro.NullSchema:
 		return zed.TypeNull, nil
+	case *avro.BooleanSchema:
+		return zed.TypeBool, nil
+	case *avro.IntSchema:
+		return zed.TypeInt32, nil
+	case *avro.LongSchema:
+		return zed.TypeInt64, nil
+	case *avro.FloatSchema:
+		return zed.TypeFloat32, nil
+	case *avro.DoubleSchema:
+		return zed.TypeFloat64, nil
+	case *avro.BytesSchema:
+		return zed.TypeBytes, nil
+	case *avro.StringSchema:
+		return zed.TypeString, nil
 	default:
 		return nil, fmt.Errorf("unsupported avro schema type: %T", schema)
 	}
