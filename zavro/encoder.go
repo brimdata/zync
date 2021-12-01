@@ -111,16 +111,37 @@ func encodeScalar(dst []byte, typ zed.Type, body zcode.Bytes) ([]byte, error) {
 		return dst, nil
 	}
 	switch typ.ID() {
-	case zed.IDNull:
-		return dst, nil
-	case zed.IDIP:
-		// IP addresses are turned into strings...
-		ip, err := zed.DecodeIP(body)
+	case zed.IDUint8, zed.IDUint16, zed.IDUint32, zed.IDUint64:
+		// count is encoded as a uint64.  XXX return error on overdflow?
+		v, err := zed.DecodeUint(body)
 		if err != nil {
 			return nil, err
 		}
-		b := []byte(ip.String())
-		return appendCountedValue(dst, b), nil
+		return appendVarint(dst, int64(v)), nil
+	case zed.IDInt8, zed.IDInt16, zed.IDInt32, zed.IDInt64:
+		v, err := zed.DecodeInt(body)
+		if err != nil {
+			return nil, err
+		}
+		return appendVarint(dst, v), nil
+	case zed.IDDuration, zed.IDTime:
+		// Map nanoseconds to microsecond.
+		ns, err := zed.DecodeInt(body)
+		if err != nil {
+			return nil, err
+		}
+		us := ns / 1000
+		return appendVarint(dst, int64(us)), nil
+	case zed.IDFloat32:
+		if len(body) != 4 {
+			return nil, errors.New("float32 value not 4 bytes")
+		}
+		return append(dst, body...), nil
+	case zed.IDFloat64:
+		if len(body) != 8 {
+			return nil, errors.New("float64 value not 8 bytes")
+		}
+		return append(dst, body...), nil
 	case zed.IDBool:
 		// bool is single byte 0 or 1
 		v, err := zed.DecodeBool(body)
@@ -131,36 +152,16 @@ func encodeScalar(dst []byte, typ zed.Type, body zcode.Bytes) ([]byte, error) {
 			return append(dst, byte(1)), nil
 		}
 		return append(dst, byte(0)), nil
-	case zed.IDInt64:
-		v, err := zed.DecodeInt(body)
+	case zed.IDBytes, zed.IDString, zed.IDBstring:
+		return appendCountedValue(dst, body), nil
+	case zed.IDIP:
+		// IP addresses are turned into strings...
+		ip, err := zed.DecodeIP(body)
 		if err != nil {
 			return nil, err
 		}
-		return appendVarint(dst, v), nil
-	case zed.IDUint64:
-		// count is encoded as a uint64.  XXX return error on overdflow?
-		v, err := zed.DecodeUint(body)
-		if err != nil {
-			return nil, err
-		}
-		return appendVarint(dst, int64(v)), nil
-	case zed.IDFloat64:
-		// avro says this is Java's doubleToLongBits...
-		// we need to check if Go math lib is the same
-		if len(body) != 8 {
-			return nil, errors.New("double value not 8 bytes")
-		}
-		return append(dst, body...), nil
-	case zed.IDDuration:
-		// XXX map an interval to a microsecond time
-		ns, err := zed.DecodeDuration(body)
-		if err != nil {
-			return nil, err
-		}
-		us := ns / 1000
-		return appendVarint(dst, int64(us)), nil
-	case zed.IDString, zed.IDBstring:
-		return appendCountedValue(dst, []byte(body)), nil
+		b := []byte(ip.String())
+		return appendCountedValue(dst, b), nil
 	case zed.IDNet:
 		net, err := zed.DecodeNet(body)
 		if err != nil {
@@ -168,14 +169,13 @@ func encodeScalar(dst []byte, typ zed.Type, body zcode.Bytes) ([]byte, error) {
 		}
 		b := []byte(net.String())
 		return appendCountedValue(dst, b), nil
-	case zed.IDTime:
-		// map a nano to a microsecond time
-		ts, err := zed.DecodeInt(body)
-		if err != nil {
-			return nil, err
-		}
-		us := ts / 1000
-		return appendVarint(dst, us), nil
+	case zed.IDType:
+		b := []byte(zed.FormatTypeValue(body))
+		return appendCountedValue(dst, b), nil
+	case zed.IDError:
+		return appendCountedValue(dst, body), nil
+	case zed.IDNull:
+		return dst, nil
 	default:
 		return nil, fmt.Errorf("encodeScalar: unknown type: %q", typ)
 	}

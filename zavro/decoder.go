@@ -133,7 +133,7 @@ func decodeScalar(b *zcode.Builder, in []byte, schema avro.Schema) ([]byte, erro
 		// ZNG and Avro are the same here
 		b.AppendPrimitive(in[:1])
 		return in[1:], nil
-	case *avro.LongSchema:
+	case *avro.IntSchema, *avro.LongSchema:
 		var v int64
 		in, v = decodeVarint(in)
 		if in == nil {
@@ -141,18 +141,22 @@ func decodeScalar(b *zcode.Builder, in []byte, schema avro.Schema) ([]byte, erro
 		}
 		b.AppendPrimitive(zed.EncodeInt(v))
 		return in, nil
-	case *avro.FloatSchema, *avro.DoubleSchema: //XXX see zync issue #19
-		// avro says this is Java's doubleToLongBits...
-		// we need to check if Go math lib is the same
-		if len(in) < 8 {
+	case *avro.FloatSchema:
+		if len(in) < 4 {
 			return nil, errors.New("end of input decoding avro float")
+		}
+		b.AppendPrimitive(in[:4])
+		return in[4:], nil
+	case *avro.DoubleSchema:
+		if len(in) < 8 {
+			return nil, errors.New("end of input decoding avro double")
 		}
 		b.AppendPrimitive(in[:8])
 		return in[8:], nil
-	case *avro.StringSchema:
+	case *avro.BytesSchema, *avro.StringSchema:
 		in, body := decodeCountedValue(in)
 		if in == nil {
-			return nil, errors.New("end of input decoding avro string")
+			return nil, errors.New("end of input decoding avro bytes or string")
 		}
 		b.AppendPrimitive(body)
 		return in, nil
