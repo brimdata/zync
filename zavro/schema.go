@@ -106,6 +106,8 @@ func DecodeSchema(zctx *zed.Context, schema avro.Schema) (zed.Type, error) {
 		return decodeArraySchema(zctx, schema)
 	case *avro.UnionSchema:
 		return decodeUnionSchema(zctx, schema)
+	case *avro.RecursiveSchema:
+		return decodeRecordSchema(zctx, schema.Actual)
 	default:
 		return decodeScalarSchema(schema)
 	}
