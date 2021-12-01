@@ -19,7 +19,8 @@ func Decode(in []byte, schema avro.Schema) (zcode.Bytes, error) {
 	if len(in) != 0 {
 		return nil, fmt.Errorf("avro decoder: extra data of length %d", len(in))
 	}
-	if _, ok := schema.(*avro.RecordSchema); ok {
+	switch schema.(type) {
+	case *avro.RecordSchema, *avro.RecursiveSchema:
 		return b.Bytes().ContainerBody()
 	}
 	return b.Bytes(), nil
@@ -33,6 +34,8 @@ func decodeAny(b *zcode.Builder, in []byte, schema avro.Schema) ([]byte, error) 
 		return decodeArray(b, in, schema)
 	case *avro.UnionSchema:
 		return decodeUnion(b, in, schema)
+	case *avro.RecursiveSchema:
+		return decodeRecord(b, in, schema.Actual)
 	default:
 		return decodeScalar(b, in, schema)
 	}
