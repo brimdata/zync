@@ -123,7 +123,7 @@ func decodeRecordSchema(zctx *zed.Context, schema *avro.RecordSchema) (zed.Type,
 		// we'll just smash this to  its underlying type.  The decoder
 		// will decode the values against the avro schema and apply
 		// the same object to remove the union-wrapper on each said value.
-		if opt := isOptional(fieldType); opt != nil {
+		if opt, _ := isOptional(fieldType); opt != nil {
 			fieldType = opt
 		}
 		typ, err := DecodeSchema(zctx, fieldType)
@@ -135,19 +135,19 @@ func decodeRecordSchema(zctx *zed.Context, schema *avro.RecordSchema) (zed.Type,
 	return zctx.LookupTypeRecord(cols)
 }
 
-func isOptional(schema avro.Schema) avro.Schema {
+func isOptional(schema avro.Schema) (avro.Schema, int64) {
 	if union, ok := schema.(*avro.UnionSchema); ok {
 		types := union.Types
 		if len(types) == 2 {
 			if _, ok := types[0].(*avro.NullSchema); ok {
-				return types[1]
+				return types[1], 0
 			}
 			if _, ok := types[1].(*avro.NullSchema); ok {
-				return types[0]
+				return types[0], 1
 			}
 		}
 	}
-	return nil
+	return nil, -1
 }
 
 func decodeArraySchema(zctx *zed.Context, schema *avro.ArraySchema) (zed.Type, error) {

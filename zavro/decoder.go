@@ -90,12 +90,8 @@ func decodeUnion(b *zcode.Builder, in []byte, schema *avro.UnionSchema) ([]byte,
 	if selector < 0 || int(selector) >= len(schema.Types) {
 		return nil, fmt.Errorf("bad selector decoding avro union (%d when len %d)", selector, len(schema.Types))
 	}
-	if schema := isOptional(schema); schema != nil {
-		//XXX assume this is an "optional" field as encoded by us
-		// and decode the first value of the union as the actual value
-		// if present.  XXX We should handle optional-value unions that
-		// have null first.
-		if selector == 0 {
+	if schema, nullSelector := isOptional(schema); schema != nil {
+		if selector == nullSelector {
 			b.AppendNull()
 			return in, nil
 		}
