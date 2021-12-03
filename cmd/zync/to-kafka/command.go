@@ -14,6 +14,10 @@ import (
 	"github.com/riferrei/srclient"
 )
 
+func init() {
+	root.Zync.Add(ToSpec)
+}
+
 var ToSpec = &charm.Spec{
 	Name:  "to-kafka",
 	Usage: "to-kafka [options]",
