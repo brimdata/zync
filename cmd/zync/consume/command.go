@@ -91,7 +91,7 @@ func (c *Command) Run(args []string) error {
 		return err
 	}
 	zctx := zed.NewContext()
-	consumer, err := fifo.NewConsumer(zctx, config, registry, c.flags.Topic, c.group, kafka.Offset(0), false)
+	consumer, err := fifo.NewConsumer(zctx, config, registry, c.flags.Topic, c.group, kafka.Offset(c.offset), false)
 	if err != nil {
 		return err
 	}
