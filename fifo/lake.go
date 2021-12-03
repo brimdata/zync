@@ -88,12 +88,12 @@ func (l *Lake) NextConsumerOffset(topic string) (kafka.Offset, error) {
 	query := fmt.Sprintf("kafka.topic=='%s' | tail 1 | offset:=kafka.input_offset", topic)
 	batch, err := l.Query(query)
 	if err != nil {
-		return 0, err
+		return kafka.OffsetBeginning, err
 	}
 	vals := batch.Values()
 	n := len(vals)
 	if n == 0 {
-		return 0, nil
+		return kafka.OffsetBeginning, nil
 	}
 	if n != 1 {
 		// This should not happen.

@@ -59,7 +59,8 @@ func New(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
 	c := &Command{Command: parent.(*root.Command)}
 	fs.StringVar(&c.timeout, "timeout", "", "timeout in ZSON duration syntax (5s, 1m30s, ...)")
 	fs.StringVar(&c.group, "group", "", "Kafka consumer group name")
-	fs.Int64Var(&c.offset, "offset", 0, "Kafka offset in topic to begin at")
+	fs.Int64Var(&c.offset, "offset", int64(kafka.OffsetBeginning),
+		"initial Kafka offset (-2 is oldest, -1 is newest)")
 	c.flags.SetFlags(fs)
 	c.outputFlags.SetFlags(fs)
 	return c, nil
