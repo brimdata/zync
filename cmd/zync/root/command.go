@@ -7,12 +7,6 @@ import (
 	"github.com/brimdata/zed/pkg/charm"
 )
 
-// These variables are populated via the Go linker.
-var (
-	Version   = "unknown"
-	ZqVersion = "unknown"
-)
-
 var Zync = &charm.Spec{
 	Name:  "zync",
 	Usage: "zync command [options] [arguments...]",

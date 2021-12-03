@@ -12,12 +12,7 @@ import (
 	_ "github.com/brimdata/zync/cmd/zync/produce"
 	"github.com/brimdata/zync/cmd/zync/root"
 	_ "github.com/brimdata/zync/cmd/zync/to-kafka"
-)
-
-// These variables are populated via the Go linker.
-var (
-	version   = "unknown"
-	zqVersion = "unknown"
+	_ "github.com/brimdata/zync/cmd/zync/version"
 )
 
 func main() {
