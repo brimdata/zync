@@ -2,6 +2,7 @@ package fifo
 
 import (
 	"context"
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
 
@@ -192,7 +193,10 @@ func (p *Producer) lookupSchema(typ zed.Type) (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		id, err = p.CreateSchema(string(schema))
+		// We use RecordNameStrategy for the subject name so we can have
+		// different schemas on the same topic.
+		subject := fmt.Sprintf("zng_%x", md5.Sum([]byte(typ.String())))
+		id, err = p.CreateSchema(subject, string(schema))
 		if err != nil {
 			return 0, err
 		}
@@ -201,10 +205,7 @@ func (p *Producer) lookupSchema(typ zed.Type) (int, error) {
 	return id, nil
 }
 
-func (p *Producer) CreateSchema(schema string) (int, error) {
-	// We use RecordNameStrategy for the subject name so we can have
-	// different schemas on the same topic.
-	subject := schema
+func (p *Producer) CreateSchema(subject, schema string) (int, error) {
 	s, err := p.registry.CreateSchema(subject, schema, srclient.Avro)
 	if err != nil {
 		return -1, err
