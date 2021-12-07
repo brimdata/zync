@@ -67,7 +67,7 @@ zed lake serve -R scratch
 ```
 Now, in your first shell, sync data from Kafka to a Zed lake:
 ```
-zapi create -orderby seqno PoolA
+zapi create -orderby kafka.offset PoolA
 zync from-kafka -topic MyTopic -pool PoolA
 ```
 See the data in the Zed pool:
@@ -477,7 +477,7 @@ zync etl demo/invoices.yaml
 ```
 Now we can see the Dan row made it to `Staging`:
 ```
-zapi query -f table "from Staging | not is(type(done)) | this:={seqno:kafka.offset,op:value.op,row:value.after} | fuse"
+zapi query -f table "from Staging | not is(type(done)) | this:={offset:kafka.offset,op:value.op,row:value.after} | fuse"
 ```
 
 > NOTE: We formatted this output a bit differently as the updates are getting
@@ -495,7 +495,7 @@ zync etl demo/invoices.yaml
 
 And re-run the table query from above to see the final result:
 ```
-zapi query -f table "from Staging | not is(type(done)) | this:={seqno:kafka.offset,op:value.op,row:value.after} | fuse"
+zapi query -f table "from Staging | not is(type(done)) | this:={offset:kafka.offset,op:value.op,row:value.after} | fuse"
 ```
 
 
