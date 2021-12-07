@@ -37,7 +37,7 @@ const BatchThresh = 10 * 1024 * 1024
 const BatchTimeout = 5 * time.Second
 
 func (f *From) Sync(ctx context.Context) (int64, int64, error) {
-	offset, err := f.dst.NextProducerOffset()
+	offset, err := f.dst.NextProducerOffset(f.src.topic)
 	if err != nil {
 		return 0, 0, err
 	}
