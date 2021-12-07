@@ -59,10 +59,11 @@ func (l *Lake) LoadBatch(batch zbuf.Array) (ksuid.KSUID, error) {
 	return l.service.Load(context.TODO(), l.poolID, "main", &batch, api.CommitMessage{})
 }
 
-func (l *Lake) NextProducerOffset() (kafka.Offset, error) {
+func (l *Lake) NextProducerOffset(topic string) (kafka.Offset, error) {
 	// Run a query against the pool to get the max output offset.
 	// We assume the pool key is kafka.offset:asc so we just do "tail 1".
-	batch, err := l.Query("tail 1 | offset:=kafka.offset")
+	query := fmt.Sprintf("kafka.topic=='%s' | tail 1 | offset:=kafka.offset", topic)
+	batch, err := l.Query(query)
 	if err != nil {
 		return 0, err
 	}
