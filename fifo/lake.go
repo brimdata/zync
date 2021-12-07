@@ -106,8 +106,8 @@ func (l *Lake) NextConsumerOffset(topic string) (kafka.Offset, error) {
 	return kafka.Offset(offset + 1), nil
 }
 
-func (l *Lake) ReadBatch(ctx context.Context, offset kafka.Offset, size int) (zbuf.Batch, error) {
-	query := fmt.Sprintf("kafka.offset >= %d | head %d", offset, size)
+func (l *Lake) ReadBatch(ctx context.Context, topic string, offset kafka.Offset, size int) (zbuf.Batch, error) {
+	query := fmt.Sprintf("kafka.topic=='%s' kafka.offset >= %d | head %d", topic, offset, size)
 	if l.shaper != "" {
 		query = fmt.Sprintf("%s | %s  | sort kafka.offset", query, l.shaper)
 	} else {

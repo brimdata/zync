@@ -36,7 +36,7 @@ func (t *To) Sync(ctx context.Context) error {
 	}
 	for {
 		// Query of batch of records that start at the given offset.
-		batch, err := t.src.ReadBatch(ctx, offset, BatchSize)
+		batch, err := t.src.ReadBatch(ctx, t.dst.topic, offset, BatchSize)
 		if err != nil {
 			return err
 		}
