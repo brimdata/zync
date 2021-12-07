@@ -67,7 +67,7 @@ zed lake serve -R scratch
 ```
 Now, in your first shell, sync data from Kafka to a Zed lake:
 ```
-zapi create -orderby kafka.ofset PoolA
+zapi create -orderby kafka.offset PoolA
 zync from-kafka -topic MyTopic -pool PoolA
 ```
 See the data in the Zed pool:
