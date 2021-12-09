@@ -9,22 +9,34 @@ import (
 )
 
 func EncodeSchema(typ zed.Type, namespace string) (avro.Schema, error) {
+	return (&schemaEncoder{namespace, map[*zed.TypeRecord]*avro.RecordSchema{}}).encode(typ)
+}
+
+type schemaEncoder struct {
+	namespace string
+	registry  map[*zed.TypeRecord]*avro.RecordSchema
+}
+
+func (s *schemaEncoder) encode(typ zed.Type) (avro.Schema, error) {
 	switch typ := zed.AliasOf(typ).(type) {
 	case *zed.TypeRecord:
-		return encodeRecordSchema(typ, namespace)
+		return s.encodeRecord(typ)
 	case *zed.TypeArray:
-		return encodeArraySchema(typ, namespace)
+		return s.encodeArray(typ)
 	case *zed.TypeSet:
-		return encodeSetSchema(typ, namespace)
+		return s.encodeSet(typ)
 	default:
 		return encodeScalarSchema(typ)
 	}
 }
 
-func encodeRecordSchema(typ *zed.TypeRecord, namespace string) (avro.Schema, error) {
+func (s *schemaEncoder) encodeRecord(typ *zed.TypeRecord) (avro.Schema, error) {
+	if actual, ok := s.registry[typ]; ok {
+		return &avro.RecursiveSchema{Actual: actual}, nil
+	}
 	var fields []*avro.SchemaField
 	for _, col := range typ.Columns {
-		schema, err := EncodeSchema(col.Type, namespace)
+		schema, err := s.encode(col.Type)
 		if err != nil {
 			return nil, err
 		}
@@ -40,28 +52,30 @@ func encodeRecordSchema(typ *zed.TypeRecord, namespace string) (avro.Schema, err
 	// we would get a ton of versions on the same name for different
 	// instances/restarts of a zng stream.
 	sum := md5.Sum([]byte(typ.String()))
-	return &avro.RecordSchema{
+	schema := &avro.RecordSchema{
 		Name:       fmt.Sprintf("zng_%x", sum),
-		Namespace:  namespace,
+		Namespace:  s.namespace,
 		Doc:        "Created by zync from zng type " + typ.String(),
 		Aliases:    nil,
 		Properties: nil,
 		Fields:     fields,
-	}, nil
+	}
+	s.registry[typ] = schema
+	return schema, nil
 }
 
-func encodeArraySchema(typ *zed.TypeArray, namespace string) (avro.Schema, error) {
-	inner, err := EncodeSchema(zed.InnerType(typ), namespace)
+func (s *schemaEncoder) encodeArray(typ *zed.TypeArray) (avro.Schema, error) {
+	inner, err := s.encode(zed.InnerType(typ))
 	if err != nil {
 		return nil, err
 	}
 	return &avro.ArraySchema{Items: inner}, nil
 }
 
-func encodeSetSchema(typ *zed.TypeSet, namespace string) (avro.Schema, error) {
+func (s *schemaEncoder) encodeSet(typ *zed.TypeSet) (avro.Schema, error) {
 	// XXX this looks the same as array for now but we will want to add
 	// more meta-info to disnguish the two cases
-	inner, err := EncodeSchema(zed.InnerType(typ), namespace)
+	inner, err := s.encode(zed.InnerType(typ))
 	if err != nil {
 		return nil, err
 	}
