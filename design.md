@@ -24,7 +24,7 @@ uncompleted and unexpired records at any given time.
 > required are small and easy.
 
 We will demonstrate the ideas here with some example ZSON files that can be run
-by hand with `zapi` and a Zed lake to emulate how this would all work.
+by hand with `zed` and a Zed lake to emulate how this would all work.
 
 We envision a sync command that syncs from a "raw" pool to a "staging" pool,
 e.g.,
@@ -181,12 +181,12 @@ The output table is:
 To try out this example, run a Zed lake service in one shell:
 ```
 mkdir scratch
-zed lake serve -R scratch
+zed serve -lake scratch
 ```
 and in another create the ETL pools:
 ```
-zapi create -orderby seqno:asc raw
-zapi create -orderby seqno:desc staging
+zed create -orderby seqno:asc raw
+zed create -orderby seqno:desc staging
 ```
 
 ### Example Inputs
@@ -253,13 +253,13 @@ Here is `demo/consumer-1.zson`:
 
 Load this data into the "raw" pool:
 ```
-zapi load -use raw@main demo/consume-1.zson
+zed load -use raw@main demo/consume-1.zson
 ```
 
 Now we can run this to find all of the disaggregated transactions,
 re-aggregate them by `txn` ID, and compute the maximum `seqno` across the bundle:
 ```
-zapi query "from raw | records:=collect(this),seqno:=max(seqno),done:=or(value.done) by txn:=value.txn"
+zed query "from raw | records:=collect(this),seqno:=max(seqno),done:=or(value.done) by txn:=value.txn"
 ```
 We want to apply ETL logic to the records that are ready to be processed
 (e.g., have `done` true) so we simply reach into the records array to
@@ -287,7 +287,7 @@ from raw
 ```
 You can see the processed record by running this:
 ```
-zapi query -I demo/etl.zed
+zed query -I demo/etl.zed
 ```
 And we get this:
 ```
@@ -313,12 +313,12 @@ a `seqno` of 2.
 To illustrate the steps here, you can manually load this data into
 "staging" using:
 ```
-zapi load -use staging@main demo/staging-1.zson
+zed load -use staging@main demo/staging-1.zson
 ```
 
 Next suppose new data arrives that complete the pending one.  Load it with:
 ```
-zapi load -use raw@main demo/consume-2.zson
+zed load -use raw@main demo/consume-2.zson
 ```
 
 Now, suppose zync restarts in this sitaution.  Here are the steps needed to
@@ -326,7 +326,7 @@ merge the new transaction into "staging".
 
 First, we need to find the current cursor stored in "staging":
 ```
-zapi query "from staging | is(type(cursor)) | max(seqno)"
+zed query "from staging | is(type(cursor)) | max(seqno)"
 {max:2}
 ```
 Ok, it's '2'.  Now we get all the transaction data from "raw" greater than 2
@@ -339,7 +339,7 @@ and we get:
 Note that seqno 3 has already been processed.  We can get a list of sequence numbers
 already processed from "staging", e.g.,
 ```
-zapi query "from staging | not is(type(cursor)) | seqno >= 2 | cut seqno"
+zed query "from staging | not is(type(cursor)) | seqno >= 2 | cut seqno"
 ```
 and we can do an _anti join_ with the "raw" transactions to get just the records
 that we want to process.  We'll put this in `demo/update.zed`:
@@ -352,7 +352,7 @@ from (
 ```
 Run this with
 ```
-zapi query -I demo/update.zed
+zed query -I demo/update.zed
 ```
 And we get exactly the records for the pending transaction:
 ```
@@ -361,7 +361,7 @@ And we get exactly the records for the pending transaction:
 ```
 Now we can put together the anti-join step with the ETL step in `demo/update-etl.zed`:
 ```
-zapi query -I demo/update-etl.zed
+zed query -I demo/update-etl.zed
 {customerID:2,menuID:100,qty:1,total:5.99}
 ```
 

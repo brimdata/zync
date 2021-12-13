@@ -32,7 +32,7 @@ is given, then a random name is chosen so that reading will begin at offset 0.
 
 Consume reads each record as Avro and transcodes it to Zed using the configured
 schema registry.  Any of the output formats used by the "zed" command may be
-specified in the same way as in the zed query commands (i.e., zq, zapi query, etc).
+specified in the same way as in the zed query commands (i.e., zq, zed query, etc).
 
 Once consume reaches the head of the Kafka topic, it blocks and waits for more
 data and gives up and exits if a timeout is provided.  Note that if the duration
