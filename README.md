@@ -63,16 +63,16 @@ The consumer then converts the Avro back to ZSON and displays it.
 In another shell, run a Zed lake service:
 ```
 mkdir scratch
-zed lake serve -R scratch
+zed serve -lake scratch
 ```
 Now, in your first shell, sync data from Kafka to a Zed lake:
 ```
-zapi create -orderby kafka.offset PoolA
+zed create -orderby kafka.offset PoolA
 zync from-kafka -topic MyTopic -pool PoolA
 ```
 See the data in the Zed pool:
 ```
-zapi query "from PoolA"
+zed query "from PoolA"
 ```
 Next, create a topic called `MyTarget` with one partition using your Kafka admin tools,
 sync data from a Zed pool back to Kafka, and check that it made it:
@@ -86,9 +86,9 @@ echo 'value:={upper:to_upper(value.s),words:split(value.s, ",")}' > shape.zed
 ```
 And shape the record from `MyTopic` into a new `PoolB`:
 ```
-zapi create -orderby kafka.offset PoolB
+zed create -orderby kafka.offset PoolB
 zync from-kafka -topic MyTopic -pool PoolB -shaper shape.zed
-zapi query -Z "from PoolB"
+zed query -Z "from PoolB"
 ```
 
 ## Configuration
@@ -400,22 +400,22 @@ split (
 Start a Zed lake service.
 ```
 mkdir scratch
-zed lake serve -R scratch
+zed serve -lake scratch
 ```
 Create `Raw` and `Staging` pools:
 ```
-zapi create -orderby kafka.offset Raw
-zapi create -orderby kafka.offset Staging
+zed create -orderby kafka.offset Raw
+zed create -orderby kafka.offset Staging
 ```
 Load the first batch of test data into `Raw`, as if `zync from-kafka` imported
 it from its topics to `Raw` as Debezium CDC logs:
 ```
-zapi load -use Raw@main demo/batch-1.zson
+zed load -use Raw@main demo/batch-1.zson
 ```
-You can easily see the Debezium table updates loaded into `Raw` with `zapi query`:
+You can easily see the Debezium table updates loaded into `Raw` with `zed query`:
 ```
-zapi query -f table "from Raw | kafka.topic=='Invoices' | this:=value.after"
-zapi query -f table "from Raw | kafka.topic=='InvoiceStatus' | this:=value.after"
+zed query -f table "from Raw | kafka.topic=='Invoices' | this:=value.after"
+zed query -f table "from Raw | kafka.topic=='InvoiceStatus' | this:=value.after"
 ```
 These are all type `r` (read) Debezium logs and represent two new rows in each
 of the `Invoice` and `InvoiceStatus` tables.  Transform them to `Staging` with
@@ -430,12 +430,12 @@ pool includes metadata records tracking which input events have been processed.
 After running the ETL, you can see the denormalized CDC updates in the
 `Staging` pool:
 ```
-zapi query -f table "from Staging | kafka.topic=='NewInvoices' | this:=value.after"
+zed query -f table "from Staging | kafka.topic=='NewInvoices' | this:=value.after"
 ```
 You can also see the progress updates marking the input records completed
 that are stored alongside the data in `Staging`:
 ```
-zapi query "from Staging | is(type(done))"
+zed query "from Staging | is(type(done))"
 ```
 
 If you run the ETL again with no new data, it will do nothing as you do not
@@ -450,7 +450,7 @@ zync etl demo/invoices.yaml
 Now suppose new data arrives from Debezium over Kafka.  Let's load it into
 the `Raw` pool:
 ```
-zapi load -use Raw@main demo/batch-2.zson
+zed load -use Raw@main demo/batch-2.zson
 ```
 In this file, there are new `Invoices` rows for Charlie and Dan but only an
 `InvoiceStatus` row for Charlie.  This means only the Charlie data can be
@@ -461,23 +461,23 @@ zync etl demo/invoices.yaml
 ```
 You can see that the Charlie row made it Staging:
 ```
-zapi query -f table "from Staging | kafka.topic=='NewInvoices' | this:=value.after"
+zed query -f table "from Staging | kafka.topic=='NewInvoices' | this:=value.after"
 ```
 but the Dan row is still pending.  You can see the pending records for this
 example by running
 ```
-zapi query -Z -I demo/pending.zed
+zed query -Z -I demo/pending.zed
 ```
 Now let's load another batch of records that provides the InvoiceStatus create
 event for the Dan row and a "stateless" `InvoiceStatus` update to change
 Alice's status to "paid":
 ```
-zapi load -use Raw@main demo/batch-3.zson
+zed load -use Raw@main demo/batch-3.zson
 zync etl demo/invoices.yaml
 ```
 Now we can see the Dan row made it to `Staging`:
 ```
-zapi query -f table "from Staging | not is(type(done)) | this:={offset:kafka.offset,op:value.op,row:value.after} | fuse"
+zed query -f table "from Staging | not is(type(done)) | this:={offset:kafka.offset,op:value.op,row:value.after} | fuse"
 ```
 
 > NOTE: We formatted this output a bit differently as the updates are getting
@@ -489,13 +489,13 @@ Finally, in the last batch, the remaining invoices marked "pending" are
 all updated.
 
 ```
-zapi load -use Raw@main demo/batch-4.zson
+zed load -use Raw@main demo/batch-4.zson
 zync etl demo/invoices.yaml
 ```
 
 And re-run the table query from above to see the final result:
 ```
-zapi query -f table "from Staging | not is(type(done)) | this:={offset:kafka.offset,op:value.op,row:value.after} | fuse"
+zed query -f table "from Staging | not is(type(done)) | this:={offset:kafka.offset,op:value.op,row:value.after} | fuse"
 ```
 
 
