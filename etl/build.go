@@ -39,7 +39,7 @@ func buildZed(inputTopics []string, outputTopic string, routes *Routes, etls []R
 const fromTemplate = `
 from (
   %q => kafka.topic==%q;
-  %q => is(type(done)) kafka.topic==%q;
+  %q => is(<done>) kafka.topic==%q;
 ) | anti join on kafka.offset=kafka.offset
 `
 
@@ -101,7 +101,7 @@ func buildStateless(etl Rule) string {
 	code += fmt.Sprintf("        | drop this[%q]\n", etl.Out)
 	code += "        ;\n"
 	code += "      =>\n"
-	code += "        this:=cast({kafka:{topic:kafka.topic,offset:kafka.offset}},done)\n"
+	code += "        yield cast({kafka:{topic:kafka.topic,offset:kafka.offset}},done)\n"
 	code += "        ;\n"
 	code += "      )\n"
 	code += "    ;\n"
@@ -132,7 +132,7 @@ func buildDenorm(etl Rule) (string, error) {
 	code += fmt.Sprintf("\n        | kafka.topic:=%q,value.after:=this[%q]\n", etl.Out, etl.Out)
 	code += fmt.Sprintf("        | drop this[%q],this[%q],this[%q],left,right\n", etl.Left, etl.Right, etl.Out)
 	code += "        ;\n"
-	code += "      =>  this:={\n"
+	code += "      =>  yield {\n"
 	code += "             left:cast({kafka:{topic:left.topic,offset:left.offset}},done),\n"
 	code += "             right:cast({kafka:{topic:right.topic,offset:right.offset}},done)\n"
 	code += "          }\n"

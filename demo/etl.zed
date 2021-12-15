@@ -11,7 +11,7 @@ const menuIDs = |{
 from raw
 | records:=collect(this),seqno:=max(seqno),done:=or(value.done) by txn:=value.txn
 | done==true
-| cut this:={
+| cut yield{
     customerID:customerIDs[records[0].value.row.customer],
     menuID:menuIDs[records[0].value.row.product],
     qty: records[0].value.row.qty,

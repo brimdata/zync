@@ -1,5 +1,5 @@
 from (
   raw => seqno >= 2 | sort seqno;
-  staging => not is(type(cursor)) | seqno >= 2 | cut seqno | sort seqno;
+  staging => not is(<cursor>) | seqno >= 2 | cut seqno | sort seqno;
 )
 | anti join on seqno=seqno

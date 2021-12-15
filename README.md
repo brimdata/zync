@@ -351,7 +351,7 @@ been processed, which has the form
 At startup, to compute the cursors we simply run a query for each input topic
 on the output lake
 ```
-is(type(done)) | max(kafka.offset) by kafka.topic
+is(<done>) | max(kafka.offset) by kafka.topic
 ```
 > We can make this efficient by using `head 1` inside of switch legs where each
 > switch case is one of the topics and scanning in descending order, which is the
@@ -368,11 +368,11 @@ The following  pseudo Zed would be stitched together from the YAML config by `zy
 split (
     => from (
         Raw range from $cursor["TableA"] to MAXINT64 => kafka.topic=="TableA";
-        Staging range from $cursor["TableA"] to MAXINT64 => is(type(done)) && kafka.topic=="TableA";
+        Staging range from $cursor["TableA"] to MAXINT64 => is(<done>) && kafka.topic=="TableA";
       ) | anti join on kafka.offset=kafka.offset;
     => from (
         Raw range from $cursor["TableB"] to MAXINT64 => kafka.topic=="TableB";
-        Staging range from $cursor["TableB"] to MAXINT64 => is(type(done)) && kafka.topic=="TableB";
+        Staging range from $cursor["TableB"] to MAXINT64 => is(<done>) && kafka.topic=="TableB";
       ) | anti join on kafka.offset=kafka.offset;
   )
   | switch (
@@ -414,8 +414,8 @@ zed load -use Raw@main demo/batch-1.zson
 ```
 You can easily see the Debezium table updates loaded into `Raw` with `zed query`:
 ```
-zed query -f table "from Raw | kafka.topic=='Invoices' | this:=value.after"
-zed query -f table "from Raw | kafka.topic=='InvoiceStatus' | this:=value.after"
+zed query -f table "from Raw | kafka.topic=='Invoices' | yield value.after"
+zed query -f table "from Raw | kafka.topic=='InvoiceStatus' | yield value.after"
 ```
 These are all type `r` (read) Debezium logs and represent two new rows in each
 of the `Invoice` and `InvoiceStatus` tables.  Transform them to `Staging` with
@@ -430,12 +430,12 @@ pool includes metadata records tracking which input events have been processed.
 After running the ETL, you can see the denormalized CDC updates in the
 `Staging` pool:
 ```
-zed query -f table "from Staging | kafka.topic=='NewInvoices' | this:=value.after"
+zed query -f table "from Staging | kafka.topic=='NewInvoices' | yield value.after"
 ```
 You can also see the progress updates marking the input records completed
 that are stored alongside the data in `Staging`:
 ```
-zed query "from Staging | is(type(done))"
+zed query "from Staging | is(<done>)"
 ```
 
 If you run the ETL again with no new data, it will do nothing as you do not
@@ -461,7 +461,7 @@ zync etl demo/invoices.yaml
 ```
 You can see that the Charlie row made it Staging:
 ```
-zed query -f table "from Staging | kafka.topic=='NewInvoices' | this:=value.after"
+zed query -f table "from Staging | kafka.topic=='NewInvoices' | yield value.after"
 ```
 but the Dan row is still pending.  You can see the pending records for this
 example by running
@@ -477,7 +477,7 @@ zync etl demo/invoices.yaml
 ```
 Now we can see the Dan row made it to `Staging`:
 ```
-zed query -f table "from Staging | not is(type(done)) | this:={offset:kafka.offset,op:value.op,row:value.after} | fuse"
+zed query -f table "from Staging | not is(<done>) | yield {offset:kafka.offset,op:value.op,row:value.after} | fuse"
 ```
 
 > NOTE: We formatted this output a bit differently as the updates are getting
@@ -495,7 +495,7 @@ zync etl demo/invoices.yaml
 
 And re-run the table query from above to see the final result:
 ```
-zed query -f table "from Staging | not is(type(done)) | this:={offset:kafka.offset,op:value.op,row:value.after} | fuse"
+zed query -f table "from Staging | not is(<done>) | yeld {offset:kafka.offset,op:value.op,row:value.after} | fuse"
 ```
 
 

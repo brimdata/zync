@@ -1,12 +1,12 @@
 split (
   => from (
     "Raw" => kafka.topic=="Invoices";
-    "Staging" => is(type(done)) kafka.topic=="Invoices";
+    "Staging" => is(<done>) kafka.topic=="Invoices";
   ) | anti join on kafka.offset=kafka.offset
   ;
   => from (
     "Raw" => kafka.topic=="InvoiceStatus";
-    "Staging" => is(type(done)) kafka.topic=="InvoiceStatus";
+    "Staging" => is(<done>) kafka.topic=="InvoiceStatus";
   ) | anti join on kafka.offset=kafka.offset
   ;
 )
