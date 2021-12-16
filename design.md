@@ -125,7 +125,7 @@ It is stored with the following type signature:
 ```
 Given this data model, we can efficiently find the largest committed cursor with:
 ```
-is(type(cursor)) | head 1 | cut cursor:=seqno
+is(<cursor>) | head 1 | cut cursor:=seqno
 ```
 And we can find all of the transaction IDs past the cursor that are already
 committed with:
@@ -278,7 +278,7 @@ const menuIDs = |{
 from raw
 | records:=collect(this),offsets:=max(seqno),done:=or(value.done) by txn:=value.txn
 | done==true
-| cut this:={
+| yield {
     customerID:customerIDs[records[0].value.row.customer],
     menuID:menuIDs[records[0].value.row.product],
     qty: records[0].value.row.qty,
@@ -326,7 +326,7 @@ merge the new transaction into "staging".
 
 First, we need to find the current cursor stored in "staging":
 ```
-zed query "from staging | is(type(cursor)) | max(seqno)"
+zed query "from staging | is(<cursor>) | max(seqno)"
 {max:2}
 ```
 Ok, it's '2'.  Now we get all the transaction data from "raw" greater than 2
@@ -339,14 +339,14 @@ and we get:
 Note that seqno 3 has already been processed.  We can get a list of sequence numbers
 already processed from "staging", e.g.,
 ```
-zed query "from staging | not is(type(cursor)) | seqno >= 2 | cut seqno"
+zed query "from staging | not is(<cursor>) | seqno >= 2 | cut seqno"
 ```
 and we can do an _anti join_ with the "raw" transactions to get just the records
 that we want to process.  We'll put this in `demo/update.zed`:
 ```
 from (
   raw => seqno >= 2 | sort seqno;
-  staging => not is(type(cursor)) | seqno >= 2 | cut seqno | sort seqno;
+  staging => not is(<cursor>) | seqno >= 2 | cut seqno | sort seqno;
 )
 | anti join on seqno=seqno
 ```

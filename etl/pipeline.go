@@ -86,7 +86,7 @@ func (p *Pipeline) getInputPool() *Pool {
 
 /*
 func (p *Pipeline) loadCursors() error {
-	_, err := p.outputPool.Query("is(type(done)) | max(offset) by topic")
+	_, err := p.outputPool.Query("is(<done>) | max(offset) by topic")
 	return err
 }
 */
@@ -247,7 +247,7 @@ func insertOffsets(ctx context.Context, zctx *zed.Context, doneType zed.Type, ba
 		offsets[topic] = off + 1
 	}
 	reader := zson.NewReader(strings.NewReader(zsons.String()), zctx)
-	program, err := parse("rec.kafka.offset:=offset | this:=rec")
+	program, err := parse("rec.kafka.offset:=offset | yield rec")
 	if err != nil {
 		return nil, err
 	}
