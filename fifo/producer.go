@@ -196,6 +196,9 @@ func (p *Producer) lookupSchema(typ zed.Type) (int, error) {
 		// We use RecordNameStrategy for the subject name so we can have
 		// different schemas on the same topic.
 		subject := fmt.Sprintf("zng_%x", md5.Sum([]byte(typ.String())))
+		if p.namespace != "" {
+			subject = p.namespace + "." + subject
+		}
 		id, err = p.CreateSchema(subject, string(schema))
 		if err != nil {
 			return 0, err
