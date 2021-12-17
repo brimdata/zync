@@ -13,35 +13,49 @@ transforms:
     where: value.op in ["c", "r"]
     left: Invoices
     right: InvoiceStatus
-    join-on: Invoices.ID=InvoiceStatus.InvoiceID
+    join-on: left.value.after.ID=right.value.after.InvoiceID
     out: NewInvoices
     zed: |
-      | NewInvoices:={
-          ID: Invoices.ID,
-          customer: Invoices.customer,
-          item: Invoices.item,
-          invoice_status: InvoiceStatus.status
+      | out:={
+          key: left.key,
+          value: {
+            ID: left.value.after.ID,
+            customer: left.value.after.customer,
+            item: left.value.after.item,
+            invoice_status: right.value.after.status
+          }
         }
   - type: stateless
     where: value.op=="u"
     in: InvoiceStatus
     out: NewInvoices
     zed: |
-      | NewInvoices:={
-          ID: InvoiceStatus.InvoiceID,
-          invoice_status: InvoiceStatus.status
+      | out:={
+          key: {
+            ID: in.value.after.InvoiceID
+          },
+          value: {
+            ID: in.value.after.InvoiceID,
+            invoice_status: in.value.after.status
+          }
         }
   - type: stateless
     where: value.op=="u"
     in: Invoices
     out: NewInvoices
     zed: |
-      | NewInvoices:=Invoices
+      | out:={
+          key: in.key,
+          value: in.value.after
+        }
   # We could get an update on InvoiceStatus after this delete and presumably
   # that would cause on update error, but maybe that's ok?
   - type: stateless
-    where: value.op=="d"
+    where: value.op=="d" value.op=="Disabled until casting null to record is fixed"
     in: Invoices
     out: NewInvoices
     zed: |
-      | NewInvoices.ID:=Invoices.ID
+      | out:={
+          key: in.key,
+          value: cast(null, typeof(in.value.before))
+        }
