@@ -9,6 +9,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestEncodeSchemaNullTypeRecordFielBecomeNullNotUnion(t *testing.T) {
+	typ, err := zson.ParseType(zed.NewContext(), "{a:null}")
+	require.NoError(t, err)
+	schema, err := EncodeSchema(typ, "namespace")
+	require.NoError(t, err)
+	const expected = `
+{
+    "type": "record",
+    "namespace": "namespace",
+    "name": "zng_4f5c13d8a692b16d2a7d297f951880a3",
+    "doc": "Created by zync from zng type {a:null}",
+    "fields": [
+        {
+            "name": "a",
+            "default": null,
+            "type": "null"
+        }
+    ]
+}`
+	assert.JSONEq(t, expected, schema.String(), schema.String())
+}
+
 func TestEncodeSchemaRepeatedRecordBecomesReference(t *testing.T) {
 	typ, err := zson.ParseType(zed.NewContext(), "{a:{},b:{}}")
 	require.NoError(t, err)
