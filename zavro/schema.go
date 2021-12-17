@@ -40,11 +40,16 @@ func (s *schemaEncoder) encodeRecord(typ *zed.TypeRecord) (avro.Schema, error) {
 		if err != nil {
 			return nil, err
 		}
+		if _, ok := schema.(*avro.NullSchema); !ok {
+			// Avro unions may not contain more than one unnamed
+			// schema with the same type.
+			schema = &avro.UnionSchema{
+				Types: []avro.Schema{&avro.NullSchema{}, schema},
+			}
+		}
 		fld := &avro.SchemaField{
 			Name: col.Name,
-			Type: &avro.UnionSchema{
-				Types: []avro.Schema{&avro.NullSchema{}, schema},
-			},
+			Type: schema,
 		}
 		fields = append(fields, fld)
 	}
