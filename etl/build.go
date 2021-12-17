@@ -92,13 +92,14 @@ func buildStateless(etl Rule) string {
 	code := fmt.Sprintf("  %s kafka.topic==%q =>\n", etl.Where, etl.In)
 	code += "    split (\n"
 	code += "      =>\n"
-	code += fmt.Sprintf("        this[%q]:=value.after\n", etl.In)
+	code += "        yield {in:this}\n"
 	code += "\n    // === user-defined ETL ===\n"
 	code += formatZed(etl.Zed, 8)
 	code += "\n"
 	//XXX should embed error if user doesn't create the output field
-	code += fmt.Sprintf("        | kafka.topic:=%q,value.after:=this[%q]\n", etl.Out, etl.Out)
-	code += fmt.Sprintf("        | drop this[%q]\n", etl.Out)
+	code += "        | out.kafka:=in.kafka\n"
+	code += "        | yield out\n"
+	code += fmt.Sprintf("        | kafka.topic:=%q\n", etl.Out)
 	code += "        ;\n"
 	code += "      =>\n"
 	code += "        yield cast({kafka:{topic:kafka.topic,offset:kafka.offset}},done)\n"
@@ -120,21 +121,21 @@ func buildDenorm(etl Rule) (string, error) {
 	rightKey := strings.TrimSpace(keys[1])
 	code := fmt.Sprintf("  %s =>\n", etl.Where)
 	code += "    split(\n"
-	rightRawKey := strings.Replace(rightKey, etl.Right, "value.after", 1)
-	code += fmt.Sprintf("      => kafka.topic==%q | this[%q]:=value.after,left:=kafka | sort %s;\n", etl.Left, etl.Left, leftKey)
-	code += fmt.Sprintf("      => kafka.topic==%q | sort %s;\n", etl.Right, rightRawKey)
+	code += fmt.Sprintf("      => kafka.topic==%q | yield {left:this} | sort %s;\n", etl.Left, leftKey)
+	code += fmt.Sprintf("      => kafka.topic==%q | yield {right:this} | sort %s;\n", etl.Right, rightKey)
 	code += "    )\n"
-	code += fmt.Sprintf("    | join on %s=%s %s:=value.after,right:=kafka\n", leftKey, rightRawKey, etl.Right)
+	code += fmt.Sprintf("    | join on %s=%s right:=right\n", leftKey, rightKey)
 	code += "    | split (\n"
 	code += "      =>\n"
 	code += "          // === user-defined ETL ===\n"
 	code += formatZedHead(etl.Zed, 8)
-	code += fmt.Sprintf("\n        | kafka.topic:=%q,value.after:=this[%q]\n", etl.Out, etl.Out)
-	code += fmt.Sprintf("        | drop this[%q],this[%q],this[%q],left,right\n", etl.Left, etl.Right, etl.Out)
+	code += "        | out.kafka:=left.kafka\n"
+	code += "        | yield out\n"
+	code += fmt.Sprintf("        | kafka.topic:=%q\n", etl.Out)
 	code += "        ;\n"
 	code += "      =>  yield {\n"
-	code += "             left:cast({kafka:{topic:left.topic,offset:left.offset}},done),\n"
-	code += "             right:cast({kafka:{topic:right.topic,offset:right.offset}},done)\n"
+	code += "             left:cast({kafka:{topic:left.kafka.topic,offset:left.kafka.offset}},done),\n"
+	code += "             right:cast({kafka:{topic:right.kafka.topic,offset:right.kafka.offset}},done)\n"
 	code += "          }\n"
 	code += "        ;\n"
 	code += "    )\n"

@@ -196,10 +196,45 @@ of multiple tables into one.
 
 The model here is that `zync etl` processes data from an input pool to an output
 pool where `zync from-kafka` is populating the input pool and `zync to-kafka` is processing
-the output pool.
+the output pool.  More specifically, `zync from-kafka` receives Debezium
+events from Kafka, `zync etl` transforms those events to
+[JDBC sync connector](https://docs.confluent.io/kafka-connect-jdbc/current/sink-connector/)
+records, and `zync to-kafka` send those records to Kafka.
 
 Each Kafka topic must have a single partition as Debezium relies upon
 the Kafka offset to indicate the FIFO order of all records.
+
+Debezium events have this structure.
+```
+{
+  key: {
+    // Fields correspond to source table's primary key.
+  },
+  value: {
+    op: string,
+    before: {
+      // Fields correspond to source table's columns.
+      // Value is null if and only if op is "c" or "r".
+    },
+    after: {
+      // Fields correspond to source table's columns.
+      // Value is null if and only if op is "d".
+    },
+    // Remaining fields depend on database connector.
+}
+```
+
+JDBC sync connector events have this structure.
+```
+{
+  key: {
+    // Fields correspond to destination table's primary key.
+  },
+  value: {
+    // Fields correspond to destination table's columns.
+    // Value is null for a tombstone (delete) record.
+}
+```
 
 ### Design assumptions
 
@@ -235,30 +270,6 @@ one transformation event.  This way, `zync etl` can track which input records ha
 been processed and which remain to be processed by recording in the transformed
 pool all the Kafka offsets by topic, exactly once, of each input event processed.
 
-Also, for now, we will assume that prior to processing by the pipeline ETLs,
-the `zync etl` command pre-maps each
-Debezium event into the form
-```
-{
-  kafka: {topic:string,partition:int64,offset:int64},
-  op: string,
-  key: null
-  value: {...}
-}
-```
-where `op` is the Debezium event type, i.e., one of "r", "c", "u", or "d",
-and value is the `after` field from the Debezium event.
-
-Internally, the code applies this Zed when reading events from the input/"raw" pool:
-```
-... | cut kafka,op:=value.op,key:=null,value:=value.after | ...
-```
-
-> Note that with this approach, we do not have to configured the Kafka sink
-> to unwrap the Debezium events for vanilla consumption by the JDBC sink.
-> Instead we can format events into the staging pool that have the form described
-> in the [Confluence JDBC sink documentation](https://docs.confluent.io/kafka-connect-jdbc/current/sink-connector/index.html).
-
 ### `zync etl` configuration
 
 The `zync etl` command syncs one Zed data pool to another where the
@@ -283,7 +294,7 @@ inputs:
   - topic: TableB
     pool: Raw
 
-outputs:    
+output:
   - topic: TableC
     pool: Staging
 
@@ -292,22 +303,23 @@ outputs:
 # topic is stored.
 transforms:
   - type: denorm // denorm or stateless
-    where: |
-      optional Zed Boolean expression to select this rule
+    where: optional Zed Boolean expression to select this rule
     left: TableA
     right: TableB
-    join-on: TableA.ID=TableB.InvoiceID
+    join-on: left.value.after.ID=right.value.after.InvoiceID
     out: TableC
     zed: |
-      Zed script that is applied to all records before storing them in the pool
-      and creates the top-level field this.TableC
+      Zed script applied to all records before storing them in the pool
+      Receives a record with two Debezium events in fields called left and right.
+      Must create a JDBC sink connector record in a field called out.
   - type: stateless
     where: value.op=="u"
     in: TableA
     out: TableC
     zed: |
-      Zed script that is applied to all records before storing them in the pool
-      and creates the top-level field this.TableC
+      Zed script applied to all records before storing them in the pool.
+      Receives a record containing one Debezium source event: this.in.
+      Must create a JDBC sink connector record in a field called out.
 ```
 
 > Note that this YAML design is only configuring a single ETL pipeline between
@@ -363,7 +375,7 @@ We can then enumerate the unprocessed records, by scanning the raw pool
 from the smallest cursor up and doing an anti join for each topic.
 
 The following  pseudo Zed would be stitched together from the YAML config by `zync`
-(assuming two input topics, "TableA" and "TableB").
+(assuming two input topics, "TableA" and "TableB", and output topic "TableC").
 ```
 split (
     => from (
@@ -378,18 +390,21 @@ split (
   | switch (
     <where-denorm> =>
       split (
-        => kafka.topic==<left> | this[<left>]:=value.after | sort <right-key>;
-        => kafka.topic==<right> | this[<right>]:=value.after | sort <left-key>;
+        => kafka.topic=="TableA" | yield {left:this} | sort <left-key>;
+        => kafka.topic=="TableB" | yield {right:this} | sort <right-key>;
       )
-      | join on <join-on>
-      | <zed>
-      | value.after:=this[<out>]
-      | kafka.topic:=<out> // zync will fix kafka.offset
+      | join on <left-key>=<right-key> right:=right
+      | <Zed that creates this.out from this.left and this.right
+      | out.kafka:=left.kafka
+      | yield out
+      | kafka.topic:="TableC" // zync will fix kafka.offset
       ;
-    <where-stateless> && kafka.topic==<in> =>
-      | <zed>
-      | value.after:=this[<out>]
-      | kafka.topic:=<out> // zync will fix kafka.offset
+    <where-stateless> && kafka.topic=="TableA" =>
+      | yield {in:this}
+      | <Zed that creates this.out from this.in
+      | out.kafka:=in.kafka
+      | yield out
+      | kafka.topic:="TableC" // zync will fix kafka.offset
       ;
     ...
   )
@@ -430,7 +445,7 @@ pool includes metadata records tracking which input events have been processed.
 After running the ETL, you can see the denormalized CDC updates in the
 `Staging` pool:
 ```
-zed query -f table "from Staging | kafka.topic=='NewInvoices' | yield value.after"
+zed query -f table "from Staging | kafka.topic=='NewInvoices' | yield value"
 ```
 You can also see the progress updates marking the input records completed
 that are stored alongside the data in `Staging`:
@@ -461,7 +476,7 @@ zync etl demo/invoices.yaml
 ```
 You can see that the Charlie row made it Staging:
 ```
-zed query -f table "from Staging | kafka.topic=='NewInvoices' | yield value.after"
+zed query -f table "from Staging | kafka.topic=='NewInvoices' | yield value"
 ```
 but the Dan row is still pending.  You can see the pending records for this
 example by running
@@ -477,13 +492,12 @@ zync etl demo/invoices.yaml
 ```
 Now we can see the Dan row made it to `Staging`:
 ```
-zed query -f table "from Staging | not is(<done>) | yield {offset:kafka.offset,op:value.op,row:value.after} | fuse"
+zed query -f table "from Staging | not is(<done>) | yield {offset:kafka.offset,value:value} | fuse"
 ```
 
 > NOTE: We formatted this output a bit differently as the updates are getting
-> more complex.  Here we numbered each update according to CDC order,
-> included the Debezium `op` field, and fused the tables so you can see where
-> the updates fall in the table.
+> more complex.  Here we numbered each update according to CDC order
+> and fused the tables so you can see where the updates fall in the table.
 
 Finally, in the last batch, the remaining invoices marked "pending" are
 all updated.
@@ -495,7 +509,7 @@ zync etl demo/invoices.yaml
 
 And re-run the table query from above to see the final result:
 ```
-zed query -f table "from Staging | not is(<done>) | yeld {offset:kafka.offset,op:value.op,row:value.after} | fuse"
+zed query -f table "from Staging | not is(<done>) | yield {offset:kafka.offset,value:value} | fuse"
 ```
 
 

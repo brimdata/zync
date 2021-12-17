@@ -17,6 +17,9 @@
     topic: "Invoices",
     offset: 1
   },
+  key: {
+    ID: 100
+  },
   value: {
     op:"r",
     after:{
@@ -30,6 +33,9 @@
   kafka: {
     topic: "Invoices",
     offset: 2
+  },
+  key: {
+    ID: 101
   },
   value: {
     op:"r",
@@ -45,6 +51,9 @@
     topic: "InvoiceStatus",
     offset: 1
   },
+  key: {
+    ID: 80
+  },
   value: {
     op:"r",
     after:{
@@ -58,6 +67,9 @@
   kafka: {
     topic: "InvoiceStatus",
     offset: 2
+  },
+  key: {
+    ID: 32
   },
   value: {
     op:"r",

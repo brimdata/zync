@@ -3,6 +3,9 @@
     topic: "InvoiceStatus",
     offset: 6
   },
+  key: {
+   ID: 192
+  },
   value: {
     op:"u",
     after:{
@@ -17,6 +20,9 @@
     topic: "InvoiceStatus",
     offset: 7
   },
+  key: {
+   ID: 77
+  },
   value: {
     op:"u",
     after:{
@@ -30,6 +36,9 @@
   kafka: {
     topic: "InvoiceStatus",
     offset: 8
+  },
+  key: {
+   ID: 80
   },
   value: {
     op:"u",
