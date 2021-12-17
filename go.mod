@@ -3,7 +3,7 @@ module github.com/brimdata/zync
 go 1.16
 
 require (
-	github.com/brimdata/zed v0.33.1-0.20211215215925-7623e907de7e
+	github.com/brimdata/zed v0.33.1-0.20211217025234-377d07486a7e
 	github.com/confluentinc/confluent-kafka-go v1.7.0 // indirect
 	github.com/go-avro/avro v0.0.0-20171219232920-444163702c11
 	github.com/riferrei/srclient v0.4.0
