@@ -51,7 +51,7 @@ transforms:
   # We could get an update on InvoiceStatus after this delete and presumably
   # that would cause on update error, but maybe that's ok?
   - type: stateless
-    where: value.op=="d" value.op=="Disabled until casting null to record is fixed"
+    where: value.op=="d" and value.op=="Disabled until casting null to record is fixed"
     in: Invoices
     out: NewInvoices
     zed: |

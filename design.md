@@ -153,10 +153,10 @@ the max offset of each predetermined topic name, which might look something
 like this:
 ```
 switch kafka.topic (
-  "table1" => head 1 | cut kafka;
-  "table2" => head 1 | cut kafka;
+  case "table1" => head 1 | cut kafka
+  case "table2" => head 1 | cut kafka
   ...
-  "tableN" => head 1 | cut kafka;
+  case "tableN" => head 1 | cut kafka
 ) | offsets:=collect(kafka) by typeof(this)
 ```
 
@@ -269,12 +269,12 @@ const customerIDs = |{
         "jane": 1,
         "bob": 2,
         "sarah": 3
-}|;
+}|
 const menuIDs = |{
         "burrito": 100,
         "taco": 200,
         "chips": 300
-}|;
+}|
 from raw
 | records:=collect(this),offsets:=max(seqno),done:=or(value.done) by txn:=value.txn
 | done==true
@@ -345,8 +345,8 @@ and we can do an _anti join_ with the "raw" transactions to get just the records
 that we want to process.  We'll put this in `demo/update.zed`:
 ```
 from (
-  raw => seqno >= 2 | sort seqno;
-  staging => not is(<cursor>) | seqno >= 2 | cut seqno | sort seqno;
+  pool raw => seqno >= 2 | sort seqno
+  pool staging => not is(<cursor>) | seqno >= 2 | cut seqno | sort seqno
 )
 | anti join on seqno=seqno
 ```

@@ -26,17 +26,14 @@ func zlen(zv zcode.Bytes) (int, error) {
 	it := zcode.Iter(zv)
 	cnt := 0
 	for !it.Done() {
-		_, _, err := it.Next()
-		if err != nil {
-			return 0, err
-		}
+		it.Next()
 		cnt++
 	}
 	return cnt, nil
 }
 
 func encodeAny(dst []byte, zv zed.Value) ([]byte, error) {
-	switch typ := zed.AliasOf(zv.Type).(type) {
+	switch typ := zed.TypeUnder(zv.Type).(type) {
 	case *zed.TypeRecord:
 		return encodeRecord(dst, typ, zv.Bytes)
 	case *zed.TypeArray:
@@ -60,10 +57,7 @@ func encodeArray(dst []byte, elemType zed.Type, body zcode.Bytes) ([]byte, error
 	dst = appendVarint(dst, int64(cnt))
 	it := zcode.Iter(body)
 	for !it.Done() {
-		body, _, err := it.Next()
-		if err != nil {
-			return nil, err
-		}
+		body, _ := it.Next()
 		dst, err = encodeAny(dst, zed.Value{elemType, body})
 		if err != nil {
 			return nil, err
@@ -80,15 +74,12 @@ func encodeRecord(dst []byte, typ *zed.TypeRecord, body zcode.Bytes) ([]byte, er
 	if body == nil {
 		return dst, nil
 	}
-	it := zcode.Iter(body)
+	it := body.Iter()
 	for _, col := range typ.Columns {
 		if it.Done() {
 			return nil, ErrBadValue
 		}
-		body, _, err := it.Next()
-		if err != nil {
-			return nil, err
-		}
+		body, _ := it.Next()
 		if body == nil {
 			// unset field.  encode as the null type.
 			dst = appendVarint(dst, 0)
@@ -97,6 +88,7 @@ func encodeRecord(dst []byte, typ *zed.TypeRecord, body zcode.Bytes) ([]byte, er
 		// field is present.  encode the field union by referencing
 		// the type's position in the union.
 		dst = appendVarint(dst, 1)
+		var err error
 		dst, err = encodeAny(dst, zed.Value{col.Type, body})
 		if err != nil {
 			return nil, err

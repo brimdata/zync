@@ -10,16 +10,16 @@ import (
 	"github.com/brimdata/zed/compiler"
 	"github.com/brimdata/zed/compiler/ast"
 	"github.com/brimdata/zed/compiler/ast/dag"
-	"github.com/brimdata/zed/driver"
 	"github.com/brimdata/zed/expr/extent"
 	"github.com/brimdata/zed/field"
 	lakeapi "github.com/brimdata/zed/lake/api"
+	"github.com/brimdata/zed/lakeparse"
 	"github.com/brimdata/zed/order"
 	"github.com/brimdata/zed/proc"
+	"github.com/brimdata/zed/runtime"
 	"github.com/brimdata/zed/zbuf"
 	"github.com/brimdata/zed/zio"
 	"github.com/segmentio/ksuid"
-	"go.uber.org/zap"
 	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
 
@@ -47,23 +47,16 @@ func OpenPool(ctx context.Context, poolName string, server lakeapi.Interface) (*
 	}, nil
 }
 
-func (p *Pool) Query(q string) (zbuf.Array, error) {
-	query := fmt.Sprintf("from '%s' | %s", p.pool, q)
-	return p.QueryWithFrom(query)
-}
-
-func (p *Pool) QueryWithFrom(q string) (zbuf.Array, error) {
-	//XXX We need to make this API easier in package zed...
-	result := &batchDriver{}
-	_, err := p.service.Query(context.TODO(), result, nil, q)
+func (p *Pool) Query(src string) (*zbuf.Array, error) {
+	zr, err := p.service.Query(context.TODO(), &lakeparse.Commitish{Pool: p.pool}, src)
 	if err != nil {
 		return nil, err
 	}
-	return result.Array, nil
+	return NewArrayFromReader(zr)
 }
 
-func (p *Pool) LoadBatch(batch zbuf.Array) (ksuid.KSUID, error) {
-	return p.service.Load(context.TODO(), p.poolID, "main", &batch, api.CommitMessage{})
+func (p *Pool) LoadBatch(batch *zbuf.Array) (ksuid.KSUID, error) {
+	return p.service.Load(context.TODO(), p.poolID, "main", batch, api.CommitMessage{})
 }
 
 func (p *Pool) NextProducerOffsets() (map[string]kafka.Offset, error) {
@@ -122,51 +115,30 @@ func (p *Pool) ReadBatch(ctx context.Context, offset kafka.Offset, size int) (zb
 	return p.Query(query)
 }
 
-func RunLocalQuery(zctx *zed.Context, batch zbuf.Array, query string) (zbuf.Array, error) {
-	//XXX We need to make this API easier in package zed...
+func RunLocalQuery(zctx *zed.Context, batch *zbuf.Array, query string) (*zbuf.Array, error) {
 	program, err := parse(query)
 	if err != nil {
 		return nil, err
 	}
-	var result zbuf.Array
-	if err := driver.Copy(context.TODO(), &result, program, zctx, &batch, zap.NewNop()); err != nil {
+	q, err := runtime.NewQueryOnReader(context.TODO(), zctx, program, batch, nil)
+	if err != nil {
 		return nil, err
 	}
-	return result, nil
+	return NewArrayFromReader(q.AsReader())
 }
 
-func RunLocalJoin(zctx *zed.Context, left, right zio.Reader, query string) (zbuf.Array, error) {
+func RunLocalJoin(zctx *zed.Context, left, right zio.Reader, query string) (*zbuf.Array, error) {
 	program, err := parse(query)
 	if err != nil {
 		return nil, err
 	}
 	readers := []zio.Reader{left, right}
-	d := &batchDriver{}
-	dummy := &adaptor{}
-	_, err = driver.RunWithFileSystem(context.TODO(), d, program, zctx, readers, dummy)
-	return d.Array, err
-}
-
-//XXX this needs to go and be replaced by easier zed package API
-type batchDriver struct {
-	zbuf.Array
-}
-
-func (b *batchDriver) Write(cid int, batch zbuf.Batch) error {
-	if cid != 0 {
-		return errors.New("internal error: multiple tails not allowed")
+	q, err := runtime.NewQueryOnFileSystem(context.TODO(), zctx, program, readers, &adaptor{})
+	if err != nil {
+		return nil, err
 	}
-	vals := batch.Values()
-	for i := range vals {
-		b.Append(vals[i].Copy())
-	}
-	batch.Unref()
-	return nil
+	return NewArrayFromReader(q.AsReader())
 }
-
-func (*batchDriver) Warn(string) error             { return nil }
-func (*batchDriver) Stats(zbuf.ScannerStats) error { return nil }
-func (*batchDriver) ChannelEnd(int) error          { return nil }
 
 type adaptor struct{}
 
@@ -196,4 +168,18 @@ func parse(z string) (ast.Proc, error) {
 		return nil, fmt.Errorf("Zed parse error: %w\nZed source:\n%s", err, z)
 	}
 	return program, err
+}
+
+func NewArrayFromReader(zr zio.Reader) (*zbuf.Array, error) {
+	var a zbuf.Array
+	for {
+		val, err := zr.Read()
+		if err != nil {
+			return nil, err
+		}
+		if val == nil {
+			return &a, nil
+		}
+		a.Append(val.Copy())
+	}
 }

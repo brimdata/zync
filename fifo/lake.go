@@ -8,13 +8,14 @@ import (
 	"github.com/brimdata/zed"
 	"github.com/brimdata/zed/api"
 	"github.com/brimdata/zed/compiler"
-	"github.com/brimdata/zed/driver"
 	"github.com/brimdata/zed/field"
 	lakeapi "github.com/brimdata/zed/lake/api"
+	"github.com/brimdata/zed/lakeparse"
 	"github.com/brimdata/zed/order"
+	"github.com/brimdata/zed/runtime"
 	"github.com/brimdata/zed/zbuf"
+	"github.com/brimdata/zync/etl"
 	"github.com/segmentio/ksuid"
-	"go.uber.org/zap"
 	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
 
@@ -44,19 +45,16 @@ func NewLake(ctx context.Context, poolName, shaper string, server *lakeapi.Remot
 	}, nil
 }
 
-func (l *Lake) Query(q string) (zbuf.Array, error) {
-	query := fmt.Sprintf("from '%s' | %s", l.pool, q)
-	//XXX We need to make this API easier in package zed...
-	result := &batchDriver{}
-	_, err := l.service.Query(context.TODO(), result, nil, query)
+func (l *Lake) Query(src string) (*zbuf.Array, error) {
+	zr, err := l.service.Query(context.TODO(), &lakeparse.Commitish{Pool: l.pool}, src)
 	if err != nil {
 		return nil, err
 	}
-	return result.Array, nil
+	return etl.NewArrayFromReader(zr)
 }
 
-func (l *Lake) LoadBatch(batch zbuf.Array) (ksuid.KSUID, error) {
-	return l.service.Load(context.TODO(), l.poolID, "main", &batch, api.CommitMessage{})
+func (l *Lake) LoadBatch(batch *zbuf.Array) (ksuid.KSUID, error) {
+	return l.service.Load(context.TODO(), l.poolID, "main", batch, api.CommitMessage{})
 }
 
 func (l *Lake) NextProducerOffset(topic string) (kafka.Offset, error) {
@@ -117,36 +115,14 @@ func (l *Lake) ReadBatch(ctx context.Context, topic string, offset kafka.Offset,
 	return l.Query(query)
 }
 
-func RunLocalQuery(zctx *zed.Context, batch zbuf.Array, query string) (zbuf.Array, error) {
-	//XXX We need to make this API easier in package zed...
+func RunLocalQuery(zctx *zed.Context, batch *zbuf.Array, query string) (*zbuf.Array, error) {
 	program, err := compiler.ParseProc(query)
 	if err != nil {
 		return nil, err
 	}
-	var result zbuf.Array
-	if err := driver.Copy(context.TODO(), &result, program, zctx, &batch, zap.NewNop()); err != nil {
+	q, err := runtime.NewQueryOnReader(context.TODO(), zctx, program, batch, nil)
+	if err != nil {
 		return nil, err
 	}
-	return result, nil
+	return etl.NewArrayFromReader(q.AsReader())
 }
-
-type batchDriver struct {
-	zbuf.Array
-}
-
-func (b *batchDriver) Write(cid int, batch zbuf.Batch) error {
-	if cid != 0 {
-		return errors.New("internal error: multiple tails not allowed")
-	}
-	vals := batch.Values()
-	for i := range vals {
-		b.Append(vals[i].Copy())
-	}
-	batch.Unref()
-	return nil
-}
-
-func (*batchDriver) Warn(warning string) error { return nil }
-
-func (*batchDriver) Stats(stats zbuf.ScannerStats) error { return nil }
-func (*batchDriver) ChannelEnd(cid int) error            { return nil }

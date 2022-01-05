@@ -379,33 +379,31 @@ The following  pseudo Zed would be stitched together from the YAML config by `zy
 ```
 split (
     => from (
-        Raw range from $cursor["TableA"] to MAXINT64 => kafka.topic=="TableA";
-        Staging range from $cursor["TableA"] to MAXINT64 => is(<done>) && kafka.topic=="TableA";
-      ) | anti join on kafka.offset=kafka.offset;
+        pool Raw range from $cursor["TableA"] to MAXINT64 => kafka.topic=="TableA"
+        pool Staging range from $cursor["TableA"] to MAXINT64 => is(<done>) && kafka.topic=="TableA"
+      ) | anti join on kafka.offset=kafka.offset
     => from (
-        Raw range from $cursor["TableB"] to MAXINT64 => kafka.topic=="TableB";
-        Staging range from $cursor["TableB"] to MAXINT64 => is(<done>) && kafka.topic=="TableB";
-      ) | anti join on kafka.offset=kafka.offset;
+        pool Raw range from $cursor["TableB"] to MAXINT64 => kafka.topic=="TableB"
+        pool Staging range from $cursor["TableB"] to MAXINT64 => is(<done>) && kafka.topic=="TableB"
+      ) | anti join on kafka.offset=kafka.offset
   )
   | switch (
-    <where-denorm> =>
+    case <where-denorm> =>
       split (
-        => kafka.topic=="TableA" | yield {left:this} | sort <left-key>;
-        => kafka.topic=="TableB" | yield {right:this} | sort <right-key>;
+        => kafka.topic=="TableA" | yield {left:this} | sort <left-key>
+        => kafka.topic=="TableB" | yield {right:this} | sort <right-key>
       )
       | join on <left-key>=<right-key> right:=right
-      | <Zed that creates this.out from this.left and this.right
+      | <Zed that creates this.out from this.left and this.right>
       | out.kafka:=left.kafka
       | yield out
       | kafka.topic:="TableC" // zync will fix kafka.offset
-      ;
-    <where-stateless> && kafka.topic=="TableA" =>
-      | yield {in:this}
-      | <Zed that creates this.out from this.in
+    case (<where-stateless>) and kafka.topic=="TableA" =>
+      yield {in:this}
+      | <Zed that creates this.out from this.in>
       | out.kafka:=in.kafka
       | yield out
       | kafka.topic:="TableC" // zync will fix kafka.offset
-      ;
     ...
   )
 ```
