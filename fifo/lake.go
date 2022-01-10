@@ -22,13 +22,13 @@ import (
 var ErrBadPoolKey = errors.New("pool key must be 'kafka.offset' in ascending order")
 
 type Lake struct {
-	service *lakeapi.RemoteSession
+	service lakeapi.Interface
 	shaper  string
 	pool    string
 	poolID  ksuid.KSUID
 }
 
-func NewLake(ctx context.Context, poolName, shaper string, server *lakeapi.RemoteSession) (*Lake, error) {
+func NewLake(ctx context.Context, poolName, shaper string, server lakeapi.Interface) (*Lake, error) {
 	pool, err := lakeapi.LookupPoolByName(ctx, server, poolName)
 	if err != nil {
 		return nil, err
