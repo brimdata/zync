@@ -9,7 +9,6 @@ import (
 	"strings"
 	"syscall"
 
-	lakeapi "github.com/brimdata/zed/lake/api"
 	"github.com/brimdata/zed/pkg/charm"
 	"github.com/brimdata/zync/cli"
 	"github.com/brimdata/zync/cmd/zync/root"
@@ -38,14 +37,16 @@ func init() {
 
 type Command struct {
 	*root.Command
-	zed   bool
-	flags cli.Flags
+	zed       bool
+	flags     cli.Flags
+	lakeFlags cli.LakeFlags
 }
 
 func New(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
 	c := &Command{Command: parent.(*root.Command)}
 	fs.BoolVar(&c.zed, "zed", false, "dump compiled Zed to stdout and exit)")
 	c.flags.SetFlags(fs)
+	c.lakeFlags.SetFlags(fs)
 	return c, nil
 }
 
@@ -62,7 +63,7 @@ func (c *Command) Run(args []string) error {
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT)
 	defer cancel()
-	lake, err := lakeapi.OpenRemoteLake(ctx, c.flags.Lake)
+	lake, err := c.lakeFlags.Open(ctx)
 	if err != nil {
 		return err
 	}

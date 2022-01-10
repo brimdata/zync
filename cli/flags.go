@@ -10,7 +10,6 @@ import (
 )
 
 type Flags struct {
-	Lake      string
 	Topic     string
 	Namespace string
 }
@@ -21,11 +20,6 @@ type Credentials struct {
 }
 
 func (f *Flags) SetFlags(fs *flag.FlagSet) {
-	lake := os.Getenv("ZED_LAKE")
-	if lake == "" {
-		lake = "http://localhost:9867"
-	}
-	fs.StringVar(&f.Lake, "lake", lake, "Zed lake service URL")
 	fs.StringVar(&f.Topic, "topic", "", "Kafka topic name")
 	fs.StringVar(&f.Namespace, "namespace", "io.brimdata.zync", "Kafka name space for new schemas")
 }

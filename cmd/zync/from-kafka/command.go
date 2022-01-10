@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/brimdata/zed"
-	lakeapi "github.com/brimdata/zed/lake/api"
 	"github.com/brimdata/zed/pkg/charm"
 	"github.com/brimdata/zync/cli"
 	"github.com/brimdata/zync/cmd/zync/root"
@@ -39,10 +38,11 @@ of how this works.
 
 type From struct {
 	*root.Command
-	flags  cli.Flags
-	shaper cli.ShaperFlags
-	group  string
-	pool   string
+	flags     cli.Flags
+	lakeFlags cli.LakeFlags
+	shaper    cli.ShaperFlags
+	group     string
+	pool      string
 }
 
 func NewFrom(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
@@ -50,6 +50,7 @@ func NewFrom(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
 	fs.StringVar(&f.group, "group", "", "Kafka consumer group name")
 	fs.StringVar(&f.pool, "pool", "", "name of Zed data pool")
 	f.flags.SetFlags(fs)
+	f.lakeFlags.SetFlags(fs)
 	f.shaper.SetFlags(fs)
 	return f, nil
 }
@@ -67,7 +68,7 @@ func (f *From) Run(args []string) error {
 		return err
 	}
 	ctx := context.Background()
-	service, err := lakeapi.OpenRemoteLake(ctx, f.flags.Lake)
+	service, err := f.lakeFlags.Open(ctx)
 	if err != nil {
 		return err
 	}

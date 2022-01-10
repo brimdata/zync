@@ -6,7 +6,6 @@ import (
 	"flag"
 
 	"github.com/brimdata/zed"
-	lakeapi "github.com/brimdata/zed/lake/api"
 	"github.com/brimdata/zed/pkg/charm"
 	"github.com/brimdata/zync/cli"
 	"github.com/brimdata/zync/cmd/zync/root"
@@ -40,15 +39,17 @@ according to the kafka.offset value in the data pool.
 
 type To struct {
 	*root.Command
-	flags  cli.Flags
-	shaper cli.ShaperFlags
-	pool   string
+	flags     cli.Flags
+	lakeFlags cli.LakeFlags
+	shaper    cli.ShaperFlags
+	pool      string
 }
 
 func NewTo(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
 	f := &To{Command: parent.(*root.Command)}
 	fs.StringVar(&f.pool, "pool", "", "name of Zed data pool")
 	f.flags.SetFlags(fs)
+	f.lakeFlags.SetFlags(fs)
 	f.shaper.SetFlags(fs)
 	return f, nil
 }
@@ -66,7 +67,7 @@ func (t *To) Run(args []string) error {
 		return err
 	}
 	ctx := context.Background()
-	service, err := lakeapi.OpenRemoteLake(ctx, t.flags.Lake)
+	service, err := t.lakeFlags.Open(ctx)
 	if err != nil {
 		return err
 	}
