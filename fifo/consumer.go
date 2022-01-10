@@ -114,7 +114,7 @@ func (c *Consumer) Run(ctx context.Context, w zio.Writer, timeout time.Duration)
 	}
 }
 
-func (c *Consumer) Read(ctx context.Context, thresh int, timeout time.Duration) (zbuf.Array, error) {
+func (c *Consumer) Read(ctx context.Context, thresh int, timeout time.Duration) (*zbuf.Array, error) {
 	var batch zbuf.Array
 	var size int
 	events := c.consumer.Events()
@@ -123,7 +123,7 @@ func (c *Consumer) Read(ctx context.Context, thresh int, timeout time.Duration) 
 		case ev := <-events:
 			if ev == nil {
 				// channel closed
-				return batch, nil
+				return &batch, nil
 			}
 			rec, err := c.handle(ev)
 			if err != nil {
@@ -136,12 +136,12 @@ func (c *Consumer) Read(ctx context.Context, thresh int, timeout time.Duration) 
 			batch.Append(rec)
 			size += len(rec.Bytes)
 			if size > thresh {
-				return batch, nil
+				return &batch, nil
 			}
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-time.After(timeout):
-			return batch, nil
+			return &batch, nil
 		}
 	}
 }

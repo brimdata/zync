@@ -11,7 +11,7 @@ func buildZed(inputTopics []string, outputTopic string, routes *Routes, etls []R
 	if err != nil {
 		return "", err
 	}
-	code = "type done = {kafka:{topic:string,offset:int64}};\n" + code
+	code = "type done = {kafka:{topic:string,offset:int64}}\n" + code
 	code += "| filter *\n" //XXX switch can't handle multiple parents
 	code += "| switch (\n"
 	var ndefault int
@@ -38,8 +38,8 @@ func buildZed(inputTopics []string, outputTopic string, routes *Routes, etls []R
 
 const fromTemplate = `
 from (
-  %q => kafka.topic==%q;
-  %q => is(<done>) kafka.topic==%q;
+  pool %q => kafka.topic==%q
+  pool %q => is(<done>) kafka.topic==%q
 ) | anti join on kafka.offset=kafka.offset
 `
 
@@ -60,7 +60,7 @@ func buildFrom(inputTopics []string, outputTopic string, routes *Routes) (string
 		if err != nil {
 			return "", err
 		}
-		code += "=> " + strings.TrimLeft(s, "\n") + ";\n"
+		code += "=> " + strings.TrimLeft(s, "\n") + "\n"
 	}
 	return fmt.Sprintf("split (\n%s)\n", indent(code, 2)), nil
 }
@@ -89,7 +89,11 @@ func formatZed(s string, tab int) string {
 }
 
 func buildStateless(etl Rule) string {
-	code := fmt.Sprintf("  %s kafka.topic==%q =>\n", etl.Where, etl.In)
+	var where string
+	if etl.Where != "" {
+		where = fmt.Sprintf("(%s) and ", etl.Where)
+	}
+	code := fmt.Sprintf("  case %skafka.topic==%q =>\n", where, etl.In)
 	code += "    split (\n"
 	code += "      =>\n"
 	code += "        yield {in:this}\n"
@@ -100,12 +104,11 @@ func buildStateless(etl Rule) string {
 	code += "        | out.kafka:=in.kafka\n"
 	code += "        | yield out\n"
 	code += fmt.Sprintf("        | kafka.topic:=%q\n", etl.Out)
-	code += "        ;\n"
+	code += "        \n"
 	code += "      =>\n"
 	code += "        yield cast({kafka:{topic:kafka.topic,offset:kafka.offset}},done)\n"
-	code += "        ;\n"
+	code += "        \n"
 	code += "      )\n"
-	code += "    ;\n"
 	return code
 }
 
@@ -119,10 +122,10 @@ func buildDenorm(etl Rule) (string, error) {
 	}
 	leftKey := strings.TrimSpace(keys[0])
 	rightKey := strings.TrimSpace(keys[1])
-	code := fmt.Sprintf("  %s =>\n", etl.Where)
+	code := fmt.Sprintf("  case %s =>\n", etl.Where)
 	code += "    split(\n"
-	code += fmt.Sprintf("      => kafka.topic==%q | yield {left:this} | sort %s;\n", etl.Left, leftKey)
-	code += fmt.Sprintf("      => kafka.topic==%q | yield {right:this} | sort %s;\n", etl.Right, rightKey)
+	code += fmt.Sprintf("      => kafka.topic==%q | yield {left:this} | sort %s\n", etl.Left, leftKey)
+	code += fmt.Sprintf("      => kafka.topic==%q | yield {right:this} | sort %s\n", etl.Right, rightKey)
 	code += "    )\n"
 	code += fmt.Sprintf("    | join on %s=%s right:=right\n", leftKey, rightKey)
 	code += "    | split (\n"
@@ -132,13 +135,10 @@ func buildDenorm(etl Rule) (string, error) {
 	code += "        | out.kafka:=left.kafka\n"
 	code += "        | yield out\n"
 	code += fmt.Sprintf("        | kafka.topic:=%q\n", etl.Out)
-	code += "        ;\n"
 	code += "      =>  yield {\n"
 	code += "             left:cast({kafka:{topic:left.kafka.topic,offset:left.kafka.offset}},done),\n"
 	code += "             right:cast({kafka:{topic:right.kafka.topic,offset:right.kafka.offset}},done)\n"
 	code += "          }\n"
-	code += "        ;\n"
 	code += "    )\n"
-	code += "    ;\n"
 	return code, nil
 }

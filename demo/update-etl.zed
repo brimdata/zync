@@ -2,15 +2,15 @@ const customerIDs = |{
         "jane": 1,
         "bob": 2,
         "sarah": 3
-}|;
+}|
 const menuIDs = |{
         "burrito": 100,
         "taco": 200,
         "chips": 300
-}|;
+}|
 from (
-  raw => seqno >= 2 | sort seqno;
-  staging => not is(<cursor>) | seqno >= 2 | cut seqno | sort seqno;
+  pool raw => seqno >= 2 | sort seqno
+  pool staging => not is(<cursor>) | seqno >= 2 | cut seqno | sort seqno
 )
 | anti join on seqno=seqno
 | records:=collect(this),seqno:=max(seqno),done:=or(value.done) by txn:=value.txn

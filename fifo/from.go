@@ -75,7 +75,7 @@ func (f *From) Sync(ctx context.Context) (int64, int64, error) {
 // AdjustOffsetsAndShape runs a local Zed program to adjust the Kafka offset fields
 // for insertion into correct position in the lake and remember the original
 // offset along with applying a user-defined shaper.
-func AdjustOffsetsAndShape(zctx *zed.Context, batch zbuf.Array, offset kafka.Offset, shaper string) (zbuf.Array, error) {
+func AdjustOffsetsAndShape(zctx *zed.Context, batch *zbuf.Array, offset kafka.Offset, shaper string) (*zbuf.Array, error) {
 	vals := batch.Values()
 	kafkaRec, err := vals[0].Access("kafka")
 	if err != nil {

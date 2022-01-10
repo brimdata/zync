@@ -18,7 +18,7 @@ type schemaEncoder struct {
 }
 
 func (s *schemaEncoder) encode(typ zed.Type) (avro.Schema, error) {
-	switch typ := zed.AliasOf(typ).(type) {
+	switch typ := zed.TypeUnder(typ).(type) {
 	case *zed.TypeRecord:
 		return s.encodeRecord(typ)
 	case *zed.TypeArray:

@@ -7,11 +7,10 @@ import (
 	"strings"
 
 	"github.com/brimdata/zed"
-	"github.com/brimdata/zed/driver"
 	lakeapi "github.com/brimdata/zed/lake/api"
+	"github.com/brimdata/zed/runtime"
 	"github.com/brimdata/zed/zbuf"
 	"github.com/brimdata/zed/zson"
-	"go.uber.org/zap"
 	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
 
@@ -66,7 +65,7 @@ func (p *Pipeline) Run(ctx context.Context) (int, error) {
 	if len(zeds) != 1 {
 		panic("TBD: only one ETL works right now")
 	}
-	batch, err := pool.QueryWithFrom(zeds[0])
+	batch, err := pool.Query(zeds[0])
 	if err != nil {
 		return 0, err
 	}
@@ -172,7 +171,7 @@ func (p *Pipeline) Build() ([]string, error) {
 // that could involve large anti-joins and spills and we stream the output
 // to the target pool.  This will scale fine since the anti-join design
 // allows any commits to be reliably accounted for on an interruption and restart.
-func (p *Pipeline) writeToOutputPool(ctx context.Context, batch zbuf.Array) error {
+func (p *Pipeline) writeToOutputPool(ctx context.Context, batch *zbuf.Array) error {
 	offsets, err := p.outputPool.NextProducerOffsets()
 	if err != nil {
 		return err
@@ -216,7 +215,7 @@ func hasExtra(val *zed.Value, which string) *zed.Value {
 	return &extra
 }
 
-func insertOffsets(ctx context.Context, zctx *zed.Context, doneType zed.Type, batch zbuf.Array, offsets map[string]kafka.Offset) (zbuf.Array, error) {
+func insertOffsets(ctx context.Context, zctx *zed.Context, doneType zed.Type, batch zbuf.Batch, offsets map[string]kafka.Offset) (*zbuf.Array, error) {
 	// It will be more efficient to compute the new kafka output offsets using
 	// flow count() but that is not implemented yet.  Instead, we just format
 	// up some ZSON that can then insert the proper offsets in each record.
@@ -251,12 +250,11 @@ func insertOffsets(ctx context.Context, zctx *zed.Context, doneType zed.Type, ba
 	if err != nil {
 		return nil, err
 	}
-	d := &batchDriver{}
-	err = driver.RunWithReader(ctx, d, program, zctx, reader, zap.NewNop())
+	q, err := runtime.NewQueryOnReader(ctx, zctx, program, reader, nil)
 	if err != nil {
 		return nil, err
 	}
-	return d.Array, nil
+	return NewArrayFromReader(q.AsReader())
 }
 
 func getKafkaMeta(rec *zed.Value) (string, kafka.Offset, error) {
