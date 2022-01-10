@@ -2,6 +2,7 @@ package zavro
 
 import (
 	"crypto/md5"
+	"encoding/json"
 	"fmt"
 
 	"github.com/brimdata/zed"
@@ -66,7 +67,61 @@ func (s *schemaEncoder) encodeRecord(typ *zed.TypeRecord) (avro.Schema, error) {
 		Fields:     fields,
 	}
 	s.registry[typ] = schema
-	return schema, nil
+	return &compatRecordSchema{schema}, nil
+}
+
+// compatRecordSchema exists so that, for a given Avro schema, JSON produced
+// from Go by avro.Schema.MarshalJSON or String and from Java by
+// org.apache.avro.Schema.toString is sufficiently similar that Apicurio
+// Registry's implementation of
+// https://docs.confluent.io/platform/current/schema-registry/develop/api.html#post--subjects-(string-%20subject)
+// considers them to be the same schema.
+//
+// Specifically, for Avro record types, JSON field order must match
+// https://github.com/apache/avro/blob/1aa963c44d1b9da3dfcf74acb3eeed56439332a0/lang/java/avro/src/main/java/org/apache/avro/Schema.java#L986-L1006.
+type compatRecordSchema struct {
+	*avro.RecordSchema
+}
+
+func (c *compatRecordSchema) String() string {
+	bytes, err := json.MarshalIndent(c, "", "    ")
+	if err != nil {
+		panic(err)
+	}
+	return string(bytes)
+}
+
+func (c *compatRecordSchema) MarshalJSON() ([]byte, error) {
+	type schemaField struct {
+		Name    string      `json:"name,omitempty"`
+		Type    avro.Schema `json:"type,omitempty"`
+		Doc     string      `json:"doc,omitempty"`
+		Default interface{} `json:"default"`
+	}
+	var fields []*schemaField
+	for _, f := range c.Fields {
+		fields = append(fields, &schemaField{
+			Name:    f.Name,
+			Type:    f.Type,
+			Doc:     f.Doc,
+			Default: f.Default,
+		})
+	}
+	return json.Marshal(struct {
+		Type      string         `json:"type,omitempty"`
+		Name      string         `json:"name,omitempty"`
+		Namespace string         `json:"namespace,omitempty"`
+		Doc       string         `json:"doc,omitempty"`
+		Fields    []*schemaField `json:"fields"`
+		Aliases   []string       `json:"aliases,omitempty"`
+	}{
+		Type:      "record",
+		Name:      c.Name,
+		Namespace: c.Namespace,
+		Doc:       c.Doc,
+		Fields:    fields,
+		Aliases:   c.Aliases,
+	})
 }
 
 func (s *schemaEncoder) encodeArray(typ *zed.TypeArray) (avro.Schema, error) {
