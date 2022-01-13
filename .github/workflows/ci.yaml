@@ -18,3 +18,4 @@ jobs:
       - run: make fmt
       - run: make vet
       - run: make test-unit
+      - run: make test-system
