@@ -13,6 +13,10 @@ fmt:
 		exit 1; \
 	fi
 
+tidy:
+	@go mod tidy
+	@git diff --exit-code -- go.mod go.sum
+
 test-unit:
 	@go test -short ./...
 
@@ -32,4 +36,4 @@ clean:
 localzq:
 	@go mod edit -replace=github.com/brimsec/zq=../zq
 
-.PHONY: vet test-unit test-system clean build localzq
+.PHONY: vet tidy test-unit test-system clean build localzq
