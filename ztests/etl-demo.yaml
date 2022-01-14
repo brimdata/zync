@@ -1,0 +1,80 @@
+script: |
+  export ZED_LAKE=test
+  zed init -q
+  zed create -q -orderby kafka.offset Raw
+  zed create -q -orderby kafka.offset Staging
+  for i in {1..4}; do
+    echo === $i
+    zed load -q -use Raw@main demo/batch-$i.zson
+    zync etl demo/invoices.yaml | sed -e 's/ [0-9a-zA-Z]\{27\} / XXX /'
+    zed query -z 'from Staging'
+  done
+
+inputs:
+  - name: demo
+    symlink: ../demo
+
+outputs:
+  - name: stdout
+    data: |
+      === 1
+      commit XXX 0 records
+      ETL'd 4 records
+      {key:{ID:100},value:{ID:100,customer:"Alice",item:"taco",invoice_status:"pending"},kafka:{topic:"NewInvoices",offset:0}}
+      {key:{ID:101},value:{ID:101,customer:"Bob",item:"burrito",invoice_status:"pending"},kafka:{topic:"NewInvoices",offset:1}}
+      {kafka:{topic:"Invoices",offset:1}}(=done)
+      {kafka:{topic:"InvoiceStatus",offset:1}}(=done)
+      {kafka:{topic:"Invoices",offset:2}}(=done)
+      {kafka:{topic:"InvoiceStatus",offset:2}}(=done)
+      === 2
+      commit XXX 0 records
+      ETL'd 2 records
+      {key:{ID:100},value:{ID:100,customer:"Alice",item:"taco",invoice_status:"pending"},kafka:{topic:"NewInvoices",offset:0}}
+      {key:{ID:101},value:{ID:101,customer:"Bob",item:"burrito",invoice_status:"pending"},kafka:{topic:"NewInvoices",offset:1}}
+      {kafka:{topic:"Invoices",offset:1}}(=done)
+      {kafka:{topic:"InvoiceStatus",offset:1}}(=done)
+      {key:{ID:102},value:{ID:102,customer:"Charlie",item:"enchilada",invoice_status:"pending"},kafka:{topic:"NewInvoices",offset:2}}
+      {kafka:{topic:"Invoices",offset:2}}(=done)
+      {kafka:{topic:"InvoiceStatus",offset:2}}(=done)
+      {kafka:{topic:"Invoices",offset:3}}(=done)
+      {kafka:{topic:"InvoiceStatus",offset:3}}(=done)
+      === 3
+      commit XXX 0 records
+      ETL'd 4 records
+      {key:{ID:100},value:{ID:100,customer:"Alice",item:"taco",invoice_status:"pending"},kafka:{topic:"NewInvoices",offset:0}}
+      {key:{ID:101},value:{ID:101,customer:"Bob",item:"burrito",invoice_status:"pending"},kafka:{topic:"NewInvoices",offset:1}}
+      {kafka:{topic:"Invoices",offset:1}}(=done)
+      {kafka:{topic:"InvoiceStatus",offset:1}}(=done)
+      {key:{ID:102},value:{ID:102,customer:"Charlie",item:"enchilada",invoice_status:"pending"},kafka:{topic:"NewInvoices",offset:2}}
+      {kafka:{topic:"Invoices",offset:2}}(=done)
+      {kafka:{topic:"InvoiceStatus",offset:2}}(=done)
+      {key:{ID:103},value:{ID:103,customer:"Dan",item:"beans",invoice_status:"pending"},kafka:{topic:"NewInvoices",offset:3}}
+      {kafka:{topic:"Invoices",offset:3}}(=done)
+      {kafka:{topic:"InvoiceStatus",offset:3}}(=done)
+      {key:{ID:100},value:{ID:100,invoice_status:"closed"},kafka:{topic:"NewInvoices",offset:4}}
+      {kafka:{topic:"Invoices",offset:4}}(=done)
+      {kafka:{topic:"InvoiceStatus",offset:4}}(=done)
+      {kafka:{topic:"InvoiceStatus",offset:5}}(=done)
+      === 4
+      commit XXX 0 records
+      ETL'd 6 records
+      {key:{ID:100},value:{ID:100,customer:"Alice",item:"taco",invoice_status:"pending"},kafka:{topic:"NewInvoices",offset:0}}
+      {key:{ID:101},value:{ID:101,customer:"Bob",item:"burrito",invoice_status:"pending"},kafka:{topic:"NewInvoices",offset:1}}
+      {kafka:{topic:"Invoices",offset:1}}(=done)
+      {kafka:{topic:"InvoiceStatus",offset:1}}(=done)
+      {key:{ID:102},value:{ID:102,customer:"Charlie",item:"enchilada",invoice_status:"pending"},kafka:{topic:"NewInvoices",offset:2}}
+      {kafka:{topic:"Invoices",offset:2}}(=done)
+      {kafka:{topic:"InvoiceStatus",offset:2}}(=done)
+      {key:{ID:103},value:{ID:103,customer:"Dan",item:"beans",invoice_status:"pending"},kafka:{topic:"NewInvoices",offset:3}}
+      {kafka:{topic:"Invoices",offset:3}}(=done)
+      {kafka:{topic:"InvoiceStatus",offset:3}}(=done)
+      {key:{ID:100},value:{ID:100,invoice_status:"closed"},kafka:{topic:"NewInvoices",offset:4}}
+      {kafka:{topic:"Invoices",offset:4}}(=done)
+      {kafka:{topic:"InvoiceStatus",offset:4}}(=done)
+      {key:{ID:103},value:{ID:103,invoice_status:"collections"},kafka:{topic:"NewInvoices",offset:5}}
+      {kafka:{topic:"InvoiceStatus",offset:5}}(=done)
+      {key:{ID:102},value:{ID:102,invoice_status:"paid"},kafka:{topic:"NewInvoices",offset:6}}
+      {kafka:{topic:"InvoiceStatus",offset:6}}(=done)
+      {key:{ID:101},value:{ID:101,invoice_status:"paid"},kafka:{topic:"NewInvoices",offset:7}}
+      {kafka:{topic:"InvoiceStatus",offset:7}}(=done)
+      {kafka:{topic:"InvoiceStatus",offset:8}}(=done)

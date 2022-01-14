@@ -19,3 +19,4 @@ jobs:
       - run: make tidy
       - run: make vet
       - run: make test-unit
+      - run: make test-system
