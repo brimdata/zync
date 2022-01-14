@@ -200,7 +200,7 @@ func (c *Consumer) decodeAvro(b []byte) (zed.Value, error) {
 	if err != nil {
 		return zed.Value{}, err
 	}
-	return zed.Value{typ, bytes}, nil
+	return *zed.NewValue(typ, bytes), nil
 }
 
 func (c *Consumer) getSchema(id int) (avro.Schema, zed.Type, error) {
@@ -237,9 +237,9 @@ func (c *Consumer) outerType(key, val zed.Type) (zed.Type, error) {
 
 func (c *Consumer) makeType(key, val zed.Type) (*zed.TypeRecord, error) {
 	cols := []zed.Column{
-		{"kafka", c.metaType},
-		{"key", key},
-		{"value", val},
+		zed.NewColumn("kafka", c.metaType),
+		zed.NewColumn("key", key),
+		zed.NewColumn("value", val),
 	}
 	if c.metaType == nil {
 		cols = cols[1:]

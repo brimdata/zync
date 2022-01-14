@@ -294,8 +294,8 @@ func getKafkaMeta(rec *zed.Value) (string, kafka.Offset, error) {
 
 func doneType(zctx *zed.Context) (zed.Type, error) {
 	recType, err := zctx.LookupTypeRecord([]zed.Column{
-		{"topic", zed.TypeString},
-		{"offset", zed.TypeInt64},
+		zed.NewColumn("topic", zed.TypeString),
+		zed.NewColumn("offset", zed.TypeInt64),
 	})
 	if err != nil {
 		return nil, err

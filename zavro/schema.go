@@ -204,7 +204,7 @@ func decodeRecordSchema(zctx *zed.Context, schema *avro.RecordSchema) (zed.Type,
 		if err != nil {
 			return nil, err
 		}
-		cols = append(cols, zed.Column{fld.Name, typ})
+		cols = append(cols, zed.NewColumn(fld.Name, typ))
 	}
 	return zctx.LookupTypeRecord(cols)
 }
