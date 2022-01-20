@@ -11,6 +11,7 @@ import (
 	"github.com/brimdata/zync/cmd/zync/root"
 	"github.com/brimdata/zync/fifo"
 	"github.com/riferrei/srclient"
+	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
 
 func init() {
@@ -39,15 +40,19 @@ according to the kafka.offset value in the data pool.
 
 type To struct {
 	*root.Command
-	flags     cli.Flags
-	lakeFlags cli.LakeFlags
-	shaper    cli.ShaperFlags
-	pool      string
+	flags       cli.Flags
+	lakeFlags   cli.LakeFlags
+	shaper      cli.ShaperFlags
+	partitions  int
+	pool        string
+	replication int
 }
 
 func NewTo(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
 	f := &To{Command: parent.(*root.Command)}
+	fs.IntVar(&f.partitions, "partitions", 0, "if nonzero, create new Kafka topic with this many partitions")
 	fs.StringVar(&f.pool, "pool", "", "name of Zed data pool")
+	fs.IntVar(&f.replication, "replication", 1, "replication factor for new Kafka topic")
 	f.flags.SetFlags(fs)
 	f.lakeFlags.SetFlags(fs)
 	f.shaper.SetFlags(fs)
@@ -82,6 +87,25 @@ func (t *To) Run(args []string) error {
 	config, err := cli.LoadKafkaConfig()
 	if err != nil {
 		return err
+	}
+	if t.partitions > 0 {
+		adminClient, err := kafka.NewAdminClient(config)
+		if err != nil {
+			return err
+		}
+		result, err := adminClient.CreateTopics(ctx, []kafka.TopicSpecification{
+			{
+				Topic:             t.flags.Topic,
+				NumPartitions:     t.partitions,
+				ReplicationFactor: t.replication,
+			},
+		})
+		if err != nil {
+			return err
+		}
+		if err := result[0].Error; err.Code() != kafka.ErrNoError && err.Code() != kafka.ErrTopicAlreadyExists {
+			return err
+		}
 	}
 	registry := srclient.CreateSchemaRegistryClient(url)
 	registry.SetCredentials(secret.User, secret.Password)
