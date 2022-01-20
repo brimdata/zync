@@ -1,0 +1,115 @@
+script: |
+  zync etl -zed invoices.yaml
+
+inputs:
+  - name: invoices.yaml
+    source: ../demo/invoices.yaml
+
+outputs:
+  - name: stdout 
+    data: |+
+      type done = {kafka:{topic:string,offset:int64}}
+      split (
+        => from (
+          pool "Raw" => kafka.topic=="Invoices"
+          pool "Staging" => is(<done>) kafka.topic=="Invoices"
+        ) | anti join on kafka.offset=kafka.offset
+        
+        => from (
+          pool "Raw" => kafka.topic=="InvoiceStatus"
+          pool "Staging" => is(<done>) kafka.topic=="InvoiceStatus"
+        ) | anti join on kafka.offset=kafka.offset
+      )
+      | filter *
+      | switch (
+        case value.op in ["c", "r"] =>
+          split(
+            => kafka.topic=="Invoices" | yield {left:this} | sort left.value.after.ID
+            => kafka.topic=="InvoiceStatus" | yield {right:this} | sort right.value.after.InvoiceID
+          )
+          | join on left.value.after.ID=right.value.after.InvoiceID right:=right
+          | split (
+            =>
+                // === user-defined ETL ===
+                out:={
+                  key: left.key,
+                  value: {
+                    ID: left.value.after.ID,
+                    customer: left.value.after.customer,
+                    item: left.value.after.item,
+                    invoice_status: right.value.after.status
+                  }
+                }
+              | out.kafka:=left.kafka
+              | yield out
+              | kafka.topic:="NewInvoices"
+            =>  yield {
+                   left:cast({kafka:{topic:left.kafka.topic,offset:left.kafka.offset}},done),
+                   right:cast({kafka:{topic:right.kafka.topic,offset:right.kafka.offset}},done)
+                }
+          )
+        case (value.op=="u") and kafka.topic=="InvoiceStatus" =>
+          split (
+            =>
+              yield {in:this}
+      
+          // === user-defined ETL ===
+              | out:={
+                  key: {
+                    ID: in.value.after.InvoiceID
+                  },
+                  value: {
+                    ID: in.value.after.InvoiceID,
+                    invoice_status: in.value.after.status
+                  }
+                }
+      
+              | out.kafka:=in.kafka
+              | yield out
+              | kafka.topic:="NewInvoices"
+              
+            =>
+              yield cast({kafka:{topic:kafka.topic,offset:kafka.offset}},done)
+              
+            )
+        case (value.op=="u") and kafka.topic=="Invoices" =>
+          split (
+            =>
+              yield {in:this}
+      
+          // === user-defined ETL ===
+              | out:={
+                  key: in.key,
+                  value: in.value.after
+                }
+      
+              | out.kafka:=in.kafka
+              | yield out
+              | kafka.topic:="NewInvoices"
+              
+            =>
+              yield cast({kafka:{topic:kafka.topic,offset:kafka.offset}},done)
+              
+            )
+        case (value.op=="d" and value.op=="Disabled until casting null to record is fixed") and kafka.topic=="Invoices" =>
+          split (
+            =>
+              yield {in:this}
+      
+          // === user-defined ETL ===
+              | out:={
+                  key: in.key,
+                  value: cast(null, typeof(in.value.before))
+                }
+      
+              | out.kafka:=in.kafka
+              | yield out
+              | kafka.topic:="NewInvoices"
+              
+            =>
+              yield cast({kafka:{topic:kafka.topic,offset:kafka.offset}},done)
+              
+            )
+      )
+      | sort kafka.offset
+      

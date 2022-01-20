@@ -61,6 +61,14 @@ func (c *Command) Run(args []string) error {
 	if err != nil {
 		return err
 	}
+	if c.zed {
+		zeds, err := etl.Build(config)
+		if err != nil {
+			return err
+		}
+		fmt.Println(strings.Join(zeds, "\n===\n"))
+		return nil
+	}
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT)
 	defer cancel()
 	lake, err := c.lakeFlags.Open(ctx)
@@ -70,14 +78,6 @@ func (c *Command) Run(args []string) error {
 	pipeline, err := etl.NewPipeline(ctx, config, lake)
 	if err != nil {
 		return err
-	}
-	if c.zed {
-		zeds, err := pipeline.Build()
-		if err != nil {
-			return err
-		}
-		fmt.Println(strings.Join(zeds, "\n===\n"))
-		return nil
 	}
 	n, err := pipeline.Run(ctx)
 	if err != nil {

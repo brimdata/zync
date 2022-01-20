@@ -6,6 +6,82 @@ import (
 	"strings"
 )
 
+// Currently, we take a brute force approach and compile a Zed script for
+// each output topic from scratch and we scan the entire range of each pool
+// for each step.  Later we can range-limit the scans based on the cursor of
+// each topic (note in this more generalized approach the cursor of an input
+// topic requires info from possible more than one output topic, but maybe
+// we won't handle this more generalized case until later).  For now, we require
+// all the input topics go through ETLs that land in the same *pool* but do not
+// require that they all land in the same output topic.  This way a cursor
+// query on the *pool* can reliably give us the cursor and the completed offsets
+// for anti-join.
+
+func Build(transform *Transform) ([]string, error) {
+	routes, err := newRoutes(transform)
+	if err != nil {
+		return nil, err
+	}
+	// First, for each output topic, we compute all of the input topics
+	// needed by all of the ETLs to that output.  Note that an input
+	// topic may be routed to multiple output topics but all of those
+	// topics must be in the same pool (XXX add a check for this).
+	for _, etl := range transform.ETLs {
+		switch etl.Type {
+		case "denorm":
+			if etl.Left == "" || etl.Right == "" {
+				return nil, errors.New("both 'left' and 'right' topics must be specified for denorm ETL")
+			}
+			if etl.In != "" {
+				return nil, errors.New("'in' topic cannot be specified for denorm ETL")
+			}
+			if err := routes.enter(etl.Left, etl.Out); err != nil {
+				return nil, err
+			}
+			if err := routes.enter(etl.Right, etl.Out); err != nil {
+				return nil, err
+			}
+		case "stateless":
+			if etl.In == "" {
+				return nil, errors.New("'in' topic must be specified for stateless ETL")
+			}
+			if etl.Left != "" || etl.Right != "" {
+				return nil, errors.New("'left' or 'right' topic cannot be specified for stateless ETL")
+			}
+			if err := routes.enter(etl.In, etl.Out); err != nil {
+				return nil, err
+			}
+		default:
+			return nil, fmt.Errorf("unknown ETL type: %q", etl.Type)
+		}
+	}
+	// For every input topic, we now know what output pool it is rounted to.
+	// There may be multiple output topics for a given input, but they all
+	// land in the same pool.
+
+	// For each output topic, we'll build a Zed for all the ETLs that
+	// land on that topic.   It's okay to have multiple ETLs landing
+	// on the same topic (e.g., multiple ETLs from different tables
+	// land on one denormalized table).
+
+	var zeds []string
+	for _, outputTopic := range routes.Outputs() {
+		var etls []Rule
+		for _, etl := range transform.ETLs {
+			if etl.Out == outputTopic {
+				etls = append(etls, etl)
+			}
+		}
+		inputTopics := routes.InputsOf(outputTopic)
+		s, err := buildZed(inputTopics, outputTopic, routes, etls)
+		if err != nil {
+			return nil, err
+		}
+		zeds = append(zeds, s)
+	}
+	return zeds, nil
+}
+
 func buildZed(inputTopics []string, outputTopic string, routes *Routes, etls []Rule) (string, error) {
 	code, err := buildFrom(inputTopics, outputTopic, routes)
 	if err != nil {
