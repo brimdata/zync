@@ -3,9 +3,6 @@ export GO111MODULE=on
 LDFLAGS = -X github.com/brimdata/zync/cmd/zync/version.version=$(VERSION)
 VERSION = $(shell git describe --always --dirty --tags)
 
-vet:
-	@go vet -copylocks ./...
-
 fmt:
 	@res=$$(go fmt ./...); \
 	if [ -n "$${res}" ]; then \
@@ -16,6 +13,9 @@ fmt:
 tidy:
 	@go mod tidy
 	@git diff --exit-code -- go.mod go.sum
+
+vet:
+	@go vet ./...
 
 test-unit:
 	@go test -short ./...

@@ -58,7 +58,7 @@ func encodeArray(dst []byte, elemType zed.Type, body zcode.Bytes) ([]byte, error
 	it := zcode.Iter(body)
 	for !it.Done() {
 		body, _ := it.Next()
-		dst, err = encodeAny(dst, zed.Value{elemType, body})
+		dst, err = encodeAny(dst, *zed.NewValue(elemType, body))
 		if err != nil {
 			return nil, err
 		}
@@ -89,7 +89,7 @@ func encodeRecord(dst []byte, typ *zed.TypeRecord, body zcode.Bytes) ([]byte, er
 		// the type's position in the union.
 		dst = appendVarint(dst, 1)
 		var err error
-		dst, err = encodeAny(dst, zed.Value{col.Type, body})
+		dst, err = encodeAny(dst, *zed.NewValue(col.Type, body))
 		if err != nil {
 			return nil, err
 		}
