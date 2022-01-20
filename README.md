@@ -15,17 +15,10 @@ a data warehouse.
 
 ## Installation
 
-To install `zync`, clone this repo and run `make install`:
+To install `zync`, make sure you have Go installed and then run
 ```
-git clone https://github.com/brimdata/zync.git
-make -C zync install
+go install github.com/brimdata/zync/cmd/zync@main
 ```
-Make sure you have **Go 1.16** installed in your environment and
-that your shell path includes Go.
-
-**WARNING: Go 1.17 currently does not work with the Kafka Go library as there
-is an unresolved bug that is triggered by Kafka's use of cgo.
-[See Issue #15](https://github.com/brimdata/zync/issues/15#issuecomment-929210913).**
 
 You'll also need `zed` installed to run a Zed lake.  Installation instructions
 for `zed` are in the [Zed repository](https://github.com/brimdata/zed).
