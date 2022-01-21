@@ -21,7 +21,7 @@ func Decode(in []byte, schema avro.Schema) (zcode.Bytes, error) {
 	}
 	switch schema.(type) {
 	case *avro.RecordSchema, *avro.RecursiveSchema:
-		return b.Bytes().ContainerBody()
+		return b.Bytes().Body()
 	}
 	return b.Bytes(), nil
 }
@@ -92,13 +92,13 @@ func decodeUnion(b *zcode.Builder, in []byte, schema *avro.UnionSchema) ([]byte,
 	}
 	if schema, nullSelector := isOptional(schema); schema != nil {
 		if selector == nullSelector {
-			b.AppendNull()
+			b.Append(nil)
 			return in, nil
 		}
 		return decodeAny(b, in, schema)
 	}
 	b.BeginContainer()
-	b.AppendPrimitive(zed.EncodeInt(int64(selector)))
+	b.Append(zed.EncodeInt(int64(selector)))
 	in, err := decodeAny(b, in, schema.Types[selector])
 	b.EndContainer()
 	return in, err
@@ -123,14 +123,14 @@ func decodeCountedValue(in []byte) ([]byte, []byte) {
 func decodeScalar(b *zcode.Builder, in []byte, schema avro.Schema) ([]byte, error) {
 	switch schema := schema.(type) {
 	case *avro.NullSchema:
-		b.AppendNull()
+		b.Append(nil)
 		return in, nil
 	case *avro.BooleanSchema:
 		if len(in) == 0 {
 			return nil, errors.New("end of input decoding bool")
 		}
 		// ZNG and Avro are the same here
-		b.AppendPrimitive(in[:1])
+		b.Append(in[:1])
 		return in[1:], nil
 	case *avro.IntSchema, *avro.LongSchema:
 		var v int64
@@ -138,26 +138,26 @@ func decodeScalar(b *zcode.Builder, in []byte, schema avro.Schema) ([]byte, erro
 		if in == nil {
 			return nil, errors.New("error decoding avro long")
 		}
-		b.AppendPrimitive(zed.EncodeInt(v))
+		b.Append(zed.EncodeInt(v))
 		return in, nil
 	case *avro.FloatSchema:
 		if len(in) < 4 {
 			return nil, errors.New("end of input decoding avro float")
 		}
-		b.AppendPrimitive(in[:4])
+		b.Append(in[:4])
 		return in[4:], nil
 	case *avro.DoubleSchema:
 		if len(in) < 8 {
 			return nil, errors.New("end of input decoding avro double")
 		}
-		b.AppendPrimitive(in[:8])
+		b.Append(in[:8])
 		return in[8:], nil
 	case *avro.BytesSchema, *avro.StringSchema:
 		in, body := decodeCountedValue(in)
 		if in == nil {
 			return nil, errors.New("end of input decoding avro bytes or string")
 		}
-		b.AppendPrimitive(body)
+		b.Append(body)
 		return in, nil
 	default:
 		return nil, fmt.Errorf("unsupported avro schema: %T", schema)

@@ -55,10 +55,8 @@ func encodeArray(dst []byte, elemType zed.Type, body zcode.Bytes) ([]byte, error
 		return nil, err
 	}
 	dst = appendVarint(dst, int64(cnt))
-	it := zcode.Iter(body)
-	for !it.Done() {
-		body, _ := it.Next()
-		dst, err = encodeAny(dst, *zed.NewValue(elemType, body))
+	for it := body.Iter(); !it.Done(); {
+		dst, err = encodeAny(dst, *zed.NewValue(elemType, it.Next()))
 		if err != nil {
 			return nil, err
 		}
@@ -79,7 +77,7 @@ func encodeRecord(dst []byte, typ *zed.TypeRecord, body zcode.Bytes) ([]byte, er
 		if it.Done() {
 			return nil, ErrBadValue
 		}
-		body, _ := it.Next()
+		body := it.Next()
 		if body == nil {
 			// unset field.  encode as the null type.
 			dst = appendVarint(dst, 0)
@@ -105,24 +103,12 @@ func encodeScalar(dst []byte, typ zed.Type, body zcode.Bytes) ([]byte, error) {
 	switch typ.ID() {
 	case zed.IDUint8, zed.IDUint16, zed.IDUint32, zed.IDUint64:
 		// count is encoded as a uint64.  XXX return error on overdflow?
-		v, err := zed.DecodeUint(body)
-		if err != nil {
-			return nil, err
-		}
-		return appendVarint(dst, int64(v)), nil
+		return appendVarint(dst, int64(zed.DecodeUint(body))), nil
 	case zed.IDInt8, zed.IDInt16, zed.IDInt32, zed.IDInt64:
-		v, err := zed.DecodeInt(body)
-		if err != nil {
-			return nil, err
-		}
-		return appendVarint(dst, v), nil
+		return appendVarint(dst, zed.DecodeInt(body)), nil
 	case zed.IDDuration, zed.IDTime:
 		// Map nanoseconds to microsecond.
-		ns, err := zed.DecodeInt(body)
-		if err != nil {
-			return nil, err
-		}
-		us := ns / 1000
+		us := zed.DecodeInt(body) / 1000
 		return appendVarint(dst, int64(us)), nil
 	case zed.IDFloat32:
 		if len(body) != 4 {
@@ -136,36 +122,21 @@ func encodeScalar(dst []byte, typ zed.Type, body zcode.Bytes) ([]byte, error) {
 		return append(dst, body...), nil
 	case zed.IDBool:
 		// bool is single byte 0 or 1
-		v, err := zed.DecodeBool(body)
-		if err != nil {
-			return nil, err
-		}
-		if v {
+		if zed.DecodeBool(body) {
 			return append(dst, byte(1)), nil
 		}
 		return append(dst, byte(0)), nil
-	case zed.IDBytes, zed.IDString, zed.IDBstring:
+	case zed.IDBytes, zed.IDString:
 		return appendCountedValue(dst, body), nil
 	case zed.IDIP:
-		// IP addresses are turned into strings...
-		ip, err := zed.DecodeIP(body)
-		if err != nil {
-			return nil, err
-		}
-		b := []byte(ip.String())
+		b := []byte(zed.DecodeIP(body).String())
 		return appendCountedValue(dst, b), nil
 	case zed.IDNet:
-		net, err := zed.DecodeNet(body)
-		if err != nil {
-			return nil, err
-		}
-		b := []byte(net.String())
+		b := []byte(zed.DecodeNet(body).String())
 		return appendCountedValue(dst, b), nil
 	case zed.IDType:
 		b := []byte(zed.FormatTypeValue(body))
 		return appendCountedValue(dst, b), nil
-	case zed.IDError:
-		return appendCountedValue(dst, body), nil
 	case zed.IDNull:
 		return dst, nil
 	default:

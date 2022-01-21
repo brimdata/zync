@@ -60,7 +60,7 @@ func (f *From) Sync(ctx context.Context) (int64, int64, error) {
 		}
 		//XXX We need to track the commitID and use new commit-only-if
 		// constraint and recompute offsets if needed.  See zync issue #16.
-		commit, err := f.dst.LoadBatch(batch)
+		commit, err := f.dst.LoadBatch(f.zctx, batch)
 		if err != nil {
 			return 0, 0, err
 		}

@@ -174,13 +174,13 @@ func (c *Consumer) wrapRecord(key, val zed.Value, meta kafka.TopicPartition) (*z
 	if c.metaType != nil {
 		// kafka:{topic:string,partition:int64,offset:int64}
 		b.BeginContainer()
-		b.AppendPrimitive([]byte(*meta.Topic))
-		b.AppendPrimitive(zed.EncodeInt(int64(meta.Partition)))
-		b.AppendPrimitive(zed.EncodeInt(int64(meta.Offset)))
+		b.Append([]byte(*meta.Topic))
+		b.Append(zed.EncodeInt(int64(meta.Partition)))
+		b.Append(zed.EncodeInt(int64(meta.Offset)))
 		b.EndContainer()
 	}
-	b.AppendContainer(key.Bytes)
-	b.AppendContainer(val.Bytes)
+	b.Append(key.Bytes)
+	b.Append(val.Bytes)
 	return zed.NewValue(outerType, b.Bytes()), nil
 }
 

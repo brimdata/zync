@@ -55,8 +55,8 @@ func (p *Pool) Query(src string) (*zbuf.Array, error) {
 	return NewArrayFromReader(zr)
 }
 
-func (p *Pool) LoadBatch(batch *zbuf.Array) (ksuid.KSUID, error) {
-	return p.service.Load(context.TODO(), p.poolID, "main", batch, api.CommitMessage{})
+func (p *Pool) LoadBatch(zctx *zed.Context, batch *zbuf.Array) (ksuid.KSUID, error) {
+	return p.service.Load(context.TODO(), zctx, p.poolID, "main", batch, api.CommitMessage{})
 }
 
 func (p *Pool) NextProducerOffsets() (map[string]kafka.Offset, error) {

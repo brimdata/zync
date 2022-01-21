@@ -122,7 +122,7 @@ func (p *Pipeline) writeToOutputPool(ctx context.Context, batch *zbuf.Array) err
 	}
 	//XXX We need to track the commitID and use new commit-only-if
 	// constraint and recompute offsets if needed.  See zync issue #16.
-	commit, err := p.outputPool.LoadBatch(out)
+	commit, err := p.outputPool.LoadBatch(p.zctx, out)
 	if err != nil {
 		return err
 	}

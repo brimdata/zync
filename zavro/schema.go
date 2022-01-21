@@ -162,8 +162,7 @@ func encodeScalarSchema(typ zed.Type) (avro.Schema, error) {
 		return &avro.BooleanSchema{}, nil
 	case zed.IDBytes:
 		return &avro.BytesSchema{}, nil
-	case zed.IDString, zed.IDBstring, zed.IDIP, zed.IDNet, zed.IDType, zed.IDError:
-		// IP addresses, networks, types, and errors are turned into strings.
+	case zed.IDString, zed.IDIP, zed.IDNet, zed.IDType:
 		return &avro.StringSchema{}, nil
 	case zed.IDNull:
 		return &avro.NullSchema{}, nil
