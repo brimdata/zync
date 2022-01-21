@@ -53,8 +53,8 @@ func (l *Lake) Query(src string) (*zbuf.Array, error) {
 	return etl.NewArrayFromReader(zr)
 }
 
-func (l *Lake) LoadBatch(batch *zbuf.Array) (ksuid.KSUID, error) {
-	return l.service.Load(context.TODO(), l.poolID, "main", batch, api.CommitMessage{})
+func (l *Lake) LoadBatch(zctx *zed.Context, batch *zbuf.Array) (ksuid.KSUID, error) {
+	return l.service.Load(context.TODO(), zctx, l.poolID, "main", batch, api.CommitMessage{})
 }
 
 func (l *Lake) NextProducerOffset(topic string) (kafka.Offset, error) {
