@@ -91,7 +91,7 @@ outputs:
               yield cast({kafka:{topic:kafka.topic,offset:kafka.offset}},done)
               
             )
-        case (value.op=="d" and value.op=="Disabled until casting null to record is fixed") and kafka.topic=="Invoices" =>
+        case (value.op=="d") and kafka.topic=="Invoices" =>
           split (
             =>
               yield {in:this}

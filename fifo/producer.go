@@ -9,6 +9,7 @@ import (
 	"github.com/brimdata/zed"
 	"github.com/brimdata/zed/zbuf"
 	"github.com/brimdata/zed/zio"
+	"github.com/brimdata/zed/zson"
 	"github.com/brimdata/zync/zavro"
 	"github.com/riferrei/srclient"
 	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
@@ -195,7 +196,7 @@ func (p *Producer) lookupSchema(typ zed.Type) (int, error) {
 		}
 		// We use RecordNameStrategy for the subject name so we can have
 		// different schemas on the same topic.
-		subject := fmt.Sprintf("zng_%x", md5.Sum([]byte(typ.String())))
+		subject := fmt.Sprintf("zng_%x", md5.Sum([]byte(zson.FormatType(typ))))
 		if p.namespace != "" {
 			subject = p.namespace + "." + subject
 		}
