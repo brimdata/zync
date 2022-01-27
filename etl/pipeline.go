@@ -110,7 +110,7 @@ func (p *Pipeline) writeToOutputPool(ctx context.Context, batch *zbuf.Array) err
 		//if vals[k].Type == p.doneType {
 		//	out.Append(&vals[k])
 		//}
-		if typedef, ok := vals[k].Type.(*zed.TypeAlias); ok && typedef.Name == "done" {
+		if typedef, ok := vals[k].Type.(*zed.TypeNamed); ok && typedef.Name == "done" {
 			out.Append(&vals[k])
 		}
 		if extra := hasExtra(&vals[k], "left"); extra != nil {
@@ -151,7 +151,7 @@ func insertOffsets(ctx context.Context, zctx *zed.Context, doneType zed.Type, ba
 		//if vals[k].Type == doneType {
 		//	continue
 		//}
-		if typedef, ok := vals[k].Type.(*zed.TypeAlias); ok && typedef.Name == "done" {
+		if typedef, ok := vals[k].Type.(*zed.TypeNamed); ok && typedef.Name == "done" {
 			continue
 		}
 		if extra := hasExtra(&vals[k], "left"); extra != nil {
@@ -223,7 +223,7 @@ func doneType(zctx *zed.Context) (zed.Type, error) {
 	if err != nil {
 		return nil, err
 	}
-	return zctx.LookupTypeAlias("done", recType)
+	return zctx.LookupTypeNamed("done", recType)
 }
 
 func plural(n int) string {

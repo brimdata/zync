@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/brimdata/zed"
+	"github.com/brimdata/zed/zson"
 	"github.com/go-avro/avro"
 )
 
@@ -54,14 +55,14 @@ func (s *schemaEncoder) encodeRecord(typ *zed.TypeRecord) (avro.Schema, error) {
 		}
 		fields = append(fields, fld)
 	}
-	// We hash the zng type to an md5 fingerprint here, otherwise
-	// we would get a ton of versions on the same name for different
-	// instances/restarts of a zng stream.
-	sum := md5.Sum([]byte(typ.String()))
+	typString := zson.FormatType(typ)
 	schema := &avro.RecordSchema{
-		Name:       fmt.Sprintf("zng_%x", sum),
+		// We hash the Zed type to an MD5 fingerprint here, otherwise
+		// we would get a ton of versions on the same name for different
+		// instances/restarts of a ZNG stream.
+		Name:       fmt.Sprintf("zng_%x", md5.Sum([]byte(typString))),
 		Namespace:  s.namespace,
-		Doc:        "Created by zync from zng type " + typ.String(),
+		Doc:        "Created by zync from zng type " + typString,
 		Aliases:    nil,
 		Properties: nil,
 		Fields:     fields,

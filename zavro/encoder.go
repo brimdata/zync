@@ -7,6 +7,7 @@ import (
 
 	"github.com/brimdata/zed"
 	"github.com/brimdata/zed/zcode"
+	"github.com/brimdata/zed/zson"
 )
 
 // These errors shouldn't happen because the input should be type checked.
@@ -135,7 +136,7 @@ func encodeScalar(dst []byte, typ zed.Type, body zcode.Bytes) ([]byte, error) {
 		b := []byte(zed.DecodeNet(body).String())
 		return appendCountedValue(dst, b), nil
 	case zed.IDType:
-		b := []byte(zed.FormatTypeValue(body))
+		b := []byte(zson.FormatTypeValue(body))
 		return appendCountedValue(dst, b), nil
 	case zed.IDNull:
 		return dst, nil
