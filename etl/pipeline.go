@@ -113,10 +113,10 @@ func (p *Pipeline) writeToOutputPool(ctx context.Context, batch *zbuf.Array) err
 		if typedef, ok := vals[k].Type.(*zed.TypeNamed); ok && typedef.Name == "done" {
 			out.Append(&vals[k])
 		}
-		if extra := hasExtra(&vals[k], "left"); extra != nil {
+		if extra := vals[k].Deref("left"); extra != nil {
 			out.Append(extra)
 		}
-		if extra := hasExtra(&vals[k], "right"); extra != nil {
+		if extra := vals[k].Deref("right"); extra != nil {
 			out.Append(extra)
 		}
 	}
@@ -129,14 +129,6 @@ func (p *Pipeline) writeToOutputPool(ctx context.Context, batch *zbuf.Array) err
 	batchLen := len(out.Values())
 	fmt.Printf("commit %s %d record%s\n", commit, batchLen, plural(batchLen))
 	return nil
-}
-
-func hasExtra(val *zed.Value, which string) *zed.Value {
-	extra, err := val.Access(which)
-	if err != nil {
-		return nil
-	}
-	return &extra
 }
 
 func insertOffsets(ctx context.Context, zctx *zed.Context, doneType zed.Type, batch zbuf.Batch, offsets map[string]kafka.Offset) (*zbuf.Array, error) {
@@ -154,7 +146,7 @@ func insertOffsets(ctx context.Context, zctx *zed.Context, doneType zed.Type, ba
 		if typedef, ok := vals[k].Type.(*zed.TypeNamed); ok && typedef.Name == "done" {
 			continue
 		}
-		if extra := hasExtra(&vals[k], "left"); extra != nil {
+		if vals[k].Deref("left") != nil {
 			continue
 		}
 		rec, err := zson.FormatValue(vals[k])
@@ -183,36 +175,19 @@ func insertOffsets(ctx context.Context, zctx *zed.Context, doneType zed.Type, ba
 
 func getKafkaMeta(rec *zed.Value) (string, kafka.Offset, error) {
 	// XXX this API should be simplified in zed package
-	kafkaRec, err := rec.Access("kafka")
-	if err != nil {
-		//XXX should do this formatting from above since
-		// the callee may expect errors in some cases...
-		s, err := zson.FormatValue(*rec)
-		if err != nil {
-			// This should not happen.
-			err = fmt.Errorf("[ERR! %w]", err)
-		}
-		return "", 0, fmt.Errorf("value missing 'kafka' metadata field: %s", s)
+	kafkaRec := rec.Deref("kafka")
+	if kafkaRec == nil {
+		return "", 0, fmt.Errorf("value missing 'kafka' metadata field: %s", zson.MustFormatValue(*rec))
 	}
-	topic, err := kafkaRec.AccessString("topic")
+	topic, err := FieldAsString(kafkaRec, "topic")
 	if err != nil {
-		s, err := zson.FormatValue(*rec)
-		if err != nil {
-			// This should not happen.
-			err = fmt.Errorf("[ERR! %w]", err)
-		}
-		return "", 0, fmt.Errorf("value missing 'kafka.topic' metadata field: %s", s)
+		return "", 0, err
 	}
-	off, err := kafkaRec.AccessInt("offset")
+	offset, err := FieldAsInt(kafkaRec, "offset")
 	if err != nil {
-		s, err := zson.FormatValue(*rec)
-		if err != nil {
-			// This should not happen.
-			err = fmt.Errorf("[ERR! %w]", err)
-		}
-		return "", 0, fmt.Errorf("value missing 'kafka.offset' metadata field: %s", s)
+		return "", 0, err
 	}
-	return topic, kafka.Offset(off), nil
+	return topic, kafka.Offset(offset), nil
 }
 
 func doneType(zctx *zed.Context) (zed.Type, error) {

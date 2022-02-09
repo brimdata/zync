@@ -148,27 +148,27 @@ func (p *Producer) Send(ctx context.Context, offset kafka.Offset, batch zbuf.Bat
 }
 
 func (p *Producer) write(rec *zed.Value) error {
-	key, err := rec.Access("key")
-	if err != nil {
-		key = zed.Value{Type: zed.TypeNull}
+	key := rec.Deref("key")
+	if key == nil {
+		key = zed.Null
 	}
 	keySchemaID, err := p.lookupSchema(key.Type)
 	if err != nil {
 		return err
 	}
-	val, err := rec.Access("value")
-	if err != nil {
-		val = *rec
+	val := rec.Deref("value")
+	if val == nil {
+		val = rec
 	}
 	valSchemaID, err := p.lookupSchema(val.Type)
 	if err != nil {
 		return err
 	}
-	keyBytes, err := zavro.Encode(nil, uint32(keySchemaID), key)
+	keyBytes, err := zavro.Encode(nil, uint32(keySchemaID), *key)
 	if err != nil {
 		return err
 	}
-	valBytes, err := zavro.Encode(nil, uint32(valSchemaID), val)
+	valBytes, err := zavro.Encode(nil, uint32(valSchemaID), *val)
 	if err != nil {
 		return err
 	}

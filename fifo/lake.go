@@ -8,10 +8,10 @@ import (
 	"github.com/brimdata/zed"
 	"github.com/brimdata/zed/api"
 	"github.com/brimdata/zed/compiler"
-	"github.com/brimdata/zed/field"
 	lakeapi "github.com/brimdata/zed/lake/api"
 	"github.com/brimdata/zed/lakeparse"
 	"github.com/brimdata/zed/order"
+	"github.com/brimdata/zed/pkg/field"
 	"github.com/brimdata/zed/runtime"
 	"github.com/brimdata/zed/zbuf"
 	"github.com/brimdata/zync/etl"
@@ -74,7 +74,7 @@ func (l *Lake) NextProducerOffset(topic string) (kafka.Offset, error) {
 		// This should not happen.
 		return 0, errors.New("'tail 1' returned more than one record")
 	}
-	offset, err := vals[0].AccessInt("offset")
+	offset, err := etl.FieldAsInt(&vals[0], "offset")
 	if err != nil {
 		return 0, err
 	}
@@ -98,7 +98,7 @@ func (l *Lake) NextConsumerOffset(topic string) (kafka.Offset, error) {
 		// This should not happen.
 		return 0, errors.New("'tail 1' returned more than one record")
 	}
-	offset, err := vals[0].AccessInt("offset")
+	offset, err := etl.FieldAsInt(&vals[0], "offset")
 	if err != nil {
 		return 0, err
 	}
