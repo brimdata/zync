@@ -2,14 +2,12 @@ package fifo
 
 import (
 	"context"
-	"crypto/md5"
-	"encoding/json"
 	"fmt"
 
 	"github.com/brimdata/zed"
 	"github.com/brimdata/zed/zbuf"
 	"github.com/brimdata/zed/zio"
-	"github.com/brimdata/zed/zson"
+	"github.com/brimdata/zync/connectjson"
 	"github.com/brimdata/zync/zavro"
 	"github.com/riferrei/srclient"
 	"github.com/twmb/franz-go/pkg/kadm"
@@ -17,24 +15,29 @@ import (
 )
 
 type Producer struct {
-	kclient   *kgo.Client
-	registry  *srclient.SchemaRegistryClient
-	topic     string
-	namespace string
-	mapper    map[zed.Type]int
+	encode  func(*zed.Value) ([]byte, error)
+	kclient *kgo.Client
+	topic   string
 }
 
-func NewProducer(opts []kgo.Opt, reg *srclient.SchemaRegistryClient, topic, namespace string) (*Producer, error) {
+func NewProducer(opts []kgo.Opt, reg *srclient.SchemaRegistryClient, format, topic, namespace string) (*Producer, error) {
+	var encode func(*zed.Value) ([]byte, error)
+	switch format {
+	case "avro":
+		encode = zavro.NewEncoder(namespace, reg).Encode
+	case "json":
+		encode = connectjson.Encode
+	default:
+		return nil, fmt.Errorf("unknonwn format %q", format)
+	}
 	kclient, err := kgo.NewClient(opts...)
 	if err != nil {
 		return nil, err
 	}
 	return &Producer{
-		kclient:   kclient,
-		registry:  reg,
-		topic:     topic,
-		namespace: namespace,
-		mapper:    make(map[zed.Type]int),
+		encode:  encode,
+		kclient: kclient,
+		topic:   topic,
 	}, nil
 }
 
@@ -82,23 +85,15 @@ func (p *Producer) write(ctx context.Context, rec *zed.Value) error {
 	if key == nil {
 		key = zed.Null
 	}
-	keySchemaID, err := p.lookupSchema(key.Type)
-	if err != nil {
-		return err
-	}
 	val := rec.Deref("value")
 	if val == nil {
 		val = rec
 	}
-	valSchemaID, err := p.lookupSchema(val.Type)
+	keyBytes, err := p.encode(key)
 	if err != nil {
 		return err
 	}
-	keyBytes, err := zavro.Encode(nil, uint32(keySchemaID), *key)
-	if err != nil {
-		return err
-	}
-	valBytes, err := zavro.Encode(nil, uint32(valSchemaID), *val)
+	valBytes, err := p.encode(val)
 	if err != nil {
 		return err
 	}
@@ -107,38 +102,4 @@ func (p *Producer) write(ctx context.Context, rec *zed.Value) error {
 		Value: valBytes,
 		Topic: p.topic,
 	}).FirstErr()
-}
-
-func (p *Producer) lookupSchema(typ zed.Type) (int, error) {
-	id, ok := p.mapper[typ]
-	if !ok {
-		s, err := zavro.EncodeSchema(typ, p.namespace)
-		if err != nil {
-			return 0, err
-		}
-		schema, err := json.Marshal(s)
-		if err != nil {
-			return 0, err
-		}
-		// We use RecordNameStrategy for the subject name so we can have
-		// different schemas on the same topic.
-		subject := fmt.Sprintf("zng_%x", md5.Sum([]byte(zson.FormatType(typ))))
-		if p.namespace != "" {
-			subject = p.namespace + "." + subject
-		}
-		id, err = p.CreateSchema(subject, string(schema))
-		if err != nil {
-			return 0, err
-		}
-		p.mapper[typ] = id
-	}
-	return id, nil
-}
-
-func (p *Producer) CreateSchema(subject, schema string) (int, error) {
-	s, err := p.registry.CreateSchema(subject, schema, srclient.Avro)
-	if err != nil {
-		return -1, err
-	}
-	return s.ID(), nil
 }

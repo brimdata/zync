@@ -8,7 +8,67 @@ import (
 	"github.com/brimdata/zed"
 	"github.com/brimdata/zed/zcode"
 	"github.com/go-avro/avro"
+	"github.com/riferrei/srclient"
 )
+
+type Decoder struct {
+	registry *srclient.SchemaRegistryClient
+	zctx     *zed.Context
+
+	schemas map[int]schemaAndType
+}
+
+type schemaAndType struct {
+	avro.Schema
+	zed.Type
+}
+
+func NewDecoder(registry *srclient.SchemaRegistryClient, zctx *zed.Context) *Decoder {
+	return &Decoder{
+		registry: registry,
+		zctx:     zctx,
+		schemas:  map[int]schemaAndType{},
+	}
+}
+
+func (d *Decoder) Decode(b []byte) (*zed.Value, error) {
+	if len(b) == 0 {
+		return zed.Null, nil
+	}
+	if len(b) < 5 {
+		return nil, fmt.Errorf("Kafka-Avro header is too short: len %d", len(b))
+	}
+	id := int(binary.BigEndian.Uint32(b[1:5]))
+	schema, typ, err := d.getSchema(id)
+	if err != nil {
+		return nil, fmt.Errorf("could not retrieve schema ID %d: %w", id, err)
+	}
+	bytes, err := Decode(b[5:], schema)
+	if err != nil {
+		return nil, err
+	}
+	return zed.NewValue(typ, bytes), nil
+}
+
+func (d *Decoder) getSchema(id int) (avro.Schema, zed.Type, error) {
+	if both, ok := d.schemas[id]; ok {
+		return both.Schema, both.Type, nil
+	}
+	schema, err := d.registry.GetSchema(id)
+	if err != nil {
+		return nil, nil, nil
+	}
+	avroSchema, err := avro.ParseSchema(schema.Schema())
+	if err != nil {
+		return nil, nil, err
+	}
+	typ, err := DecodeSchema(d.zctx, avroSchema)
+	if err != nil {
+		return nil, nil, err
+	}
+	d.schemas[id] = schemaAndType{avroSchema, typ}
+	return avroSchema, typ, nil
+}
 
 func Decode(in []byte, schema avro.Schema) (zcode.Bytes, error) {
 	var b zcode.Builder

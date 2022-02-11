@@ -86,7 +86,7 @@ func (c *Command) Run(args []string) error {
 		return err
 	}
 	zctx := zed.NewContext()
-	consumer, err := fifo.NewConsumer(zctx, config, registry, c.flags.Topic, c.offset, false)
+	consumer, err := fifo.NewConsumer(zctx, config, registry, c.flags.Format, c.flags.Topic, c.offset, false)
 	if err != nil {
 		return err
 	}

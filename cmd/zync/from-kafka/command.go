@@ -89,7 +89,7 @@ func (f *From) Run(args []string) error {
 	registry := srclient.CreateSchemaRegistryClient(url)
 	registry.SetCredentials(secret.User, secret.Password)
 	zctx := zed.NewContext()
-	consumer, err := fifo.NewConsumer(zctx, config, registry, f.flags.Topic, consumerOffset, true)
+	consumer, err := fifo.NewConsumer(zctx, config, registry, f.flags.Format, f.flags.Topic, consumerOffset, true)
 	if err != nil {
 		return err
 	}

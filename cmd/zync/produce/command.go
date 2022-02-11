@@ -74,7 +74,7 @@ func (c *Command) Run(args []string) error {
 		return err
 	}
 	defer zio.CloseReaders(readers)
-	producer, err := fifo.NewProducer(config, registry, c.flags.Topic, c.flags.Namespace)
+	producer, err := fifo.NewProducer(config, registry, c.flags.Format, c.flags.Topic, c.flags.Namespace)
 	if err != nil {
 		return err
 	}

@@ -109,7 +109,7 @@ func (t *To) Run(args []string) error {
 	registry := srclient.CreateSchemaRegistryClient(url)
 	registry.SetCredentials(secret.User, secret.Password)
 	zctx := zed.NewContext()
-	producer, err := fifo.NewProducer(config, registry, t.flags.Topic, t.flags.Namespace)
+	producer, err := fifo.NewProducer(config, registry, t.flags.Format, t.flags.Topic, t.flags.Namespace)
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,7 @@
 package zavro
 
 import (
+	"crypto/md5"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -8,10 +9,52 @@ import (
 	"github.com/brimdata/zed"
 	"github.com/brimdata/zed/zcode"
 	"github.com/brimdata/zed/zson"
+	"github.com/riferrei/srclient"
 )
 
 // These errors shouldn't happen because the input should be type checked.
 var ErrBadValue = errors.New("bad zng value in kavro translator")
+
+type Encoder struct {
+	namespace string
+	registry  *srclient.SchemaRegistryClient
+
+	schemaIDs map[zed.Type]int
+}
+
+func NewEncoder(namespace string, registry *srclient.SchemaRegistryClient) *Encoder {
+	return &Encoder{namespace: namespace, registry: registry, schemaIDs: map[zed.Type]int{}}
+}
+
+func (e *Encoder) Encode(val *zed.Value) ([]byte, error) {
+	id, err := e.getSchemaID(val.Type)
+	if err != nil {
+		return nil, err
+	}
+	return Encode(nil, uint32(id), *val)
+}
+
+func (e *Encoder) getSchemaID(typ zed.Type) (int, error) {
+	if id, ok := e.schemaIDs[typ]; ok {
+		return id, nil
+	}
+	avroSchema, err := EncodeSchema(typ, e.namespace)
+	if err != nil {
+		return 0, err
+	}
+	// We use RecordNameStrategy for the subject name so we can have
+	// different schemas on the same topic.
+	subject := fmt.Sprintf("zng_%x", md5.Sum([]byte(zson.FormatType(typ))))
+	if e.namespace != "" {
+		subject = e.namespace + "." + subject
+	}
+	s, err := e.registry.CreateSchema(subject, avroSchema.String(), srclient.Avro)
+	if err != nil {
+		return 0, err
+	}
+	e.schemaIDs[typ] = s.ID()
+	return s.ID(), nil
+}
 
 func Encode(dst []byte, id uint32, zv zed.Value) ([]byte, error) {
 	// build kafka/avro header
