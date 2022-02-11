@@ -15,8 +15,8 @@ import (
 	"github.com/brimdata/zed/lakeparse"
 	"github.com/brimdata/zed/order"
 	"github.com/brimdata/zed/pkg/field"
-	"github.com/brimdata/zed/proc"
 	"github.com/brimdata/zed/runtime"
+	"github.com/brimdata/zed/runtime/op"
 	"github.com/brimdata/zed/zbuf"
 	"github.com/brimdata/zed/zio"
 	"github.com/brimdata/zed/zson"
@@ -147,7 +147,7 @@ func (*adaptor) Layout(context.Context, dag.Source) order.Layout {
 	return order.Nil
 }
 
-func (*adaptor) NewScheduler(context.Context, *zed.Context, dag.Source, extent.Span, zbuf.Filter, *dag.Filter) (proc.Scheduler, error) {
+func (*adaptor) NewScheduler(context.Context, *zed.Context, dag.Source, extent.Span, zbuf.Filter, *dag.Filter) (op.Scheduler, error) {
 	return nil, errors.New("mock.Lake.NewScheduler() should not be called")
 }
 
