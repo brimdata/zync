@@ -21,7 +21,7 @@ func Decode(in []byte, schema avro.Schema) (zcode.Bytes, error) {
 	}
 	switch schema.(type) {
 	case *avro.RecordSchema, *avro.RecursiveSchema:
-		return b.Bytes().Body()
+		return b.Bytes().Body(), nil
 	}
 	return b.Bytes(), nil
 }

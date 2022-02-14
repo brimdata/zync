@@ -7,7 +7,7 @@ import (
 
 	"github.com/brimdata/zed"
 	"github.com/brimdata/zed/zbuf"
-	"github.com/brimdata/zed/zson"
+	"github.com/brimdata/zync/etl"
 	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
 
@@ -77,26 +77,13 @@ func (f *From) Sync(ctx context.Context) (int64, int64, error) {
 // offset along with applying a user-defined shaper.
 func AdjustOffsetsAndShape(zctx *zed.Context, batch *zbuf.Array, offset kafka.Offset, shaper string) (*zbuf.Array, error) {
 	vals := batch.Values()
-	kafkaRec, err := vals[0].Access("kafka")
+	kafkaRec, err := etl.Field(&vals[0], "kafka")
 	if err != nil {
-		s, err := zson.FormatValue(vals[0])
-		if err != nil {
-			// This should not happen.
-			err = fmt.Errorf("[ERR! %w]", err)
-		}
-		// This shouldn't happen since the consumer automatically adds
-		// this field.
-		return nil, fmt.Errorf("value read from Kafka topic missing 'kafka' metadata field: %s", s)
+		return nil, err
 	}
-	// XXX this should be simplified in zed package
-	first, err := zed.NewValue(kafkaRec.Type, kafkaRec.Bytes).AccessInt("offset")
+	first, err := etl.FieldAsInt(kafkaRec, "offset")
 	if err != nil {
-		s, err := zson.FormatValue(kafkaRec)
-		if err != nil {
-			// This should not happen.
-			err = fmt.Errorf("[ERR! %w]", err)
-		}
-		return nil, fmt.Errorf("'kafka' metadata field is missing 'offset' field: %s", s)
+		return nil, err
 	}
 	// Send the batch of Zed records through this query to adjust the save
 	// the original input offset and adjust the offset so it fits in sequetentially

@@ -10,15 +10,16 @@ import (
 	"github.com/brimdata/zed/compiler"
 	"github.com/brimdata/zed/compiler/ast"
 	"github.com/brimdata/zed/compiler/ast/dag"
-	"github.com/brimdata/zed/expr/extent"
-	"github.com/brimdata/zed/field"
 	lakeapi "github.com/brimdata/zed/lake/api"
 	"github.com/brimdata/zed/lakeparse"
 	"github.com/brimdata/zed/order"
-	"github.com/brimdata/zed/proc"
+	"github.com/brimdata/zed/pkg/field"
 	"github.com/brimdata/zed/runtime"
+	"github.com/brimdata/zed/runtime/expr/extent"
+	"github.com/brimdata/zed/runtime/op"
 	"github.com/brimdata/zed/zbuf"
 	"github.com/brimdata/zed/zio"
+	"github.com/brimdata/zed/zson"
 	"github.com/segmentio/ksuid"
 	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
@@ -71,11 +72,11 @@ func (p *Pool) NextProducerOffsets() (map[string]kafka.Offset, error) {
 	vals := batch.Values()
 	for k := range vals {
 		rec := &vals[k]
-		offset, err := rec.AccessInt("offset")
+		offset, err := FieldAsInt(rec, "offset")
 		if err != nil {
 			return nil, err
 		}
-		topic, err := rec.AccessString("topic")
+		topic, err := FieldAsString(rec, "topic")
 		if err != nil {
 			return nil, err
 		}
@@ -101,7 +102,7 @@ func (p *Pool) NextConsumerOffset(topic string) (kafka.Offset, error) {
 		// This should not happen.
 		return 0, errors.New("'tail 1' returned more than one record")
 	}
-	offset, err := vals[0].AccessInt("offset")
+	offset, err := FieldAsInt(&vals[0], "offset")
 	if err != nil {
 		return 0, err
 	}
@@ -146,7 +147,7 @@ func (*adaptor) Layout(context.Context, dag.Source) order.Layout {
 	return order.Nil
 }
 
-func (*adaptor) NewScheduler(context.Context, *zed.Context, dag.Source, extent.Span, zbuf.Filter, *dag.Filter) (proc.Scheduler, error) {
+func (*adaptor) NewScheduler(context.Context, *zed.Context, dag.Source, extent.Span, zbuf.Filter, *dag.Filter) (op.Scheduler, error) {
 	return nil, errors.New("mock.Lake.NewScheduler() should not be called")
 }
 
@@ -182,4 +183,37 @@ func NewArrayFromReader(zr zio.Reader) (*zbuf.Array, error) {
 		}
 		a.Append(val.Copy())
 	}
+}
+
+func Field(val *zed.Value, field string) (*zed.Value, error) {
+	fieldVal := val.Deref(field)
+	if fieldVal == nil {
+		return nil, fmt.Errorf("field %q not found in %q", field, zson.MustFormatValue(*val))
+	}
+	if fieldVal.IsNull() {
+		return nil, fmt.Errorf("field %q null in %q", field, zson.MustFormatValue(*val))
+	}
+	return fieldVal, nil
+}
+
+func FieldAsInt(val *zed.Value, field string) (int64, error) {
+	fieldVal, err := Field(val, field)
+	if err != nil {
+		return 0, err
+	}
+	if !zed.IsInteger(fieldVal.Type.ID()) {
+		return 0, fmt.Errorf("field %q not an interger in %q", field, zson.MustFormatValue(*val))
+	}
+	return fieldVal.AsInt(), nil
+}
+
+func FieldAsString(val *zed.Value, field string) (string, error) {
+	fieldVal, err := Field(val, field)
+	if err != nil {
+		return "", err
+	}
+	if fieldVal.Type.ID() != zed.IDString {
+		return "", fmt.Errorf("field %q not a string in %q", field, zson.MustFormatValue(*val))
+	}
+	return fieldVal.AsString(), nil
 }
