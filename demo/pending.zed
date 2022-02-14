@@ -1,4 +1,4 @@
-split (
+fork (
   => from (
     pool "Raw" => kafka.topic=="Invoices"
     pool "Staging" => is(<done>) kafka.topic=="Invoices"

@@ -138,7 +138,7 @@ func buildFrom(inputTopics []string, outputTopic string, routes *Routes) (string
 		}
 		code += "=> " + strings.TrimLeft(s, "\n") + "\n"
 	}
-	return fmt.Sprintf("split (\n%s)\n", indent(code, 2)), nil
+	return fmt.Sprintf("fork (\n%s)\n", indent(code, 2)), nil
 }
 
 func indent(s string, tab int) string {
@@ -170,7 +170,7 @@ func buildStateless(etl Rule) string {
 		where = fmt.Sprintf("(%s) and ", etl.Where)
 	}
 	code := fmt.Sprintf("  case %skafka.topic==%q =>\n", where, etl.In)
-	code += "    split (\n"
+	code += "    fork (\n"
 	code += "      =>\n"
 	code += "        yield {in:this}\n"
 	code += "\n    // === user-defined ETL ===\n"
@@ -199,12 +199,12 @@ func buildDenorm(etl Rule) (string, error) {
 	leftKey := strings.TrimSpace(keys[0])
 	rightKey := strings.TrimSpace(keys[1])
 	code := fmt.Sprintf("  case %s =>\n", etl.Where)
-	code += "    split(\n"
+	code += "    fork (\n"
 	code += fmt.Sprintf("      => kafka.topic==%q | yield {left:this} | sort %s\n", etl.Left, leftKey)
 	code += fmt.Sprintf("      => kafka.topic==%q | yield {right:this} | sort %s\n", etl.Right, rightKey)
 	code += "    )\n"
 	code += fmt.Sprintf("    | join on %s=%s right:=right\n", leftKey, rightKey)
-	code += "    | split (\n"
+	code += "    | fork (\n"
 	code += "      =>\n"
 	code += "          // === user-defined ETL ===\n"
 	code += formatZedHead(etl.Zed, 8)

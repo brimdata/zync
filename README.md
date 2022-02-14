@@ -370,7 +370,7 @@ from the smallest cursor up and doing an anti join for each topic.
 The following  pseudo Zed would be stitched together from the YAML config by `zync`
 (assuming two input topics, "TableA" and "TableB", and output topic "TableC").
 ```
-split (
+fork (
     => from (
         pool Raw range from $cursor["TableA"] to MAXINT64 => kafka.topic=="TableA"
         pool Staging range from $cursor["TableA"] to MAXINT64 => is(<done>) && kafka.topic=="TableA"
@@ -382,7 +382,7 @@ split (
   )
   | switch (
     case <where-denorm> =>
-      split (
+      fork (
         => kafka.topic=="TableA" | yield {left:this} | sort <left-key>
         => kafka.topic=="TableB" | yield {right:this} | sort <right-key>
       )

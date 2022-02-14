@@ -9,7 +9,7 @@ outputs:
   - name: stdout 
     data: |+
       type done = {kafka:{topic:string,offset:int64}}
-      split (
+      fork (
         => from (
           pool "Raw" => kafka.topic=="Invoices"
           pool "Staging" => is(<done>) kafka.topic=="Invoices"
@@ -23,12 +23,12 @@ outputs:
       | filter *
       | switch (
         case value.op in ["c", "r"] =>
-          split(
+          fork (
             => kafka.topic=="Invoices" | yield {left:this} | sort left.value.after.ID
             => kafka.topic=="InvoiceStatus" | yield {right:this} | sort right.value.after.InvoiceID
           )
           | join on left.value.after.ID=right.value.after.InvoiceID right:=right
-          | split (
+          | fork (
             =>
                 // === user-defined ETL ===
                 out:={
@@ -49,7 +49,7 @@ outputs:
                 }
           )
         case (value.op=="u") and kafka.topic=="InvoiceStatus" =>
-          split (
+          fork (
             =>
               yield {in:this}
       
@@ -73,7 +73,7 @@ outputs:
               
             )
         case (value.op=="u") and kafka.topic=="Invoices" =>
-          split (
+          fork (
             =>
               yield {in:this}
       
@@ -92,7 +92,7 @@ outputs:
               
             )
         case (value.op=="d") and kafka.topic=="Invoices" =>
-          split (
+          fork (
             =>
               yield {in:this}
       
