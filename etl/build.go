@@ -88,7 +88,7 @@ func buildZed(inputTopics []string, outputTopic string, routes *Routes, etls []R
 		return "", err
 	}
 	code = "type done = {kafka:{topic:string,offset:int64}}\n" + code
-	code += "| filter *\n" //XXX switch can't handle multiple parents
+	code += "| yield this\n" //XXX switch can't handle multiple parents
 	code += "| switch (\n"
 	var ndefault int
 	for _, etl := range etls {

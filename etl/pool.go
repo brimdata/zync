@@ -151,7 +151,7 @@ func (*adaptor) NewScheduler(context.Context, *zed.Context, dag.Source, extent.S
 	return nil, errors.New("mock.Lake.NewScheduler() should not be called")
 }
 
-func (*adaptor) Open(context.Context, *zed.Context, string, zbuf.Filter) (zbuf.PullerCloser, error) {
+func (*adaptor) Open(context.Context, *zed.Context, string, zbuf.Filter) (zbuf.Puller, error) {
 	return nil, errors.New("mock.Lake.Open() should not be called")
 }
 
