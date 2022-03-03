@@ -20,7 +20,7 @@ outputs:
           pool "Staging" => is(<done>) kafka.topic=="InvoiceStatus"
         ) | anti join on kafka.offset=kafka.offset
       )
-      | filter *
+      | yield this
       | switch (
         case value.op in ["c", "r"] =>
           fork (
