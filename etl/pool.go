@@ -21,8 +21,11 @@ import (
 	"github.com/brimdata/zed/zio"
 	"github.com/brimdata/zed/zson"
 	"github.com/segmentio/ksuid"
-	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
+
+// KafkaOffsetEarliest is used to begin consuming at the earliest (oldest)
+// offset.
+const KafkaOffsetEarliest = -2
 
 var ErrBadPoolKey = errors.New("pool key must be 'kafka.offset' in ascending order")
 
@@ -60,7 +63,7 @@ func (p *Pool) LoadBatch(zctx *zed.Context, batch *zbuf.Array) (ksuid.KSUID, err
 	return p.service.Load(context.TODO(), zctx, p.poolID, "main", batch, api.CommitMessage{})
 }
 
-func (p *Pool) NextProducerOffsets() (map[string]kafka.Offset, error) {
+func (p *Pool) NextProducerOffsets() (map[string]int64, error) {
 	// Run a query against the pool to get the max output offset.
 	batch, err := p.Query("offset:=max(kafka.offset) by topic:=kafka.topic")
 	if err != nil {
@@ -68,7 +71,7 @@ func (p *Pool) NextProducerOffsets() (map[string]kafka.Offset, error) {
 	}
 	// Note at start-up if there are no offsets, then we will return an empty
 	// map and the caller will get offset 0 for the next offset of any lookups.
-	offsets := make(map[string]kafka.Offset)
+	offsets := make(map[string]int64)
 	vals := batch.Values()
 	for k := range vals {
 		rec := &vals[k]
@@ -80,23 +83,23 @@ func (p *Pool) NextProducerOffsets() (map[string]kafka.Offset, error) {
 		if err != nil {
 			return nil, err
 		}
-		offsets[topic] = kafka.Offset(offset + 1)
+		offsets[topic] = offset + 1
 	}
 	return offsets, nil
 }
 
-func (p *Pool) NextConsumerOffset(topic string) (kafka.Offset, error) {
+func (p *Pool) NextConsumerOffset(topic string) (int64, error) {
 	// Find the largest input_offset for the given topic.  Since these
 	// values are monotonically increasing, we can just do "tail 1".
 	query := fmt.Sprintf("kafka.topic=='%s' | tail 1 | offset:=kafka.input_offset", topic)
 	batch, err := p.Query(query)
 	if err != nil {
-		return kafka.OffsetBeginning, err
+		return KafkaOffsetEarliest, err
 	}
 	vals := batch.Values()
 	n := len(vals)
 	if n == 0 {
-		return kafka.OffsetBeginning, nil
+		return KafkaOffsetEarliest, nil
 	}
 	if n != 1 {
 		// This should not happen.
@@ -106,10 +109,10 @@ func (p *Pool) NextConsumerOffset(topic string) (kafka.Offset, error) {
 	if err != nil {
 		return 0, err
 	}
-	return kafka.Offset(offset + 1), nil
+	return offset + 1, nil
 }
 
-func (p *Pool) ReadBatch(ctx context.Context, offset kafka.Offset, size int) (zbuf.Batch, error) {
+func (p *Pool) ReadBatch(ctx context.Context, offset int64, size int) (zbuf.Batch, error) {
 	query := fmt.Sprintf("kafka.offset >= %d | head %d", offset, size)
 	//XXX
 	query += "| sort kafka.offset"

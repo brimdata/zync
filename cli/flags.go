@@ -1,12 +1,18 @@
 package cli
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"flag"
+	"fmt"
+	"net"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
-	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
+	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/twmb/franz-go/pkg/sasl/plain"
 )
 
 type Flags struct {
@@ -61,7 +67,7 @@ type config struct {
 	SaslPassword     string `json:"sasl_password"`
 }
 
-func LoadKafkaConfig() (*kafka.ConfigMap, error) {
+func LoadKafkaConfig() ([]kgo.Opt, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, err
@@ -72,12 +78,36 @@ func LoadKafkaConfig() (*kafka.ConfigMap, error) {
 		return nil, err
 	}
 	var c config
-	err = json.Unmarshal(b, &c)
-	return &kafka.ConfigMap{
-		"bootstrap.servers": c.BootstrapServers,
-		"sasl.mechanisms":   c.SaslMechanisms,
-		"security.protocol": c.SecurityProtocol,
-		"sasl.username":     c.SaslUsername,
-		"sasl.password":     c.SaslPassword,
-	}, err
+	if err := json.Unmarshal(b, &c); err != nil {
+		return nil, err
+	}
+	var opts []kgo.Opt
+	if s := c.BootstrapServers; s != "" {
+		opts = append(opts, kgo.SeedBrokers(strings.Split(s, ",")...))
+	}
+	switch c.SecurityProtocol {
+	case "", "PLAINTEXT", "SASL_PLAINTEXT":
+	case "SSL", "SASL_SSL":
+		d := &tls.Dialer{
+			NetDialer: &net.Dialer{
+				Timeout: 10 * time.Second,
+			},
+		}
+		opts = append(opts, kgo.Dialer(d.DialContext))
+	default:
+		return nil, fmt.Errorf("unknown security_protocol value %q", c.SecurityProtocol)
+	}
+	if strings.HasPrefix(c.SecurityProtocol, "SASL_") {
+		switch c.SaslMechanisms {
+		case "PLAIN":
+			a := plain.Auth{
+				User: c.SaslUsername,
+				Pass: c.SaslPassword,
+			}
+			opts = append(opts, kgo.SASL(a.AsMechanism()))
+		default:
+			return nil, fmt.Errorf("unknown sasl_mechanisms value %q", c.SaslMechanisms)
+		}
+	}
+	return opts, nil
 }

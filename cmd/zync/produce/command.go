@@ -14,6 +14,7 @@ import (
 	"github.com/brimdata/zync/cmd/zync/root"
 	"github.com/brimdata/zync/fifo"
 	"github.com/riferrei/srclient"
+	"github.com/twmb/franz-go/pkg/kgo"
 )
 
 var Produce = &charm.Spec{
@@ -65,6 +66,7 @@ func (c *Command) Run(args []string) error {
 	if err != nil {
 		return err
 	}
+	config = append(config, kgo.AllowAutoTopicCreation())
 	registry := srclient.CreateSchemaRegistryClient(url)
 	registry.SetCredentials(secret.User, secret.Password)
 	readers, err := c.inputFlags.Open(ctx, zed.NewContext(), storage.NewLocalEngine(), args, true)

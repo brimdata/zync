@@ -6,7 +6,6 @@ import (
 
 	"github.com/brimdata/zed"
 	"github.com/brimdata/zed/zbuf"
-	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
 
 // To provides a means to sync from a Zed data pool to a Kafka topic in a
@@ -30,7 +29,7 @@ func NewTo(zctx *zed.Context, dst *Producer, src *Lake) *To {
 const BatchSize = 200
 
 func (t *To) Sync(ctx context.Context) error {
-	offset, err := t.dst.HeadOffset()
+	offset, err := t.dst.HeadOffset(ctx)
 	if err != nil {
 		return err
 	}
@@ -46,11 +45,11 @@ func (t *To) Sync(ctx context.Context) error {
 			//XXX should pause and poll again... for now, exit
 			break
 		}
-		if err := t.dst.Send(ctx, offset, batch); err != nil {
+		if err := t.dst.Send(ctx, batch); err != nil {
 			return err
 		}
 		fmt.Printf("committed %d record%s at offset %d to output topic\n", batchLen, plural(batchLen), offset)
-		offset += kafka.Offset(batchLen)
+		offset += int64(batchLen)
 	}
 	return nil
 }

@@ -15,9 +15,9 @@ import (
 	"github.com/brimdata/zed/pkg/storage"
 	"github.com/brimdata/zync/cli"
 	"github.com/brimdata/zync/cmd/zync/root"
+	"github.com/brimdata/zync/etl"
 	"github.com/brimdata/zync/fifo"
 	"github.com/riferrei/srclient"
-	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
 
 var Consume = &charm.Spec{
@@ -54,8 +54,7 @@ type Command struct {
 func New(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
 	c := &Command{Command: parent.(*root.Command)}
 	fs.StringVar(&c.timeout, "timeout", "", "timeout in ZSON duration syntax (5s, 1m30s, ...)")
-	fs.Int64Var(&c.offset, "offset", int64(kafka.OffsetBeginning),
-		"initial Kafka offset (-2 is oldest, -1 is newest)")
+	fs.Int64Var(&c.offset, "offset", etl.KafkaOffsetEarliest, "initial Kafka offset (-2 is earliest, -1 is latest)")
 	c.flags.SetFlags(fs)
 	c.outputFlags.SetFlags(fs)
 	return c, nil
@@ -87,7 +86,7 @@ func (c *Command) Run(args []string) error {
 		return err
 	}
 	zctx := zed.NewContext()
-	consumer, err := fifo.NewConsumer(zctx, config, registry, c.flags.Topic, kafka.Offset(c.offset), false)
+	consumer, err := fifo.NewConsumer(zctx, config, registry, c.flags.Topic, c.offset, false)
 	if err != nil {
 		return err
 	}

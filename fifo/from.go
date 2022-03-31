@@ -8,7 +8,6 @@ import (
 	"github.com/brimdata/zed"
 	"github.com/brimdata/zed/zbuf"
 	"github.com/brimdata/zync/etl"
-	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
 
 // From syncs data from a Kafka topic to a Zed lake in a
@@ -65,7 +64,7 @@ func (f *From) Sync(ctx context.Context) (int64, int64, error) {
 			return 0, 0, err
 		}
 		fmt.Printf("commit %s %d record%s\n", commit, n, plural(n))
-		offset += kafka.Offset(n)
+		offset += int64(n)
 		nrec += int64(n)
 		ncommit++
 	}
@@ -75,7 +74,7 @@ func (f *From) Sync(ctx context.Context) (int64, int64, error) {
 // AdjustOffsetsAndShape runs a local Zed program to adjust the Kafka offset fields
 // for insertion into correct position in the lake and remember the original
 // offset along with applying a user-defined shaper.
-func AdjustOffsetsAndShape(zctx *zed.Context, batch *zbuf.Array, offset kafka.Offset, shaper string) (*zbuf.Array, error) {
+func AdjustOffsetsAndShape(zctx *zed.Context, batch *zbuf.Array, offset int64, shaper string) (*zbuf.Array, error) {
 	vals := batch.Values()
 	kafkaRec, err := etl.Field(&vals[0], "kafka")
 	if err != nil {
