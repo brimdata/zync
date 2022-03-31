@@ -18,9 +18,7 @@ var Info = &charm.Spec{
 	Short: "show info about a topic",
 	Long: `
 The info command displays information about a Kafka topic.
-Currently it simply prints the low and high water marks for the
-indicated consumer group, or the abslute low and high water marks
-if no group is given.
+Currently it simply prints the low and high watermarks.
 `,
 	New: New,
 }
@@ -31,13 +29,11 @@ func init() {
 
 type Command struct {
 	*root.Command
-	group string
 	flags cli.Flags
 }
 
 func New(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
 	c := &Command{Command: parent.(*root.Command)}
-	fs.StringVar(&c.group, "group", "", "Kafka consumer group name")
 	c.flags.SetFlags(fs)
 	return c, nil
 }
@@ -54,7 +50,7 @@ func (c *Command) Run(args []string) error {
 	registry := srclient.CreateSchemaRegistryClient(url)
 	registry.SetCredentials(secret.User, secret.Password)
 	zctx := zed.NewContext()
-	consumer, err := fifo.NewConsumer(zctx, config, registry, c.flags.Topic, c.group, 0, false)
+	consumer, err := fifo.NewConsumer(zctx, config, registry, c.flags.Topic, 0, false)
 	if err != nil {
 		return err
 	}

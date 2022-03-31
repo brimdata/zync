@@ -25,10 +25,7 @@ var Consume = &charm.Spec{
 	Usage: "consume [options]",
 	Short: "consume data from a Kafka topic and format as Zed output",
 	Long: `
-The consume command reads Avro records from a Kafka topic from the current
-position in the provided consumer group.  It does not perform "consume commits"
-so the consumer group's queue position is not affected.  If no consumer group
-is given, then a random name is chosen so that reading will begin at offset 0.
+The consume command reads Avro records from a Kafka topic.
 
 Consume reads each record as Avro and transcodes it to Zed using the configured
 schema registry.  Any of the output formats used by the "zed" command may be
@@ -50,7 +47,6 @@ type Command struct {
 	*root.Command
 	flags       cli.Flags
 	timeout     string
-	group       string
 	offset      int64
 	outputFlags outputflags.Flags
 }
@@ -58,7 +54,6 @@ type Command struct {
 func New(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
 	c := &Command{Command: parent.(*root.Command)}
 	fs.StringVar(&c.timeout, "timeout", "", "timeout in ZSON duration syntax (5s, 1m30s, ...)")
-	fs.StringVar(&c.group, "group", "", "Kafka consumer group name")
 	fs.Int64Var(&c.offset, "offset", int64(kafka.OffsetBeginning),
 		"initial Kafka offset (-2 is oldest, -1 is newest)")
 	c.flags.SetFlags(fs)
@@ -92,7 +87,7 @@ func (c *Command) Run(args []string) error {
 		return err
 	}
 	zctx := zed.NewContext()
-	consumer, err := fifo.NewConsumer(zctx, config, registry, c.flags.Topic, c.group, kafka.Offset(c.offset), false)
+	consumer, err := fifo.NewConsumer(zctx, config, registry, c.flags.Topic, kafka.Offset(c.offset), false)
 	if err != nil {
 		return err
 	}

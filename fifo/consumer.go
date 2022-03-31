@@ -14,7 +14,6 @@ import (
 	"github.com/brimdata/zync/zavro"
 	"github.com/go-avro/avro"
 	"github.com/riferrei/srclient"
-	"github.com/segmentio/ksuid"
 	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
 
@@ -33,7 +32,7 @@ type typeSchema struct {
 	avro.Schema
 }
 
-func NewConsumer(zctx *zed.Context, config *kafka.ConfigMap, reg *srclient.SchemaRegistryClient, topic, group string, startAt kafka.Offset, meta bool) (*Consumer, error) {
+func NewConsumer(zctx *zed.Context, config *kafka.ConfigMap, reg *srclient.SchemaRegistryClient, topic string, startAt kafka.Offset, meta bool) (*Consumer, error) {
 	var metaType zed.Type
 	if meta {
 		var err error
@@ -42,18 +41,7 @@ func NewConsumer(zctx *zed.Context, config *kafka.ConfigMap, reg *srclient.Schem
 			return nil, err
 		}
 	}
-	if group == "" {
-		group = ksuid.New().String()
-	}
-	if err := config.SetKey("group.id", group); err != nil {
-		return nil, err
-	}
 	if err := config.SetKey("go.events.channel.enable", true); err != nil {
-		return nil, err
-	}
-	// Note that we do not conifgure "auto.offset.reset" since we assign
-	// the topic offset explicitly instead of doing a dynamic subscribe.
-	if err := config.SetKey("enable.auto.commit", false); err != nil {
 		return nil, err
 	}
 	c, err := kafka.NewConsumer(config)
