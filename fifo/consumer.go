@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/brimdata/zed"
@@ -14,12 +15,13 @@ import (
 	"github.com/brimdata/zync/zavro"
 	"github.com/go-avro/avro"
 	"github.com/riferrei/srclient"
-	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
+	"github.com/twmb/franz-go/pkg/kadm"
+	"github.com/twmb/franz-go/pkg/kgo"
 )
 
 type Consumer struct {
 	zctx     *zed.Context
-	consumer *kafka.Consumer
+	kclient  *kgo.Client
 	registry *srclient.SchemaRegistryClient
 	topic    string
 	metaType zed.Type
@@ -32,7 +34,7 @@ type typeSchema struct {
 	avro.Schema
 }
 
-func NewConsumer(zctx *zed.Context, config *kafka.ConfigMap, reg *srclient.SchemaRegistryClient, topic string, startAt kafka.Offset, meta bool) (*Consumer, error) {
+func NewConsumer(zctx *zed.Context, opts []kgo.Opt, reg *srclient.SchemaRegistryClient, topic string, startAt int64, meta bool) (*Consumer, error) {
 	var metaType zed.Type
 	if meta {
 		var err error
@@ -41,23 +43,17 @@ func NewConsumer(zctx *zed.Context, config *kafka.ConfigMap, reg *srclient.Schem
 			return nil, err
 		}
 	}
-	if err := config.SetKey("go.events.channel.enable", true); err != nil {
-		return nil, err
-	}
-	c, err := kafka.NewConsumer(config)
+	opts = append([]kgo.Opt{
+		kgo.ConsumeTopics(topic),
+		kgo.ConsumeResetOffset(kgo.NewOffset().At(startAt)),
+	}, opts...)
+	kclient, err := kgo.NewClient(opts...)
 	if err != nil {
-		return nil, err
-	}
-	partition := kafka.TopicPartition{
-		Topic:  &topic,
-		Offset: kafka.Offset(startAt),
-	}
-	if err := c.Assign([]kafka.TopicPartition{partition}); err != nil {
 		return nil, err
 	}
 	return &Consumer{
 		zctx:     zctx,
-		consumer: c,
+		kclient:  kclient,
 		registry: reg,
 		topic:    topic,
 		metaType: metaType,
@@ -67,7 +63,7 @@ func NewConsumer(zctx *zed.Context, config *kafka.ConfigMap, reg *srclient.Schem
 }
 
 func (c *Consumer) Close() {
-	c.consumer.Close()
+	c.kclient.Close()
 }
 
 type Flusher interface {
@@ -75,85 +71,56 @@ type Flusher interface {
 }
 
 func (c *Consumer) Run(ctx context.Context, w zio.Writer, timeout time.Duration) error {
-	events := c.consumer.Events()
+	return c.run(ctx, w, -1, timeout)
+}
+
+func (c *Consumer) Read(ctx context.Context, thresh int, timeout time.Duration) (*zbuf.Array, error) {
+	var a zbuf.Array
+	return &a, c.run(ctx, &a, thresh, timeout)
+}
+
+func (c *Consumer) run(ctx context.Context, w zio.Writer, thresh int, timeout time.Duration) error {
+	var size int
 	for {
-		select {
-		case ev := <-events:
-			if ev == nil {
-				// channel closed
-				return nil
-			}
-			rec, err := c.handle(ev)
+		timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
+		fetches := c.kclient.PollFetches(timeoutCtx)
+		timedOut := timeoutCtx.Err() == context.DeadlineExceeded
+		cancel()
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if timedOut {
+			return nil
+		}
+		cancel()
+		for _, e := range fetches.Errors() {
+			return fmt.Errorf("topic %s, partition %d: %w", e.Topic, e.Partition, e.Err)
+		}
+		for it := fetches.RecordIter(); !it.Done(); {
+			rec, err := c.handle(it.Next())
 			if err != nil {
 				return err
-			}
-			if rec == nil {
-				// unknown event
-				continue
 			}
 			if err := w.Write(rec); err != nil {
 				return err
 			}
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(timeout):
+			size += len(rec.Bytes)
+		}
+		if thresh > -1 && size > thresh {
 			return nil
 		}
 	}
 }
 
-func (c *Consumer) Read(ctx context.Context, thresh int, timeout time.Duration) (*zbuf.Array, error) {
-	var batch zbuf.Array
-	var size int
-	events := c.consumer.Events()
-	for {
-		select {
-		case ev := <-events:
-			if ev == nil {
-				// channel closed
-				return &batch, nil
-			}
-			rec, err := c.handle(ev)
-			if err != nil {
-				return nil, err
-			}
-			if rec == nil {
-				// unknown event
-				continue
-			}
-			batch.Append(rec)
-			size += len(rec.Bytes)
-			if size > thresh {
-				return &batch, nil
-			}
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(timeout):
-			return &batch, nil
-		}
+func (c *Consumer) handle(krec *kgo.Record) (*zed.Value, error) {
+	key, err := c.decodeAvro(krec.Key)
+	if err != nil {
+		return nil, err
 	}
-}
-
-func (c *Consumer) handle(ev kafka.Event) (*zed.Value, error) {
-	switch ev := ev.(type) {
-	case kafka.Error:
-		return nil, ev
-	case *kafka.Message:
-		key, err := c.decodeAvro(ev.Key)
-		if err != nil {
-			return nil, err
-		}
-		val, err := c.decodeAvro(ev.Value)
-		if err != nil {
-			return nil, err
-		}
-		return c.wrapRecord(key, val, ev.TopicPartition)
-	default:
-		return nil, nil
+	val, err := c.decodeAvro(krec.Value)
+	if err != nil {
+		return nil, err
 	}
-}
-
-func (c *Consumer) wrapRecord(key, val zed.Value, meta kafka.TopicPartition) (*zed.Value, error) {
 	outerType, err := c.outerType(key.Type, val.Type)
 	if err != nil {
 		return nil, err
@@ -162,9 +129,9 @@ func (c *Consumer) wrapRecord(key, val zed.Value, meta kafka.TopicPartition) (*z
 	if c.metaType != nil {
 		// kafka:{topic:string,partition:int64,offset:int64}
 		b.BeginContainer()
-		b.Append([]byte(*meta.Topic))
-		b.Append(zed.EncodeInt(int64(meta.Partition)))
-		b.Append(zed.EncodeInt(int64(meta.Offset)))
+		b.Append([]byte(krec.Topic))
+		b.Append(zed.EncodeInt(int64(krec.Partition)))
+		b.Append(zed.EncodeInt(krec.Offset))
 		b.EndContainer()
 	}
 	b.Append(key.Bytes)
@@ -245,6 +212,47 @@ func (c *Consumer) makeType(key, val zed.Type) (*zed.TypeRecord, error) {
 	return typ, nil
 }
 
-func (c *Consumer) Watermarks() (int64, int64, error) {
-	return c.consumer.QueryWatermarkOffsets(c.topic, 0, 5*1000)
+func (c *Consumer) Watermarks(ctx context.Context) (int64, int64, error) {
+	client := kadm.NewClient(c.kclient)
+	start, err := minOffset(client.ListStartOffsets(ctx, c.topic))
+	if err != nil {
+		return 0, 0, err
+	}
+	end, err := maxOffset(client.ListEndOffsets(ctx, c.topic))
+	if err != nil {
+		return 0, 0, err
+	}
+	return start, end, nil
+}
+
+func maxOffset(offsets kadm.ListedOffsets, err error) (int64, error) {
+	if err != nil {
+		return 0, err
+	}
+	if err := offsets.Error(); err != nil {
+		return 0, err
+	}
+	max := int64(math.MinInt64)
+	offsets.Each(func(l kadm.ListedOffset) {
+		if l.Offset > max {
+			max = l.Offset
+		}
+	})
+	return max, nil
+}
+
+func minOffset(offsets kadm.ListedOffsets, err error) (int64, error) {
+	if err != nil {
+		return 0, err
+	}
+	if err := offsets.Error(); err != nil {
+		return 0, err
+	}
+	min := int64(math.MaxInt64)
+	offsets.Each(func(l kadm.ListedOffset) {
+		if l.Offset < min {
+			min = l.Offset
+		}
+	})
+	return min, nil
 }

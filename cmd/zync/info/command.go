@@ -1,6 +1,7 @@
 package ls
 
 import (
+	"context"
 	"flag"
 	"fmt"
 
@@ -54,7 +55,7 @@ func (c *Command) Run(args []string) error {
 	if err != nil {
 		return err
 	}
-	low, high, err := consumer.Watermarks()
+	low, high, err := consumer.Watermarks(context.Background())
 	if err != nil {
 		return err
 	}

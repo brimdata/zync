@@ -16,7 +16,6 @@ import (
 	"github.com/brimdata/zed/zbuf"
 	"github.com/brimdata/zync/etl"
 	"github.com/segmentio/ksuid"
-	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
 
 var ErrBadPoolKey = errors.New("pool key must be 'kafka.offset' in ascending order")
@@ -57,7 +56,7 @@ func (l *Lake) LoadBatch(zctx *zed.Context, batch *zbuf.Array) (ksuid.KSUID, err
 	return l.service.Load(context.TODO(), zctx, l.poolID, "main", batch, api.CommitMessage{})
 }
 
-func (l *Lake) NextProducerOffset(topic string) (kafka.Offset, error) {
+func (l *Lake) NextProducerOffset(topic string) (int64, error) {
 	// Run a query against the pool to get the max output offset.
 	// We assume the pool key is kafka.offset:asc so we just do "tail 1".
 	query := fmt.Sprintf("kafka.topic=='%s' | tail 1 | offset:=kafka.offset", topic)
@@ -78,21 +77,21 @@ func (l *Lake) NextProducerOffset(topic string) (kafka.Offset, error) {
 	if err != nil {
 		return 0, err
 	}
-	return kafka.Offset(offset + 1), nil
+	return offset + 1, nil
 }
 
-func (l *Lake) NextConsumerOffset(topic string) (kafka.Offset, error) {
+func (l *Lake) NextConsumerOffset(topic string) (int64, error) {
 	// Find the largest input_offset for the given topic.  Since these
 	// values are monotonically increasing, we can just do "tail 1".
 	query := fmt.Sprintf("kafka.topic=='%s' | tail 1 | offset:=kafka.input_offset", topic)
 	batch, err := l.Query(query)
 	if err != nil {
-		return kafka.OffsetBeginning, err
+		return etl.KafkaOffsetEarliest, err
 	}
 	vals := batch.Values()
 	n := len(vals)
 	if n == 0 {
-		return kafka.OffsetBeginning, nil
+		return etl.KafkaOffsetEarliest, nil
 	}
 	if n != 1 {
 		// This should not happen.
@@ -102,10 +101,10 @@ func (l *Lake) NextConsumerOffset(topic string) (kafka.Offset, error) {
 	if err != nil {
 		return 0, err
 	}
-	return kafka.Offset(offset + 1), nil
+	return offset + 1, nil
 }
 
-func (l *Lake) ReadBatch(ctx context.Context, topic string, offset kafka.Offset, size int) (zbuf.Batch, error) {
+func (l *Lake) ReadBatch(ctx context.Context, topic string, offset int64, size int) (zbuf.Batch, error) {
 	query := fmt.Sprintf("kafka.topic=='%s' kafka.offset >= %d | head %d", topic, offset, size)
 	if l.shaper != "" {
 		query = fmt.Sprintf("%s | %s  | sort kafka.offset", query, l.shaper)

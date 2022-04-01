@@ -11,7 +11,6 @@ import (
 	"github.com/brimdata/zed/zbuf"
 	"github.com/brimdata/zed/zio/zsonio"
 	"github.com/brimdata/zed/zson"
-	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
 
 type Pipeline struct {
@@ -19,7 +18,7 @@ type Pipeline struct {
 	transform  *Transform
 	outputPool *Pool
 	inputPools map[string]*Pool
-	cursors    map[string]kafka.Offset
+	cursors    map[string]int64
 	doneType   zed.Type
 }
 
@@ -33,7 +32,7 @@ func NewPipeline(ctx context.Context, transform *Transform, service lakeapi.Inte
 		zctx:       zctx,
 		transform:  transform,
 		inputPools: make(map[string]*Pool),
-		cursors:    make(map[string]kafka.Offset),
+		cursors:    make(map[string]int64),
 		doneType:   doneType,
 	}
 	if p.outputPool, err = OpenPool(ctx, transform.Output.Pool, service); err != nil {
@@ -131,7 +130,7 @@ func (p *Pipeline) writeToOutputPool(ctx context.Context, batch *zbuf.Array) err
 	return nil
 }
 
-func insertOffsets(ctx context.Context, zctx *zed.Context, doneType zed.Type, batch zbuf.Batch, offsets map[string]kafka.Offset) (*zbuf.Array, error) {
+func insertOffsets(ctx context.Context, zctx *zed.Context, doneType zed.Type, batch zbuf.Batch, offsets map[string]int64) (*zbuf.Array, error) {
 	// It will be more efficient to compute the new kafka output offsets using
 	// flow count() but that is not implemented yet.  Instead, we just format
 	// up some ZSON that can then insert the proper offsets in each record.
@@ -173,7 +172,7 @@ func insertOffsets(ctx context.Context, zctx *zed.Context, doneType zed.Type, ba
 	return NewArrayFromReader(q.AsReader())
 }
 
-func getKafkaMeta(rec *zed.Value) (string, kafka.Offset, error) {
+func getKafkaMeta(rec *zed.Value) (string, int64, error) {
 	// XXX this API should be simplified in zed package
 	kafkaRec := rec.Deref("kafka")
 	if kafkaRec == nil {
@@ -187,7 +186,7 @@ func getKafkaMeta(rec *zed.Value) (string, kafka.Offset, error) {
 	if err != nil {
 		return "", 0, err
 	}
-	return topic, kafka.Offset(offset), nil
+	return topic, int64(offset), nil
 }
 
 func doneType(zctx *zed.Context) (zed.Type, error) {
