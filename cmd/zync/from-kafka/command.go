@@ -41,13 +41,11 @@ type From struct {
 	flags     cli.Flags
 	lakeFlags cli.LakeFlags
 	shaper    cli.ShaperFlags
-	group     string
 	pool      string
 }
 
 func NewFrom(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
 	f := &From{Command: parent.(*root.Command)}
-	fs.StringVar(&f.group, "group", "", "Kafka consumer group name")
 	fs.StringVar(&f.pool, "pool", "", "name of Zed data pool")
 	f.flags.SetFlags(fs)
 	f.lakeFlags.SetFlags(fs)
@@ -91,7 +89,7 @@ func (f *From) Run(args []string) error {
 	registry := srclient.CreateSchemaRegistryClient(url)
 	registry.SetCredentials(secret.User, secret.Password)
 	zctx := zed.NewContext()
-	consumer, err := fifo.NewConsumer(zctx, config, registry, f.flags.Topic, f.group, consumerOffset, true)
+	consumer, err := fifo.NewConsumer(zctx, config, registry, f.flags.Topic, consumerOffset, true)
 	if err != nil {
 		return err
 	}
