@@ -51,7 +51,7 @@ func (c *Command) Run(args []string) error {
 	registry := srclient.CreateSchemaRegistryClient(url)
 	registry.SetCredentials(secret.User, secret.Password)
 	zctx := zed.NewContext()
-	consumer, err := fifo.NewConsumer(zctx, config, registry, c.flags.Topic, 0, false)
+	consumer, err := fifo.NewConsumer(zctx, config, registry, c.flags.Format, c.flags.Topic, 0, false)
 	if err != nil {
 		return err
 	}

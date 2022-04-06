@@ -16,6 +16,7 @@ import (
 )
 
 type Flags struct {
+	Format    string
 	Topic     string
 	Namespace string
 }
@@ -26,8 +27,9 @@ type Credentials struct {
 }
 
 func (f *Flags) SetFlags(fs *flag.FlagSet) {
+	fs.StringVar(&f.Format, "format", "json", "Kafka message format [avro,json]")
 	fs.StringVar(&f.Topic, "topic", "", "Kafka topic name")
-	fs.StringVar(&f.Namespace, "namespace", "io.brimdata.zync", "Kafka name space for new schemas")
+	fs.StringVar(&f.Namespace, "namespace", "io.brimdata.zync", "Kafka name space for new Avro schemas")
 }
 
 func SchemaRegistryEndpoint() (string, Credentials, error) {
