@@ -148,7 +148,7 @@ func insertOffsets(ctx context.Context, zctx *zed.Context, doneType zed.Type, ba
 		if vals[k].Deref("left") != nil {
 			continue
 		}
-		rec, err := zson.FormatValue(vals[k])
+		rec, err := zson.FormatValue(&vals[k])
 		if err != nil {
 			return nil, err
 		}
@@ -176,7 +176,7 @@ func getKafkaMeta(rec *zed.Value) (string, int64, error) {
 	// XXX this API should be simplified in zed package
 	kafkaRec := rec.Deref("kafka")
 	if kafkaRec == nil {
-		return "", 0, fmt.Errorf("value missing 'kafka' metadata field: %s", zson.MustFormatValue(*rec))
+		return "", 0, fmt.Errorf("value missing 'kafka' metadata field: %s", zson.MustFormatValue(rec))
 	}
 	topic, err := FieldAsString(kafkaRec, "topic")
 	if err != nil {

@@ -86,9 +86,9 @@ func marshalPayload(typ zed.Type, bytes zcode.Bytes) interface{} {
 		panic("union type unsupported")
 	case *zed.TypeEnum:
 		// Trim leading "%".
-		return zson.MustFormatValue(*zed.NewValue(typ, bytes))[1:]
+		return zson.MustFormatValue(zed.NewValue(typ, bytes))[1:]
 	case *zed.TypeError:
-		return zson.MustFormatValue(*zed.NewValue(typ, bytes))
+		return zson.MustFormatValue(zed.NewValue(typ, bytes))
 	default:
 		panic(fmt.Sprintf("%T unsupported", typ))
 	}
