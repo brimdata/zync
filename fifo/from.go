@@ -31,11 +31,10 @@ func NewFrom(zctx *zed.Context, dst *Lake, src *Consumer, shaper string) *From {
 	}
 }
 
-// These should be configurable.  See issue #18.
-const BatchThresh = 10 * 1024 * 1024
-const BatchTimeout = 5 * time.Second
-
-func (f *From) Sync(ctx context.Context) (int64, int64, error) {
+// Sync syncs data.  If thresh is nonnegative, Sync returns after syncing at
+// least thresh records.  Sync also returns if timeout elapses while waiting to
+// receive new records from the Kafka topic.
+func (f *From) Sync(ctx context.Context, thresh int, timeout time.Duration) (int64, int64, error) {
 	offset, err := f.dst.NextProducerOffset(f.src.topic)
 	if err != nil {
 		return 0, 0, err
@@ -44,7 +43,7 @@ func (f *From) Sync(ctx context.Context) (int64, int64, error) {
 	// commit a batch at a time to the lake.
 	var ncommit, nrec int64
 	for {
-		batch, err := f.src.Read(ctx, BatchThresh, BatchTimeout)
+		batch, err := f.src.Read(ctx, thresh, timeout)
 		if err != nil {
 			return 0, 0, err
 		}
