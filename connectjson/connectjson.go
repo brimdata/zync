@@ -4,6 +4,7 @@
 package connectjson
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -30,6 +31,9 @@ type connectSchema struct {
 }
 
 func Encode(val *zed.Value) ([]byte, error) {
+	if zed.TypeUnder(val.Type) == zed.TypeNull {
+		return nil, nil
+	}
 	schema, err := marshalSchema(val.Type)
 	if err != nil {
 		return nil, err
@@ -178,6 +182,10 @@ func NewDecoder(zctx *zed.Context) *Decoder {
 }
 
 func (c *Decoder) Decode(b []byte) (*zed.Value, error) {
+	b = bytes.TrimSpace(b)
+	if len(b) == 0 {
+		return zed.Null, nil
+	}
 	var v connectEnvelope
 	if err := json.Unmarshal(b, &v); err != nil {
 		return nil, err

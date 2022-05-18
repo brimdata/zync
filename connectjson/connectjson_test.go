@@ -11,6 +11,7 @@ import (
 
 func TestConnectJSON(t *testing.T) {
 	var cases = []string{
+		`null`,
 		`true`,
 		`8(int8)`,
 		`16(int16)`,
@@ -41,5 +42,13 @@ func TestConnectJSON(t *testing.T) {
 		actual, err := NewDecoder(zctx).Decode(b)
 		require.NoError(t, err)
 		assert.Equal(t, expected, actual, s)
+	}
+}
+
+func TestConnectJSONDecodeEmptyEnvelope(t *testing.T) {
+	for _, b := range [][]byte{nil, {}, []byte(" \n")} {
+		val, err := NewDecoder(zed.NewContext()).Decode(b)
+		require.NoError(t, err, b)
+		assert.Equal(t, zed.Null, val, b)
 	}
 }
