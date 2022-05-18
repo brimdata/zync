@@ -23,17 +23,9 @@ test-unit:
 test-system: build deps/zed
 	@ZTEST_PATH='$(PWD)/dist:$(PWD)/deps:$(PATH)' go test -tags=ztests ./ztests
 
-zed_version = $(shell go list -f {{.Version}} -m github.com/brimdata/zed)
-
-.PHONY: deps/zed
-deps/zed: deps/zed-$(zed_version)
-	@ln -fs $(<F) $@
-
-deps/zed-$(zed_version):
-	@mkdir -p $(@D)
-	@echo 'module deps' > $@.mod
-	@go get -modfile=$@.mod github.com/brimdata/zed@$(zed_version)
-	@go build -mod=mod -modfile=$@.mod -o $@ github.com/brimdata/zed/cmd/zed
+deps/zed: go.mod
+	@GOBIN="$(CURDIR)/deps" go install \
+		github.com/brimdata/zed/cmd/zed@$$(go list -f {{.Version}} -m github.com/brimdata/zed)
 
 build:
 	@mkdir -p dist
