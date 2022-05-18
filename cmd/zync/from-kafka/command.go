@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"time"
 
 	"github.com/brimdata/zed"
 	"github.com/brimdata/zed/pkg/charm"
@@ -42,11 +43,15 @@ type From struct {
 	lakeFlags cli.LakeFlags
 	shaper    cli.ShaperFlags
 	pool      string
+	thresh    int
+	timeout   time.Duration
 }
 
 func NewFrom(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
 	f := &From{Command: parent.(*root.Command)}
 	fs.StringVar(&f.pool, "pool", "", "name of Zed data pool")
+	fs.IntVar(&f.thresh, "thresh", 10*1024*1024, "exit after syncing at least this many records")
+	fs.DurationVar(&f.timeout, "timeout", 5*time.Second, "exit after waiting this long for new records")
 	f.flags.SetFlags(fs)
 	f.lakeFlags.SetFlags(fs)
 	f.shaper.SetFlags(fs)
@@ -94,7 +99,7 @@ func (f *From) Run(args []string) error {
 		return err
 	}
 	from := fifo.NewFrom(zctx, lk, consumer, shaper)
-	ncommit, nrec, err := from.Sync(ctx)
+	ncommit, nrec, err := from.Sync(ctx, f.thresh, f.timeout)
 	if ncommit != 0 {
 		fmt.Printf("synchronized %d record%s in %d commit%s\n", nrec, plural(nrec), ncommit, plural(ncommit))
 	} else {
