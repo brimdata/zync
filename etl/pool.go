@@ -150,11 +150,11 @@ func (*adaptor) Layout(context.Context, dag.Source) order.Layout {
 	return order.Nil
 }
 
-func (*adaptor) NewScheduler(context.Context, *zed.Context, dag.Source, extent.Span, zbuf.Filter, *dag.Filter) (op.Scheduler, error) {
+func (*adaptor) NewScheduler(context.Context, *zed.Context, dag.Source, extent.Span, zbuf.Filter) (op.Scheduler, error) {
 	return nil, errors.New("mock.Lake.NewScheduler() should not be called")
 }
 
-func (*adaptor) Open(context.Context, *zed.Context, string, zbuf.Filter) (zbuf.Puller, error) {
+func (*adaptor) Open(context.Context, *zed.Context, string, string, zbuf.Filter) (zbuf.Puller, error) {
 	return nil, errors.New("mock.Lake.Open() should not be called")
 }
 
@@ -166,8 +166,8 @@ func (*adaptor) CommitObject(_ context.Context, _ ksuid.KSUID, _ string) (ksuid.
 	return ksuid.Nil, nil
 }
 
-func parse(z string) (ast.Proc, error) {
-	program, err := compiler.ParseProc(z)
+func parse(z string) (ast.Op, error) {
+	program, err := compiler.ParseOp(z)
 	if err != nil {
 		return nil, fmt.Errorf("Zed parse error: %w\nZed source:\n%s", err, z)
 	}
@@ -191,10 +191,10 @@ func NewArrayFromReader(zr zio.Reader) (*zbuf.Array, error) {
 func Field(val *zed.Value, field string) (*zed.Value, error) {
 	fieldVal := val.Deref(field)
 	if fieldVal == nil {
-		return nil, fmt.Errorf("field %q not found in %q", field, zson.MustFormatValue(*val))
+		return nil, fmt.Errorf("field %q not found in %q", field, zson.MustFormatValue(val))
 	}
 	if fieldVal.IsNull() {
-		return nil, fmt.Errorf("field %q null in %q", field, zson.MustFormatValue(*val))
+		return nil, fmt.Errorf("field %q null in %q", field, zson.MustFormatValue(val))
 	}
 	return fieldVal, nil
 }
@@ -205,7 +205,7 @@ func FieldAsInt(val *zed.Value, field string) (int64, error) {
 		return 0, err
 	}
 	if !zed.IsInteger(fieldVal.Type.ID()) {
-		return 0, fmt.Errorf("field %q not an interger in %q", field, zson.MustFormatValue(*val))
+		return 0, fmt.Errorf("field %q not an interger in %q", field, zson.MustFormatValue(val))
 	}
 	return fieldVal.AsInt(), nil
 }
@@ -216,7 +216,7 @@ func FieldAsString(val *zed.Value, field string) (string, error) {
 		return "", err
 	}
 	if fieldVal.Type.ID() != zed.IDString {
-		return "", fmt.Errorf("field %q not a string in %q", field, zson.MustFormatValue(*val))
+		return "", fmt.Errorf("field %q not a string in %q", field, zson.MustFormatValue(val))
 	}
 	return fieldVal.AsString(), nil
 }

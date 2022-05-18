@@ -115,7 +115,7 @@ func (l *Lake) ReadBatch(ctx context.Context, topic string, offset int64, size i
 }
 
 func RunLocalQuery(zctx *zed.Context, batch *zbuf.Array, query string) (*zbuf.Array, error) {
-	program, err := compiler.ParseProc(query)
+	program, err := compiler.ParseOp(query)
 	if err != nil {
 		return nil, err
 	}
