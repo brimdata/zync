@@ -90,7 +90,6 @@ func buildZed(inputTopics []string, outputTopic string, routes *Routes, etls []R
 	code = "type done = {kafka:{topic:string,offset:int64}}\n" + code
 	code += "| yield this\n" //XXX switch can't handle multiple parents
 	code += "| switch (\n"
-	var ndefault int
 	for _, etl := range etls {
 		switch etl.Type {
 		case "stateless":
@@ -104,9 +103,6 @@ func buildZed(inputTopics []string, outputTopic string, routes *Routes, etls []R
 		default:
 			return "", fmt.Errorf("unknown ETL type: %q", etl.Type)
 		}
-	}
-	if ndefault > 1 {
-		return "", errors.New("only one default (or blank) selector is allowed")
 	}
 	code += ")\n| sort kafka.offset\n"
 	return code, nil

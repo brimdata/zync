@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/brimdata/zed"
+	"github.com/brimdata/zed/compiler"
 	lakeapi "github.com/brimdata/zed/lake/api"
 	"github.com/brimdata/zed/runtime"
 	"github.com/brimdata/zed/zbuf"
@@ -24,7 +25,7 @@ type Pipeline struct {
 
 func NewPipeline(ctx context.Context, transform *Transform, service lakeapi.Interface) (*Pipeline, error) {
 	zctx := zed.NewContext()
-	doneType, err := doneType(zctx)
+	doneType, err := zson.ParseType(zctx, "{kafka:{topic:string,offset:int64}}(=done)")
 	if err != nil {
 		return nil, err
 	}
@@ -81,13 +82,6 @@ func (p *Pipeline) getInputPool() *Pool {
 	}
 	panic("no input pool")
 }
-
-/*
-func (p *Pipeline) loadCursors() error {
-	_, err := p.outputPool.Query("is(<done>) | max(offset) by topic")
-	return err
-}
-*/
 
 //XXX TBD: this is currently taking all records for an update in memory.
 // We need to work out a streaming model so we can do a very large updates
@@ -160,11 +154,11 @@ func insertOffsets(ctx context.Context, zctx *zed.Context, doneType zed.Type, ba
 		zsons.WriteString(fmt.Sprintf("{rec:%s,offset:%d}\n", rec, off))
 		offsets[topic] = off + 1
 	}
-	reader := zsonio.NewReader(strings.NewReader(zsons.String()), zctx)
-	program, err := parse("rec.kafka.offset:=offset | yield rec")
+	program, err := compiler.ParseOp("rec.kafka.offset:=offset | yield rec")
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
+	reader := zsonio.NewReader(strings.NewReader(zsons.String()), zctx)
 	q, err := runtime.NewQueryOnReader(ctx, zctx, program, reader, nil)
 	if err != nil {
 		return nil, err
@@ -187,17 +181,6 @@ func getKafkaMeta(rec *zed.Value) (string, int64, error) {
 		return "", 0, err
 	}
 	return topic, int64(offset), nil
-}
-
-func doneType(zctx *zed.Context) (zed.Type, error) {
-	recType, err := zctx.LookupTypeRecord([]zed.Column{
-		zed.NewColumn("topic", zed.TypeString),
-		zed.NewColumn("offset", zed.TypeInt64),
-	})
-	if err != nil {
-		return nil, err
-	}
-	return zctx.LookupTypeNamed("done", recType)
 }
 
 func plural(n int) string {
