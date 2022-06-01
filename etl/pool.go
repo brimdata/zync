@@ -7,16 +7,10 @@ import (
 
 	"github.com/brimdata/zed"
 	"github.com/brimdata/zed/api"
-	"github.com/brimdata/zed/compiler"
-	"github.com/brimdata/zed/compiler/ast"
-	"github.com/brimdata/zed/compiler/ast/dag"
 	lakeapi "github.com/brimdata/zed/lake/api"
 	"github.com/brimdata/zed/lakeparse"
 	"github.com/brimdata/zed/order"
 	"github.com/brimdata/zed/pkg/field"
-	"github.com/brimdata/zed/runtime"
-	"github.com/brimdata/zed/runtime/expr/extent"
-	"github.com/brimdata/zed/runtime/op"
 	"github.com/brimdata/zed/zbuf"
 	"github.com/brimdata/zed/zio"
 	"github.com/brimdata/zed/zson"
@@ -88,104 +82,12 @@ func (p *Pool) NextProducerOffsets() (map[string]int64, error) {
 	return offsets, nil
 }
 
-func (p *Pool) NextConsumerOffset(topic string) (int64, error) {
-	// Find the largest input_offset for the given topic.  Since these
-	// values are monotonically increasing, we can just do "tail 1".
-	query := fmt.Sprintf("kafka.topic=='%s' | tail 1 | offset:=kafka.input_offset", topic)
-	batch, err := p.Query(query)
-	if err != nil {
-		return KafkaOffsetEarliest, err
-	}
-	vals := batch.Values()
-	n := len(vals)
-	if n == 0 {
-		return KafkaOffsetEarliest, nil
-	}
-	if n != 1 {
-		// This should not happen.
-		return 0, errors.New("'tail 1' returned more than one record")
-	}
-	offset, err := FieldAsInt(&vals[0], "offset")
-	if err != nil {
-		return 0, err
-	}
-	return offset + 1, nil
-}
-
-func (p *Pool) ReadBatch(ctx context.Context, offset int64, size int) (zbuf.Batch, error) {
-	query := fmt.Sprintf("kafka.offset >= %d | head %d", offset, size)
-	//XXX
-	query += "| sort kafka.offset"
-	return p.Query(query)
-}
-
-func RunLocalQuery(zctx *zed.Context, batch *zbuf.Array, query string) (*zbuf.Array, error) {
-	program, err := parse(query)
-	if err != nil {
-		return nil, err
-	}
-	q, err := runtime.NewQueryOnReader(context.TODO(), zctx, program, batch, nil)
-	if err != nil {
-		return nil, err
-	}
-	return NewArrayFromReader(q.AsReader())
-}
-
-func RunLocalJoin(zctx *zed.Context, left, right zio.Reader, query string) (*zbuf.Array, error) {
-	program, err := parse(query)
-	if err != nil {
-		return nil, err
-	}
-	readers := []zio.Reader{left, right}
-	q, err := runtime.NewQueryOnFileSystem(context.TODO(), zctx, program, readers, &adaptor{})
-	if err != nil {
-		return nil, err
-	}
-	return NewArrayFromReader(q.AsReader())
-}
-
-type adaptor struct{}
-
-func (*adaptor) Layout(context.Context, dag.Source) order.Layout {
-	return order.Nil
-}
-
-func (*adaptor) NewScheduler(context.Context, *zed.Context, dag.Source, extent.Span, zbuf.Filter) (op.Scheduler, error) {
-	return nil, errors.New("mock.Lake.NewScheduler() should not be called")
-}
-
-func (*adaptor) Open(context.Context, *zed.Context, string, string, zbuf.Filter) (zbuf.Puller, error) {
-	return nil, errors.New("mock.Lake.Open() should not be called")
-}
-
-func (*adaptor) PoolID(context.Context, string) (ksuid.KSUID, error) {
-	return ksuid.Nil, nil
-}
-
-func (*adaptor) CommitObject(_ context.Context, _ ksuid.KSUID, _ string) (ksuid.KSUID, error) {
-	return ksuid.Nil, nil
-}
-
-func parse(z string) (ast.Op, error) {
-	program, err := compiler.ParseOp(z)
-	if err != nil {
-		return nil, fmt.Errorf("Zed parse error: %w\nZed source:\n%s", err, z)
-	}
-	return program, err
-}
-
 func NewArrayFromReader(zr zio.Reader) (*zbuf.Array, error) {
 	var a zbuf.Array
-	for {
-		val, err := zr.Read()
-		if err != nil {
-			return nil, err
-		}
-		if val == nil {
-			return &a, nil
-		}
-		a.Append(val.Copy())
+	if err := zio.Copy(&a, zr); err != nil {
+		return nil, err
 	}
+	return &a, nil
 }
 
 func Field(val *zed.Value, field string) (*zed.Value, error) {
