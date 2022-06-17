@@ -3,7 +3,7 @@ module github.com/brimdata/zync
 go 1.17
 
 require (
-	github.com/brimdata/zed v1.1.0
+	github.com/brimdata/zed v1.1.1-0.20220617194348-ccabb55b2bc9
 	github.com/go-avro/avro v0.0.0-20171219232920-444163702c11
 	github.com/riferrei/srclient v0.4.0
 	github.com/segmentio/ksuid v1.0.2
@@ -35,12 +35,9 @@ require (
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.16.0 // indirect
-	go4.org/intern v0.0.0-20211027215823-ae77deb06f29 // indirect
-	go4.org/unsafe/assume-no-moving-gc v0.0.0-20211027215541-db492cf91b37 // indirect
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9 // indirect
 	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20210106172901-c476de37821d // indirect
-	inet.af/netaddr v0.0.0-20211027220019-c74959edd3b6 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

@@ -10,6 +10,7 @@ import (
 	lakeapi "github.com/brimdata/zed/lake/api"
 	"github.com/brimdata/zed/runtime"
 	"github.com/brimdata/zed/zbuf"
+	"github.com/brimdata/zed/zio"
 	"github.com/brimdata/zed/zio/zsonio"
 	"github.com/brimdata/zed/zson"
 )
@@ -154,12 +155,13 @@ func insertOffsets(ctx context.Context, zctx *zed.Context, doneType zed.Type, ba
 		zsons.WriteString(fmt.Sprintf("{rec:%s,offset:%d}\n", rec, off))
 		offsets[topic] = off + 1
 	}
-	program, err := compiler.ParseOp("rec.kafka.offset:=offset | yield rec")
+	comp := compiler.NewCompiler()
+	program, err := comp.Parse("rec.kafka.offset:=offset | yield rec")
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	reader := zsonio.NewReader(strings.NewReader(zsons.String()), zctx)
-	q, err := runtime.NewQueryOnReader(ctx, zctx, program, reader, nil)
+	q, err := runtime.CompileQuery(ctx, zctx, comp, program, []zio.Reader{reader})
 	if err != nil {
 		return nil, err
 	}

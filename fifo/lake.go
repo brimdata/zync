@@ -14,6 +14,7 @@ import (
 	"github.com/brimdata/zed/pkg/field"
 	"github.com/brimdata/zed/runtime"
 	"github.com/brimdata/zed/zbuf"
+	"github.com/brimdata/zed/zio"
 	"github.com/brimdata/zync/etl"
 	"github.com/segmentio/ksuid"
 )
@@ -85,11 +86,12 @@ func (l *Lake) ReadBatch(ctx context.Context, topic string, offset int64, size i
 }
 
 func RunLocalQuery(zctx *zed.Context, batch *zbuf.Array, query string) (*zbuf.Array, error) {
-	program, err := compiler.ParseOp(query)
+	comp := compiler.NewCompiler()
+	program, err := comp.Parse(query)
 	if err != nil {
 		return nil, err
 	}
-	q, err := runtime.NewQueryOnReader(context.TODO(), zctx, program, batch, nil)
+	q, err := runtime.CompileQuery(context.TODO(), zctx, comp, program, []zio.Reader{batch})
 	if err != nil {
 		return nil, err
 	}
