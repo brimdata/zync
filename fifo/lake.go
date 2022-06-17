@@ -56,52 +56,22 @@ func (l *Lake) LoadBatch(zctx *zed.Context, batch *zbuf.Array) (ksuid.KSUID, err
 	return l.service.Load(context.TODO(), zctx, l.poolID, "main", batch, api.CommitMessage{})
 }
 
-func (l *Lake) NextProducerOffset(topic string) (int64, error) {
-	// Run a query against the pool to get the max output offset.
-	// We assume the pool key is kafka.offset:asc so we just do "tail 1".
-	query := fmt.Sprintf("kafka.topic=='%s' | tail 1 | offset:=kafka.offset", topic)
-	batch, err := l.Query(query)
-	if err != nil {
-		return 0, err
-	}
-	vals := batch.Values()
-	n := len(vals)
-	if n == 0 {
-		return 0, nil
-	}
-	if n != 1 {
-		// This should not happen.
-		return 0, errors.New("'tail 1' returned more than one record")
-	}
-	offset, err := etl.FieldAsInt(&vals[0], "offset")
-	if err != nil {
-		return 0, err
-	}
-	return offset + 1, nil
-}
-
 func (l *Lake) NextConsumerOffset(topic string) (int64, error) {
-	// Find the largest input_offset for the given topic.  Since these
+	// Find the largest offset for the given topic.  Since these
 	// values are monotonically increasing, we can just do "tail 1".
-	query := fmt.Sprintf("kafka.topic=='%s' | tail 1 | offset:=kafka.input_offset", topic)
+	query := fmt.Sprintf("kafka.topic=='%s' | tail 1 | yield kafka.offset", topic)
 	batch, err := l.Query(query)
 	if err != nil {
 		return etl.KafkaOffsetEarliest, err
 	}
 	vals := batch.Values()
-	n := len(vals)
-	if n == 0 {
+	if n := len(vals); n == 0 {
 		return etl.KafkaOffsetEarliest, nil
-	}
-	if n != 1 {
+	} else if n > 1 {
 		// This should not happen.
 		return 0, errors.New("'tail 1' returned more than one record")
 	}
-	offset, err := etl.FieldAsInt(&vals[0], "offset")
-	if err != nil {
-		return 0, err
-	}
-	return offset + 1, nil
+	return vals[0].AsInt() + 1, nil
 }
 
 func (l *Lake) ReadBatch(ctx context.Context, topic string, offset int64, size int) (zbuf.Batch, error) {
