@@ -14,6 +14,7 @@ import (
 	"github.com/brimdata/zed"
 	"github.com/brimdata/zed/runtime/expr"
 	"github.com/brimdata/zed/zcode"
+	"github.com/brimdata/zed/zio/jsonio"
 	"github.com/brimdata/zed/zson"
 )
 
@@ -166,18 +167,23 @@ func marshalSchema(typ zed.Type) (*connectSchema, error) {
 type Decoder struct {
 	zctx *zed.Context
 
-	builder zcode.Builder
-	ectx    expr.Context
-	shapers map[zed.Type]*expr.ConstShaper
-	this    expr.This
+	buf          *bytes.Buffer
+	builder      zcode.Builder
+	ectx         expr.Context
+	jsonioReader *jsonio.Reader
+	shapers      map[zed.Type]*expr.ConstShaper
+	this         expr.This
 }
 
 func NewDecoder(zctx *zed.Context) *Decoder {
+	buf := &bytes.Buffer{}
 	return &Decoder{
 		zctx: zctx,
 
-		ectx:    expr.NewContext(),
-		shapers: map[zed.Type]*expr.ConstShaper{},
+		buf:          buf,
+		ectx:         expr.NewContext(),
+		jsonioReader: jsonio.NewReader(buf, zctx),
+		shapers:      map[zed.Type]*expr.ConstShaper{},
 	}
 }
 
@@ -194,7 +200,9 @@ func (c *Decoder) Decode(b []byte) (*zed.Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	val, err := zson.ParseValue(c.zctx, string(v.Payload))
+	c.buf.Reset()
+	c.buf.Write(v.Payload)
+	val, err := c.jsonioReader.Read()
 	if err != nil {
 		return nil, err
 	}
