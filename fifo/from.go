@@ -48,14 +48,14 @@ func (f *From) Sync(ctx context.Context, thresh int, timeout time.Duration) (int
 			break
 		}
 		if f.shaper != "" {
-			batch, err = RunLocalQuery(f.zctx, batch, f.shaper)
+			batch, err = RunLocalQuery(ctx, f.zctx, batch, f.shaper)
 			if err != nil {
 				return 0, 0, err
 			}
 		}
 		//XXX We need to track the commitID and use new commit-only-if
 		// constraint and recompute offsets if needed.  See zync issue #16.
-		commit, err := f.dst.LoadBatch(f.zctx, batch)
+		commit, err := f.dst.LoadBatch(ctx, f.zctx, batch)
 		if err != nil {
 			return 0, 0, err
 		}
