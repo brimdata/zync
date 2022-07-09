@@ -79,7 +79,7 @@ func (f *From) Run(args []string) error {
 	if err != nil {
 		return err
 	}
-	consumerOffset, err := lk.NextConsumerOffset(f.flags.Topic)
+	consumerOffset, err := lk.NextConsumerOffset(ctx, f.flags.Topic)
 	if err != nil {
 		return err
 	}

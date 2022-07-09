@@ -45,21 +45,21 @@ func OpenPool(ctx context.Context, poolName string, server lakeapi.Interface) (*
 	}, nil
 }
 
-func (p *Pool) Query(src string) (*zbuf.Array, error) {
-	zr, err := p.service.Query(context.TODO(), &lakeparse.Commitish{Pool: p.pool}, src)
+func (p *Pool) Query(ctx context.Context, src string) (*zbuf.Array, error) {
+	zr, err := p.service.Query(ctx, &lakeparse.Commitish{Pool: p.pool}, src)
 	if err != nil {
 		return nil, err
 	}
 	return NewArrayFromReader(zr)
 }
 
-func (p *Pool) LoadBatch(zctx *zed.Context, batch *zbuf.Array) (ksuid.KSUID, error) {
-	return p.service.Load(context.TODO(), zctx, p.poolID, "main", batch, api.CommitMessage{})
+func (p *Pool) LoadBatch(ctx context.Context, zctx *zed.Context, batch *zbuf.Array) (ksuid.KSUID, error) {
+	return p.service.Load(ctx, zctx, p.poolID, "main", batch, api.CommitMessage{})
 }
 
-func (p *Pool) NextProducerOffsets() (map[string]int64, error) {
+func (p *Pool) NextProducerOffsets(ctx context.Context) (map[string]int64, error) {
 	// Run a query against the pool to get the max output offset.
-	batch, err := p.Query("offset:=max(kafka.offset) by topic:=kafka.topic")
+	batch, err := p.Query(ctx, "offset:=max(kafka.offset) by topic:=kafka.topic")
 	if err != nil {
 		return nil, err
 	}

@@ -66,7 +66,7 @@ func (p *Pipeline) Run(ctx context.Context) (int, error) {
 	if len(zeds) != 1 {
 		panic("TBD: only one ETL works right now")
 	}
-	batch, err := pool.Query(zeds[0])
+	batch, err := pool.Query(ctx, zeds[0])
 	if err != nil {
 		return 0, err
 	}
@@ -90,7 +90,7 @@ func (p *Pipeline) getInputPool() *Pool {
 // to the target pool.  This will scale fine since the anti-join design
 // allows any commits to be reliably accounted for on an interruption and restart.
 func (p *Pipeline) writeToOutputPool(ctx context.Context, batch *zbuf.Array) error {
-	offsets, err := p.outputPool.NextProducerOffsets()
+	offsets, err := p.outputPool.NextProducerOffsets(ctx)
 	if err != nil {
 		return err
 	}
@@ -116,7 +116,7 @@ func (p *Pipeline) writeToOutputPool(ctx context.Context, batch *zbuf.Array) err
 	}
 	//XXX We need to track the commitID and use new commit-only-if
 	// constraint and recompute offsets if needed.  See zync issue #16.
-	commit, err := p.outputPool.LoadBatch(p.zctx, out)
+	commit, err := p.outputPool.LoadBatch(ctx, p.zctx, out)
 	if err != nil {
 		return err
 	}

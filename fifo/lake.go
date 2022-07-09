@@ -45,23 +45,23 @@ func NewLake(ctx context.Context, poolName, shaper string, server lakeapi.Interf
 	}, nil
 }
 
-func (l *Lake) Query(src string) (*zbuf.Array, error) {
-	zr, err := l.service.Query(context.TODO(), &lakeparse.Commitish{Pool: l.pool}, src)
+func (l *Lake) Query(ctx context.Context, src string) (*zbuf.Array, error) {
+	zr, err := l.service.Query(ctx, &lakeparse.Commitish{Pool: l.pool}, src)
 	if err != nil {
 		return nil, err
 	}
 	return etl.NewArrayFromReader(zr)
 }
 
-func (l *Lake) LoadBatch(zctx *zed.Context, batch *zbuf.Array) (ksuid.KSUID, error) {
-	return l.service.Load(context.TODO(), zctx, l.poolID, "main", batch, api.CommitMessage{})
+func (l *Lake) LoadBatch(ctx context.Context, zctx *zed.Context, batch *zbuf.Array) (ksuid.KSUID, error) {
+	return l.service.Load(ctx, zctx, l.poolID, "main", batch, api.CommitMessage{})
 }
 
-func (l *Lake) NextConsumerOffset(topic string) (int64, error) {
+func (l *Lake) NextConsumerOffset(ctx context.Context, topic string) (int64, error) {
 	// Find the largest offset for the given topic.  Since these
 	// values are monotonically increasing, we can just do "tail 1".
 	query := fmt.Sprintf("kafka.topic=='%s' | tail 1 | yield kafka.offset", topic)
-	batch, err := l.Query(query)
+	batch, err := l.Query(ctx, query)
 	if err != nil {
 		return etl.KafkaOffsetEarliest, err
 	}
@@ -82,16 +82,16 @@ func (l *Lake) ReadBatch(ctx context.Context, topic string, offset int64, size i
 	} else {
 		query += "| sort kafka.offset"
 	}
-	return l.Query(query)
+	return l.Query(ctx, query)
 }
 
-func RunLocalQuery(zctx *zed.Context, batch *zbuf.Array, query string) (*zbuf.Array, error) {
+func RunLocalQuery(ctx context.Context, zctx *zed.Context, batch *zbuf.Array, query string) (*zbuf.Array, error) {
 	comp := compiler.NewCompiler()
 	program, err := comp.Parse(query)
 	if err != nil {
 		return nil, err
 	}
-	q, err := runtime.CompileQuery(context.TODO(), zctx, comp, program, []zio.Reader{batch})
+	q, err := runtime.CompileQuery(ctx, zctx, comp, program, []zio.Reader{batch})
 	if err != nil {
 		return nil, err
 	}
