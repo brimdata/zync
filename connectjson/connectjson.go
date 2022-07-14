@@ -182,7 +182,7 @@ func NewDecoder(zctx *zed.Context) *Decoder {
 
 		buf:          buf,
 		ectx:         expr.NewContext(),
-		jsonioReader: jsonio.NewReader(buf, zctx),
+		jsonioReader: jsonio.NewReader(zctx, buf),
 		shapers:      map[zed.Type]*expr.ConstShaper{},
 	}
 }

@@ -160,7 +160,7 @@ func insertOffsets(ctx context.Context, zctx *zed.Context, doneType zed.Type, ba
 	if err != nil {
 		return nil, err
 	}
-	reader := zsonio.NewReader(strings.NewReader(zsons.String()), zctx)
+	reader := zsonio.NewReader(zctx, strings.NewReader(zsons.String()))
 	q, err := runtime.CompileQuery(ctx, zctx, comp, program, []zio.Reader{reader})
 	if err != nil {
 		return nil, err
