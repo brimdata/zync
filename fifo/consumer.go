@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/brimdata/zed"
-	"github.com/brimdata/zed/zbuf"
 	"github.com/brimdata/zed/zcode"
 	"github.com/brimdata/zed/zio"
 	"github.com/brimdata/zed/zson"
@@ -25,6 +24,8 @@ type Consumer struct {
 	topic    string
 	metaType zed.Type
 	types    map[zed.Type]map[zed.Type]zed.Type
+
+	recordIter kgo.FetchesRecordIter
 }
 
 type decoder interface {
@@ -71,48 +72,37 @@ func (c *Consumer) Close() {
 	c.kclient.Close()
 }
 
-type Flusher interface {
-	Flush() error
+// ReadValue returns the next value.  Unlike zio.Reader.Read, the caller
+// receives ownership of zed.Value.Bytes.
+func (c *Consumer) ReadValue(ctx context.Context) (*zed.Value, error) {
+	for {
+		if !c.recordIter.Done() {
+			return c.handle(c.recordIter.Next())
+		}
+		fetches := c.kclient.PollFetches(ctx)
+		for _, e := range fetches.Errors() {
+			if e.Topic != "" {
+				return nil, fmt.Errorf("topic %s, partition %d: %w", e.Topic, e.Partition, e.Err)
+			}
+			return nil, e.Err
+		}
+		c.recordIter = *fetches.RecordIter()
+	}
 }
 
 func (c *Consumer) Run(ctx context.Context, w zio.Writer, timeout time.Duration) error {
-	return c.run(ctx, w, -1, timeout)
-}
-
-func (c *Consumer) Read(ctx context.Context, thresh int, timeout time.Duration) (*zbuf.Array, error) {
-	var a zbuf.Array
-	return &a, c.run(ctx, &a, thresh, timeout)
-}
-
-func (c *Consumer) run(ctx context.Context, w zio.Writer, thresh int, timeout time.Duration) error {
-	var size int
 	for {
 		timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
-		fetches := c.kclient.PollFetches(timeoutCtx)
-		timedOut := timeoutCtx.Err() == context.DeadlineExceeded
+		val, err := c.ReadValue(timeoutCtx)
 		cancel()
-		if err := ctx.Err(); err != nil {
+		if err != nil {
+			if ctx.Err() == nil && timeoutCtx.Err() == context.DeadlineExceeded {
+				return nil
+			}
 			return err
 		}
-		if timedOut {
-			return nil
-		}
-		cancel()
-		for _, e := range fetches.Errors() {
-			return fmt.Errorf("topic %s, partition %d: %w", e.Topic, e.Partition, e.Err)
-		}
-		for it := fetches.RecordIter(); !it.Done(); {
-			rec, err := c.handle(it.Next())
-			if err != nil {
-				return err
-			}
-			if err := w.Write(rec); err != nil {
-				return err
-			}
-			size += len(rec.Bytes)
-		}
-		if thresh > -1 && size > thresh {
-			return nil
+		if err := w.Write(val); err != nil {
+			return err
 		}
 	}
 }

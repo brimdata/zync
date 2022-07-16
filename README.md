@@ -61,7 +61,7 @@ zed serve -lake scratch
 Now, in your first shell, sync data from Kafka to a Zed lake:
 ```
 zed create -orderby kafka.offset PoolA
-zync from-kafka -topic MyTopic -pool PoolA
+zync from-kafka -topic MyTopic -pool PoolA -exitafter 1s
 ```
 See the data in the Zed pool:
 ```
@@ -80,7 +80,7 @@ echo 'value:={upper:to_upper(value.s),words:split(value.s, ",")}' > shape.zed
 And shape the record from `MyTopic` into a new `PoolB`:
 ```
 zed create -orderby kafka.offset PoolB
-zync from-kafka -topic MyTopic -pool PoolB -shaper shape.zed
+zync from-kafka -topic MyTopic -pool PoolB -shaper shape.zed -exitafter 1s
 zed query -Z "from PoolB"
 ```
 
@@ -105,7 +105,7 @@ access credentials.
 
 `zync` has two sub-commands for synchronizing data to and from Kafka:
 * `zync to-kafka` - syncs data from a Zed data pool to a Kafka topic
-* `zync from-kafka` - syncs data from a Kafka topic to a Zed data pool
+* `zync from-kafka` - syncs data from Kafka topics to Zed data pools
 
 Currently, only the binary
 [Kavka/Avro format](https://docs.confluent.io/current/schema-registry/serializer-formatter.html#wire-format)

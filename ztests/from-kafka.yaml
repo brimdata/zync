@@ -1,0 +1,49 @@
+# To run this test:
+# 1. Kafka must be running with a PLAINTEXT listener at 127.0.0.1:9092.
+# 2. Kafka must not contain a topic named FromKafkaTest.
+# 3. Run "make test-system ZTEST_TAG=kafka".
+
+tag: kafka
+
+script: |
+  mkdir .zync
+  cat > .zync/kafka.json << EOF
+  {
+    "bootstrap_servers": "127.0.0.1:9092",
+    "security_protocol": "PLAINTEXT",
+    "sasl_mechanisms": "PLAIN"
+  }
+  EOF
+  echo {} > .zync/schema_registry.json
+
+  export ZED_LAKE=test
+  zed init -q
+  zed create -q -orderby kafka.offset FromKafkaTest
+
+  for zson in {a:1} '{b:2} {c:3}'; do
+    echo // $zson
+    echo $zson | zync produce -topic FromKafkaTest -
+    zync from-kafka -topic FromKafkaTest -pool FromKafkaTest -exitafter 500ms |
+      sed -e 's/ [0-9a-zA-Z]\{27\} / XXX /'
+    zed query -z 'from FromKafkaTest'
+  done
+
+outputs:
+  - name: stdout
+    data: |
+      // {a:1}
+      producing messages to topic "FromKafkaTest"...
+      waiting for Kafka flush...
+      1 messages produced to topic "FromKafkaTest"
+      commit XXX 1 record
+      {kafka:{topic:"FromKafkaTest",partition:0,offset:0},key:null,value:{a:1}}
+      // {b:2} {c:3}
+      producing messages to topic "FromKafkaTest"...
+      waiting for Kafka flush...
+      2 messages produced to topic "FromKafkaTest"
+      commit XXX 2 records
+      {kafka:{topic:"FromKafkaTest",partition:0,offset:0},key:null,value:{a:1}}
+      {kafka:{topic:"FromKafkaTest",partition:0,offset:1},key:null,value:{b:2}}
+      {kafka:{topic:"FromKafkaTest",partition:0,offset:2},key:null,value:{c:3}}
+  - name: stderr
+    data: |
