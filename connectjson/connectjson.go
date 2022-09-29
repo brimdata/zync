@@ -16,12 +16,8 @@ import (
 	"github.com/brimdata/zed/zcode"
 	"github.com/brimdata/zed/zio/jsonio"
 	"github.com/brimdata/zed/zson"
+	"github.com/buger/jsonparser"
 )
-
-type connectEnvelope struct {
-	Schema  connectSchema   `json:"schema"`
-	Payload json.RawMessage `json:"payload"`
-}
 
 type connectSchema struct {
 	Type     string           `json:"type"`
@@ -171,7 +167,7 @@ type Decoder struct {
 	builder      zcode.Builder
 	ectx         expr.Context
 	jsonioReader *jsonio.Reader
-	shapers      map[zed.Type]*expr.ConstShaper
+	shapers      map[string]*expr.ConstShaper
 	this         expr.This
 }
 
@@ -183,7 +179,7 @@ func NewDecoder(zctx *zed.Context) *Decoder {
 		buf:          buf,
 		ectx:         expr.NewContext(),
 		jsonioReader: jsonio.NewReader(zctx, buf),
-		shapers:      map[zed.Type]*expr.ConstShaper{},
+		shapers:      map[string]*expr.ConstShaper{},
 	}
 }
 
@@ -192,24 +188,42 @@ func (c *Decoder) Decode(b []byte) (*zed.Value, error) {
 	if len(b) == 0 {
 		return zed.Null, nil
 	}
-	var v connectEnvelope
-	if err := json.Unmarshal(b, &v); err != nil {
-		return nil, err
-	}
-	_, typ, err := c.decodeSchema(&v.Schema)
+	var schema, payload []byte
+	err := jsonparser.ObjectEach(b, func(key []byte, value []byte, vt jsonparser.ValueType, _ int) error {
+		if vt == jsonparser.String {
+			value = []byte(`"` + string(value) + `"`)
+		}
+		if string(key) == "schema" {
+			schema = value
+		} else if string(key) == "payload" {
+			payload = value
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
 	c.buf.Reset()
-	c.buf.Write(v.Payload)
+	c.buf.Write(payload)
 	val, err := c.jsonioReader.Read()
 	if err != nil {
 		return nil, err
 	}
-	shaper, ok := c.shapers[typ]
+	// Using the schema's JSON encoding as the key here means different
+	// encodings of the same schema won't share an entry, but that should be
+	// rare.
+	shaper, ok := c.shapers[string(schema)]
 	if !ok {
+		var cs connectSchema
+		if err := json.Unmarshal(schema, &cs); err != nil {
+			return nil, err
+		}
+		_, typ, err := c.decodeSchema(&cs)
+		if err != nil {
+			return nil, err
+		}
 		shaper = expr.NewConstShaper(c.zctx, &c.this, typ, expr.Cast|expr.Order)
-		c.shapers[typ] = shaper
+		c.shapers[string(schema)] = shaper
 	}
 	return c.decodeBytes(shaper.Eval(c.ectx, val)), nil
 }
