@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/brimdata/zed v1.1.1-0.20220712185418-e0683b108af4
+	github.com/buger/jsonparser v1.1.1
 	github.com/go-avro/avro v0.0.0-20171219232920-444163702c11
 	github.com/riferrei/srclient v0.4.0
 	github.com/segmentio/ksuid v1.0.2
