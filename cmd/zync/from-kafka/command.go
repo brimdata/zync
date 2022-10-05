@@ -128,27 +128,28 @@ func (f *From) Run(args []string) error {
 		defer cancel()
 	}
 	for pool, topics := range poolToTopics {
-		fifoLake, err := fifo.NewLake(ctx, pool, "", lake)
-		if err != nil {
-			return err
-		}
-		ch := make(chan *zed.Value)
-		zctx := zed.NewContext()
-		for t := range topics {
-			t := t
-			cOffset, err := fifoLake.NextConsumerOffset(ctx, t)
-			if err != nil {
-				return err
-			}
-			consumer, err := fifo.NewConsumer(zctx, config, registry, f.flags.Format, t, cOffset, true)
-			if err != nil {
-				return err
-			}
-			group.Go(func() error {
-				return f.runRead(timeoutCtx, consumer, ch)
-			})
-		}
+		pool, topics := pool, topics
 		group.Go(func() error {
+			fifoLake, err := fifo.NewLake(ctx, pool, "", lake)
+			if err != nil {
+				return err
+			}
+			ch := make(chan *zed.Value)
+			zctx := zed.NewContext()
+			for t := range topics {
+				t := t
+				cOffset, err := fifoLake.NextConsumerOffset(ctx, t)
+				if err != nil {
+					return err
+				}
+				consumer, err := fifo.NewConsumer(zctx, config, registry, f.flags.Format, t, cOffset, true)
+				if err != nil {
+					return err
+				}
+				group.Go(func() error {
+					return f.runRead(timeoutCtx, consumer, ch)
+				})
+			}
 			return f.runLoad(ctx, timeoutCtx, zctx, fifoLake, shaper, ch)
 		})
 	}
