@@ -3,7 +3,7 @@ module github.com/brimdata/zync
 go 1.18
 
 require (
-	github.com/brimdata/zed v1.1.1-0.20220712185418-e0683b108af4
+	github.com/brimdata/zed v1.2.1-0.20221005160241-2470872df5f6
 	github.com/buger/jsonparser v1.1.1
 	github.com/go-avro/avro v0.0.0-20171219232920-444163702c11
 	github.com/riferrei/srclient v0.4.0
@@ -11,11 +11,12 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/twmb/franz-go v1.6.0
 	github.com/twmb/franz-go/pkg/kadm v0.0.0-20220331035613-01d0c45d69d2
-	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
+	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
 	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
+	github.com/agnivade/levenshtein v1.1.1 // indirect
 	github.com/alecthomas/units v0.0.0-20190717042225-c3de453c63f4 // indirect
 	github.com/apache/thrift v0.16.0 // indirect
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de // indirect
@@ -36,7 +37,8 @@ require (
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.16.0 // indirect
-	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
+	golang.org/x/exp v0.0.0-20220916125017-b168a2c6b86b // indirect
+	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	gopkg.in/avro.v0 v0.0.0-20171217001914-a730b5802183 // indirect
