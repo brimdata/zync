@@ -271,7 +271,7 @@ func (c *Decoder) decodeSchema(s *connectSchema) (string, zed.Type, error) {
 		err = fmt.Errorf("unknown type %q in Connect schema", s.Type)
 	}
 	if err == nil && s.Name != "" {
-		typ, err = c.zctx.LookupTypeNamed(s.Name, typ)
+		typ = c.zctx.LookupTypeNamed(s.Name, typ)
 	}
 	return s.Field, typ, err
 }
