@@ -225,7 +225,7 @@ func (f *From) runLoad(ctx, timeoutCtx context.Context, zctx *zed.Context, fifoL
 		if err != nil {
 			return err
 		}
-		fmt.Printf("commit %s %d record%s\n", commit, n, plural(n))
+		fmt.Printf("pool %s commit %s %d record%s\n", fifoLake.Pool(), commit, n, plural(n))
 	}
 }
 

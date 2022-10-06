@@ -45,6 +45,8 @@ func NewLake(ctx context.Context, poolName, shaper string, server lakeapi.Interf
 	}, nil
 }
 
+func (l *Lake) Pool() string { return l.pool }
+
 func (l *Lake) Query(ctx context.Context, src string) (*zbuf.Array, error) {
 	zr, err := l.service.Query(ctx, &lakeparse.Commitish{Pool: l.pool}, src)
 	if err != nil {
