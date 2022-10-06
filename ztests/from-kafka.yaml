@@ -35,13 +35,13 @@ outputs:
       producing messages to topic "FromKafkaTest"...
       waiting for Kafka flush...
       1 messages produced to topic "FromKafkaTest"
-      commit XXX 1 record
+      pool FromKafkaTest commit XXX 1 record
       {kafka:{topic:"FromKafkaTest",partition:0,offset:0},key:null,value:{a:1}}
       // {b:2} {c:3}
       producing messages to topic "FromKafkaTest"...
       waiting for Kafka flush...
       2 messages produced to topic "FromKafkaTest"
-      commit XXX 2 records
+      pool FromKafkaTest commit XXX 2 records
       {kafka:{topic:"FromKafkaTest",partition:0,offset:0},key:null,value:{a:1}}
       {kafka:{topic:"FromKafkaTest",partition:0,offset:1},key:null,value:{b:2}}
       {kafka:{topic:"FromKafkaTest",partition:0,offset:2},key:null,value:{c:3}}
