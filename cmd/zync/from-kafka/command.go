@@ -17,6 +17,7 @@ import (
 	"github.com/brimdata/zync/etl"
 	"github.com/brimdata/zync/fifo"
 	"github.com/riferrei/srclient"
+	"github.com/twmb/franz-go/pkg/kgo"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -50,10 +51,11 @@ type From struct {
 	lakeFlags   cli.LakeFlags
 	shaperFlags cli.ShaperFlags
 
-	exitAfter time.Duration
-	pool      string
-	thresh    int
-	interval  time.Duration
+	exitAfter     time.Duration
+	pool          string
+	thresh        int
+	topicMaxBytes int
+	interval      time.Duration
 }
 
 func NewFrom(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
@@ -64,6 +66,7 @@ func NewFrom(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
 	fs.DurationVar(&f.exitAfter, "exitafter", 0, "if >0, exit after this duration")
 	fs.StringVar(&f.pool, "pool", "", "name of Zed pool")
 	fs.IntVar(&f.thresh, "thresh", 1024*1024, "maximum number of records per commit")
+	fs.IntVar(&f.topicMaxBytes, "topicmaxbytes", 1024*1024, "maximum bytes buffered per topic")
 	fs.DurationVar(&f.interval, "interval", 5*time.Second,
 		"maximum interval between receiving and committing a record")
 	return f, nil
@@ -114,6 +117,7 @@ func (f *From) Run(args []string) error {
 	if err != nil {
 		return err
 	}
+	config = append(config, kgo.FetchMaxPartitionBytes(int32(f.topicMaxBytes)))
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
