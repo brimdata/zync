@@ -136,7 +136,7 @@ func (f *From) Run(args []string) error {
 		group.Go(func() error {
 			fifoLake, err := fifo.NewLake(ctx, pool, "", lake)
 			if err != nil {
-				return err
+				return fmt.Errorf("pool %s: %w", pool, err)
 			}
 			ch := make(chan *zed.Value)
 			zctx := zed.NewContext()
@@ -144,17 +144,23 @@ func (f *From) Run(args []string) error {
 				t := t
 				cOffset, err := fifoLake.NextConsumerOffset(ctx, t)
 				if err != nil {
-					return err
+					return fmt.Errorf("pool %s, topic %s: %w", pool, t, err)
 				}
 				consumer, err := fifo.NewConsumer(zctx, config, registry, f.flags.Format, t, cOffset, true)
 				if err != nil {
-					return err
+					return fmt.Errorf("pool %s, topic %s: %w", pool, t, err)
 				}
 				group.Go(func() error {
-					return f.runRead(timeoutCtx, consumer, ch)
+					if err := f.runRead(timeoutCtx, consumer, ch); err != nil {
+						return fmt.Errorf("pool %s, topic %s: %w", pool, t, err)
+					}
+					return nil
 				})
 			}
-			return f.runLoad(ctx, timeoutCtx, zctx, fifoLake, shaper, ch)
+			if err := f.runLoad(ctx, timeoutCtx, zctx, fifoLake, shaper, ch); err != nil {
+				return fmt.Errorf("pool %s: %w", pool, err)
+			}
+			return nil
 		})
 	}
 	return group.Wait()
