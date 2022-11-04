@@ -5,6 +5,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/http"
+	_ "net/http/pprof"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -53,6 +56,7 @@ type From struct {
 
 	exitAfter     time.Duration
 	pool          string
+	pprof         string
 	thresh        int
 	topicMaxBytes int
 	interval      time.Duration
@@ -65,6 +69,7 @@ func NewFrom(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
 	f.shaperFlags.SetFlags(fs)
 	fs.DurationVar(&f.exitAfter, "exitafter", 0, "if >0, exit after this duration")
 	fs.StringVar(&f.pool, "pool", "", "name of Zed pool")
+	fs.StringVar(&f.pprof, "pprof", "", "listen address for /debug/pprof/ HTTP server")
 	fs.IntVar(&f.thresh, "thresh", 1024*1024, "maximum number of records per commit")
 	fs.IntVar(&f.topicMaxBytes, "topicmaxbytes", 1024*1024, "maximum bytes buffered per topic")
 	fs.DurationVar(&f.interval, "interval", 5*time.Second,
@@ -73,6 +78,12 @@ func NewFrom(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
 }
 
 func (f *From) Run(args []string) error {
+	if f.pprof != "" {
+		go func() {
+			fmt.Fprintln(os.Stderr, "pprof:", http.ListenAndServe(f.pprof, nil))
+		}()
+	}
+
 	poolToTopics := map[string]map[string]struct{}{}
 	if f.pool != "" || f.flags.Topic != "" {
 		if f.pool == "" || f.flags.Topic == "" {
