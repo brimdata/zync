@@ -18,12 +18,13 @@ import (
 )
 
 type Consumer struct {
-	zctx     *zed.Context
-	decoder  decoder
-	kclient  *kgo.Client
-	topic    string
-	metaType zed.Type
-	types    map[zed.Type]map[zed.Type]zed.Type
+	zctx        *zed.Context
+	decoder     decoder
+	kclient     *kgo.Client
+	savedOffset int64
+	topic       string
+	metaType    zed.Type
+	types       map[zed.Type]map[zed.Type]zed.Type
 
 	recordIter kgo.FetchesRecordIter
 }
@@ -59,12 +60,13 @@ func NewConsumer(zctx *zed.Context, opts []kgo.Opt, reg *srclient.SchemaRegistry
 		return nil, err
 	}
 	return &Consumer{
-		zctx:     zctx,
-		decoder:  decoder,
-		kclient:  kclient,
-		topic:    topic,
-		metaType: metaType,
-		types:    make(map[zed.Type]map[zed.Type]zed.Type),
+		zctx:        zctx,
+		decoder:     decoder,
+		kclient:     kclient,
+		savedOffset: startAt,
+		topic:       topic,
+		metaType:    metaType,
+		types:       make(map[zed.Type]map[zed.Type]zed.Type),
 	}, nil
 }
 
@@ -108,6 +110,9 @@ func (c *Consumer) Run(ctx context.Context, w zio.Writer, timeout time.Duration)
 }
 
 func (c *Consumer) handle(krec *kgo.Record) (*zed.Value, error) {
+	if krec.Offset < c.savedOffset {
+		return nil, fmt.Errorf("received offset %d is less than saved offset %d", krec.Offset, c.savedOffset)
+	}
 	key, err := c.decoder.Decode(krec.Key)
 	if err != nil {
 		return nil, err
