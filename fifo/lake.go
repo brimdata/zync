@@ -62,7 +62,7 @@ func (l *Lake) LoadBatch(ctx context.Context, zctx *zed.Context, batch *zbuf.Arr
 func (l *Lake) NextConsumerOffset(ctx context.Context, topic string) (int64, error) {
 	// Find the largest offset for the given topic.  Since these
 	// values are monotonically increasing, we can just do "tail 1".
-	query := fmt.Sprintf("kafka.topic=='%s' | tail 1 | yield kafka.offset", topic)
+	query := fmt.Sprintf("kafka.topic=='%s' | tail 1 | yield kafka", topic)
 	batch, err := l.Query(ctx, query)
 	if err != nil {
 		return etl.KafkaOffsetEarliest, err
@@ -74,7 +74,11 @@ func (l *Lake) NextConsumerOffset(ctx context.Context, topic string) (int64, err
 		// This should not happen.
 		return 0, errors.New("'tail 1' returned more than one record")
 	}
-	return vals[0].AsInt() + 1, nil
+	offset, err := etl.FieldAsInt(&vals[0], "offset")
+	if err != nil {
+		return 0, err
+	}
+	return offset + 1, nil
 }
 
 func (l *Lake) ReadBatch(ctx context.Context, topic string, offset int64, size int) (zbuf.Batch, error) {
