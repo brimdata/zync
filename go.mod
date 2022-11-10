@@ -3,7 +3,7 @@ module github.com/brimdata/zync
 go 1.18
 
 require (
-	github.com/brimdata/zed v1.2.1-0.20221005160241-2470872df5f6
+	github.com/brimdata/zed v1.2.1-0.20221110185657-2d6411c5f4bf
 	github.com/buger/jsonparser v1.1.1
 	github.com/go-avro/avro v0.0.0-20171219232920-444163702c11
 	github.com/riferrei/srclient v0.4.0
