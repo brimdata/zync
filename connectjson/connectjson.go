@@ -169,6 +169,7 @@ type Decoder struct {
 	jsonioReader *jsonio.Reader
 	shapers      map[string]*expr.ConstShaper
 	this         expr.This
+	val          zed.Value
 }
 
 func NewDecoder(zctx *zed.Context) *Decoder {
@@ -280,7 +281,7 @@ func (c *Decoder) decodeBytes(val *zed.Value) *zed.Value {
 	if val.IsNull() {
 		return val
 	}
-	c.builder.Reset()
+	c.builder.Truncate()
 	err := Walk(val.Type, val.Bytes, func(typ zed.Type, bytes zcode.Bytes) error {
 		if bytes == nil {
 			c.builder.Append(nil)
@@ -303,7 +304,8 @@ func (c *Decoder) decodeBytes(val *zed.Value) *zed.Value {
 	if err != nil {
 		panic(err)
 	}
-	return zed.NewValue(val.Type, c.builder.Bytes().Body())
+	c.val = *zed.NewValue(val.Type, c.builder.Bytes().Body())
+	return &c.val
 }
 
 func Walk(typ zed.Type, body zcode.Bytes, visit zed.Visitor) error {
