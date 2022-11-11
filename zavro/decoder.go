@@ -15,7 +15,9 @@ type Decoder struct {
 	registry *srclient.SchemaRegistryClient
 	zctx     *zed.Context
 
+	builder zcode.Builder
 	schemas map[int]schemaAndType
+	val     zed.Value
 }
 
 type schemaAndType struct {
@@ -43,11 +45,12 @@ func (d *Decoder) Decode(b []byte) (*zed.Value, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not retrieve schema ID %d: %w", id, err)
 	}
-	bytes, err := Decode(b[5:], schema)
-	if err != nil {
+	d.builder.Truncate()
+	if err := Decode(&d.builder, b[5:], schema); err != nil {
 		return nil, err
 	}
-	return zed.NewValue(typ, bytes), nil
+	d.val = *zed.NewValue(typ, d.builder.Bytes().Body())
+	return &d.val, nil
 }
 
 func (d *Decoder) getSchema(id int) (avro.Schema, zed.Type, error) {
@@ -70,16 +73,15 @@ func (d *Decoder) getSchema(id int) (avro.Schema, zed.Type, error) {
 	return avroSchema, typ, nil
 }
 
-func Decode(in []byte, schema avro.Schema) (zcode.Bytes, error) {
-	var b zcode.Builder
-	in, err := decodeAny(&b, in, schema)
+func Decode(b *zcode.Builder, in []byte, schema avro.Schema) error {
+	in, err := decodeAny(b, in, schema)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if len(in) != 0 {
-		return nil, fmt.Errorf("avro decoder: extra data of length %d", len(in))
+		return fmt.Errorf("avro decoder: extra data of length %d", len(in))
 	}
-	return b.Bytes().Body(), nil
+	return nil
 }
 
 func decodeAny(b *zcode.Builder, in []byte, schema avro.Schema) ([]byte, error) {

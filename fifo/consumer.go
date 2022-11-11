@@ -29,8 +29,12 @@ type Consumer struct {
 	recordIter kgo.FetchesRecordIter
 }
 
+// decoder wraps the Decode method.
+//
+// Implementations retain ownership of val and val.Bytes, which remain valid
+// until the next Decode..
 type decoder interface {
-	Decode(b []byte) (*zed.Value, error)
+	Decode(b []byte) (val *zed.Value, err error)
 }
 
 func NewConsumer(zctx *zed.Context, opts []kgo.Opt, reg *srclient.SchemaRegistryClient, format, topic string, startAt int64, meta bool) (*Consumer, error) {
@@ -113,18 +117,6 @@ func (c *Consumer) handle(krec *kgo.Record) (*zed.Value, error) {
 	if krec.Offset < c.savedOffset {
 		return nil, fmt.Errorf("received offset %d is less than saved offset %d", krec.Offset, c.savedOffset)
 	}
-	key, err := c.decoder.Decode(krec.Key)
-	if err != nil {
-		return nil, err
-	}
-	val, err := c.decoder.Decode(krec.Value)
-	if err != nil {
-		return nil, err
-	}
-	outerType, err := c.outerType(key.Type, val.Type)
-	if err != nil {
-		return nil, err
-	}
 	var b zcode.Builder
 	if c.metaType != nil {
 		// kafka:{topic:string,partition:int64,offset:int64}
@@ -134,8 +126,21 @@ func (c *Consumer) handle(krec *kgo.Record) (*zed.Value, error) {
 		b.Append(zed.EncodeInt(krec.Offset))
 		b.EndContainer()
 	}
+	key, err := c.decoder.Decode(krec.Key)
+	if err != nil {
+		return nil, err
+	}
+	keyType := key.Type
 	b.Append(key.Bytes)
+	val, err := c.decoder.Decode(krec.Value)
+	if err != nil {
+		return nil, err
+	}
 	b.Append(val.Bytes)
+	outerType, err := c.outerType(keyType, val.Type)
+	if err != nil {
+		return nil, err
+	}
 	return zed.NewValue(outerType, b.Bytes()), nil
 }
 
