@@ -15,16 +15,17 @@ import (
 	"github.com/riferrei/srclient"
 	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/twmb/franz-go/pkg/kgo"
+	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 )
 
 type Consumer struct {
-	zctx        *zed.Context
-	decoder     decoder
-	kclient     *kgo.Client
-	savedOffset int64
-	topic       string
-	metaType    zed.Type
-	types       map[zed.Type]map[zed.Type]zed.Type
+	zctx         *zed.Context
+	decoder      decoder
+	kclient      *kgo.Client
+	metaType     zed.Type
+	savedOffsets map[string]int64
+	types        map[zed.Type]map[zed.Type]zed.Type
 
 	recordIter kgo.FetchesRecordIter
 }
@@ -37,7 +38,7 @@ type decoder interface {
 	Decode(b []byte) (val *zed.Value, err error)
 }
 
-func NewConsumer(zctx *zed.Context, opts []kgo.Opt, reg *srclient.SchemaRegistryClient, format, topic string, startAt int64, meta bool) (*Consumer, error) {
+func NewConsumer(zctx *zed.Context, opts []kgo.Opt, reg *srclient.SchemaRegistryClient, format string, topics map[string]int64, meta bool) (*Consumer, error) {
 	var decoder decoder
 	switch format {
 	case "avro":
@@ -55,22 +56,22 @@ func NewConsumer(zctx *zed.Context, opts []kgo.Opt, reg *srclient.SchemaRegistry
 			return nil, err
 		}
 	}
-	opts = append([]kgo.Opt{
-		kgo.ConsumeTopics(topic),
-		kgo.ConsumeResetOffset(kgo.NewOffset().At(startAt)),
-	}, opts...)
+	partitions := map[string]map[int32]kgo.Offset{}
+	for topic, offset := range topics {
+		partitions[topic] = map[int32]kgo.Offset{0: kgo.NewOffset().At(offset)}
+	}
+	opts = append(slices.Clone(opts), kgo.ConsumePartitions(partitions))
 	kclient, err := kgo.NewClient(opts...)
 	if err != nil {
 		return nil, err
 	}
 	return &Consumer{
-		zctx:        zctx,
-		decoder:     decoder,
-		kclient:     kclient,
-		savedOffset: startAt,
-		topic:       topic,
-		metaType:    metaType,
-		types:       make(map[zed.Type]map[zed.Type]zed.Type),
+		zctx:         zctx,
+		decoder:      decoder,
+		kclient:      kclient,
+		metaType:     metaType,
+		savedOffsets: maps.Clone(topics),
+		types:        make(map[zed.Type]map[zed.Type]zed.Type),
 	}, nil
 }
 
@@ -114,9 +115,11 @@ func (c *Consumer) Run(ctx context.Context, w zio.Writer, timeout time.Duration)
 }
 
 func (c *Consumer) handle(krec *kgo.Record) (*zed.Value, error) {
-	if krec.Offset < c.savedOffset {
-		return nil, fmt.Errorf("received offset %d is less than saved offset %d", krec.Offset, c.savedOffset)
+	if saved := c.savedOffsets[krec.Topic]; krec.Offset < saved {
+		return nil, fmt.Errorf("topic %s, partition %d: received offset %d is less than saved offset %d",
+			krec.Topic, krec.Partition, krec.Offset, saved)
 	}
+	c.savedOffsets[krec.Topic] = krec.Offset
 	var b zcode.Builder
 	if c.metaType != nil {
 		// kafka:{topic:string,partition:int64,offset:int64}
@@ -178,13 +181,13 @@ func (c *Consumer) makeType(key, val zed.Type) (*zed.TypeRecord, error) {
 	return typ, nil
 }
 
-func (c *Consumer) Watermarks(ctx context.Context) (int64, int64, error) {
+func (c *Consumer) Watermarks(ctx context.Context, topic string) (int64, int64, error) {
 	client := kadm.NewClient(c.kclient)
-	start, err := minOffset(client.ListStartOffsets(ctx, c.topic))
+	start, err := minOffset(client.ListStartOffsets(ctx, topic))
 	if err != nil {
 		return 0, 0, err
 	}
-	end, err := maxOffset(client.ListEndOffsets(ctx, c.topic))
+	end, err := maxOffset(client.ListEndOffsets(ctx, topic))
 	if err != nil {
 		return 0, 0, err
 	}
