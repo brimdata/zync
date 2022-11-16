@@ -9,6 +9,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -136,48 +137,71 @@ func (f *From) Run(args []string) error {
 	if err != nil {
 		return err
 	}
-	group, ctx := errgroup.WithContext(ctx)
+
+	var fifoLakes []*fifo.Lake
+	var fifoLakeChs []<-chan *zed.Value
+	topicToChs := map[string][]chan<- *zed.Value{}
+	topicToOffset := map[string]int64{}
+
+	group, groupCtx := errgroup.WithContext(ctx)
+	var mu sync.Mutex
+	for pool, topics := range poolToTopics {
+		pool, topics := pool, topics
+		group.Go(func() error {
+			fifoLake, err := fifo.NewLake(groupCtx, pool, "", lake)
+			if err != nil {
+				return fmt.Errorf("pool %s: %w", pool, err)
+			}
+			ch := make(chan *zed.Value)
+			mu.Lock()
+			fifoLakes = append(fifoLakes, fifoLake)
+			fifoLakeChs = append(fifoLakeChs, ch)
+			mu.Unlock()
+			for t := range topics {
+				offset, err := fifoLake.NextConsumerOffset(groupCtx, t)
+				if err != nil {
+					return fmt.Errorf("pool %s, topic %s: %w", pool, t, err)
+				}
+				mu.Lock()
+				topicToChs[t] = append(topicToChs[t], ch)
+				topicToOffset[t] = offset
+				mu.Unlock()
+			}
+			return nil
+		})
+	}
+	if err := group.Wait(); err != nil {
+		return err
+	}
+
+	group, ctx = errgroup.WithContext(ctx)
 	timeoutCtx := ctx
 	if f.exitAfter > 0 {
 		timeoutCtx, cancel = context.WithTimeout(ctx, f.exitAfter)
 		defer cancel()
 	}
-	for pool, topics := range poolToTopics {
-		pool, topics := pool, topics
+	zctx := zed.NewContext()
+	for i, fifoLake := range fifoLakes {
+		fifoLake := fifoLake
+		ch := fifoLakeChs[i]
 		group.Go(func() error {
-			fifoLake, err := fifo.NewLake(ctx, pool, "", lake)
-			if err != nil {
-				return fmt.Errorf("pool %s: %w", pool, err)
-			}
-			ch := make(chan *zed.Value)
-			zctx := zed.NewContext()
-			for t := range topics {
-				t := t
-				cOffset, err := fifoLake.NextConsumerOffset(ctx, t)
-				if err != nil {
-					return fmt.Errorf("pool %s, topic %s: %w", pool, t, err)
-				}
-				consumer, err := fifo.NewConsumer(zctx, config, registry, f.flags.Format, t, cOffset, true)
-				if err != nil {
-					return fmt.Errorf("pool %s, topic %s: %w", pool, t, err)
-				}
-				group.Go(func() error {
-					if err := f.runRead(timeoutCtx, consumer, ch); err != nil {
-						return fmt.Errorf("pool %s, topic %s: %w", pool, t, err)
-					}
-					return nil
-				})
-			}
 			if err := f.runLoad(ctx, timeoutCtx, zctx, fifoLake, shaper, ch); err != nil {
-				return fmt.Errorf("pool %s: %w", pool, err)
+				return fmt.Errorf("pool %s: %w", fifoLake.Pool(), err)
 			}
 			return nil
 		})
 	}
+	group.Go(func() error {
+		consumer, err := fifo.NewConsumer(zctx, config, registry, f.flags.Format, topicToOffset, true)
+		if err != nil {
+			return err
+		}
+		return f.runRead(timeoutCtx, consumer, topicToChs)
+	})
 	return group.Wait()
 }
 
-func (f *From) runRead(ctx context.Context, c *fifo.Consumer, ch chan<- *zed.Value) error {
+func (f *From) runRead(ctx context.Context, c *fifo.Consumer, topicToChs map[string][]chan<- *zed.Value) error {
 	for {
 		val, err := c.ReadValue(ctx)
 		if err != nil {
@@ -188,15 +212,24 @@ func (f *From) runRead(ctx context.Context, c *fifo.Consumer, ch chan<- *zed.Val
 			}
 			return err
 		}
-		select {
-		case ch <- val:
-		case <-ctx.Done():
+		kafkaVal, err := etl.Field(val, "kafka")
+		if err != nil {
+			return err
+		}
+		topic, err := etl.FieldAsString(kafkaVal, "topic")
+		if err != nil {
+			return err
+		}
+		for _, ch := range topicToChs[topic] {
+			select {
+			case ch <- val:
+			case <-ctx.Done():
+			}
 		}
 	}
 }
 
-func (f *From) runLoad(ctx, timeoutCtx context.Context, zctx *zed.Context, fifoLake *fifo.Lake, shaper string,
-	ch <-chan *zed.Value) error {
+func (f *From) runLoad(ctx, timeoutCtx context.Context, zctx *zed.Context, fifoLake *fifo.Lake, shaper string, ch <-chan *zed.Value) error {
 	ticker := time.NewTicker(f.interval)
 	defer ticker.Stop()
 	// Stop ticker until data arrives.
