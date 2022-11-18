@@ -56,6 +56,7 @@ type From struct {
 	shaperFlags cli.ShaperFlags
 
 	exitAfter     time.Duration
+	kafkaLogLevel int
 	pool          string
 	pprof         string
 	thresh        int
@@ -69,6 +70,7 @@ func NewFrom(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
 	f.lakeFlags.SetFlags(fs)
 	f.shaperFlags.SetFlags(fs)
 	fs.DurationVar(&f.exitAfter, "exitafter", 0, "if >0, exit after this duration")
+	fs.IntVar(&f.kafkaLogLevel, "kafka.loglevel", 0, "Kafka log level (0=none, 1=error, 2=warn, 3=info, 4=debug)")
 	fs.StringVar(&f.pool, "pool", "", "name of Zed pool")
 	fs.StringVar(&f.pprof, "pprof", "", "listen address for /debug/pprof/ HTTP server")
 	fs.IntVar(&f.thresh, "thresh", 1024*1024, "maximum number of records per commit")
@@ -128,6 +130,10 @@ func (f *From) Run(args []string) error {
 	config, err := cli.LoadKafkaConfig()
 	if err != nil {
 		return err
+	}
+	if f.kafkaLogLevel > 0 {
+		logger := kgo.BasicLogger(os.Stdout, kgo.LogLevel(f.kafkaLogLevel), func() string { return "kafka: " })
+		config = append(config, kgo.WithLogger(logger))
 	}
 	config = append(config, kgo.FetchMaxPartitionBytes(int32(f.topicMaxBytes)))
 
