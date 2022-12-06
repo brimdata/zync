@@ -11,8 +11,6 @@ import (
 	"github.com/brimdata/zync/cmd/zync/root"
 	"github.com/brimdata/zync/fifo"
 	"github.com/riferrei/srclient"
-	"github.com/twmb/franz-go/pkg/kadm"
-	"github.com/twmb/franz-go/pkg/kerr"
 )
 
 func init() {
@@ -90,20 +88,8 @@ func (t *To) Run(args []string) error {
 		return err
 	}
 	if t.partitions > 0 {
-		client, err := kadm.NewOptClient(config...)
-		if err != nil {
+		if err := fifo.CreateMissingTopics(ctx, config, int32(t.partitions), int16(t.replication), nil, t.flags.Topic); err != nil {
 			return err
-		}
-		resps, err := client.CreateTopics(ctx, int32(t.partitions), int16(t.replication), nil, t.flags.Topic)
-		if err != nil {
-			return err
-		}
-		resp, err := resps.On(t.flags.Topic, nil)
-		if err != nil {
-			return err
-		}
-		if resp.Err != nil && resp.Err != kerr.TopicAlreadyExists {
-			return resp.Err
 		}
 	}
 	registry := srclient.CreateSchemaRegistryClient(url)
