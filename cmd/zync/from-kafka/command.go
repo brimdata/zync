@@ -22,6 +22,7 @@ import (
 	"github.com/brimdata/zync/fifo"
 	"github.com/riferrei/srclient"
 	"github.com/twmb/franz-go/pkg/kgo"
+	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -57,6 +58,7 @@ type From struct {
 
 	exitAfter     time.Duration
 	kafkaLogLevel int
+	kafkaReplicas int
 	pool          string
 	pprof         string
 	thresh        int
@@ -71,6 +73,7 @@ func NewFrom(parent charm.Command, fs *flag.FlagSet) (charm.Command, error) {
 	f.shaperFlags.SetFlags(fs)
 	fs.DurationVar(&f.exitAfter, "exitafter", 0, "if >0, exit after this duration")
 	fs.IntVar(&f.kafkaLogLevel, "kafka.loglevel", 0, "Kafka log level (0=none, 1=error, 2=warn, 3=info, 4=debug)")
+	fs.IntVar(&f.kafkaReplicas, "kafka.replicas", 0, "if >0, create Kafka topics with 1 partition and this replication factor")
 	fs.StringVar(&f.pool, "pool", "", "name of Zed pool")
 	fs.StringVar(&f.pprof, "pprof", "", "listen address for /debug/pprof/ HTTP server")
 	fs.IntVar(&f.thresh, "thresh", 1024*1024, "maximum number of records per commit")
@@ -181,6 +184,11 @@ func (f *From) Run(args []string) error {
 	}
 
 	group, ctx = errgroup.WithContext(ctx)
+	if f.kafkaReplicas > 0 {
+		group.Go(func() error {
+			return fifo.CreateMissingTopics(ctx, config, 1, int16(f.kafkaReplicas), nil, maps.Keys(topicToChs)...)
+		})
+	}
 	timeoutCtx := ctx
 	if f.exitAfter > 0 {
 		timeoutCtx, cancel = context.WithTimeout(ctx, f.exitAfter)
