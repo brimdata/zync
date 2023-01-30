@@ -160,15 +160,15 @@ func (c *Consumer) outerType(key, val zed.Type) (zed.Type, error) {
 }
 
 func (c *Consumer) makeType(key, val zed.Type) (*zed.TypeRecord, error) {
-	cols := []zed.Column{
-		zed.NewColumn("kafka", c.metaType),
-		zed.NewColumn("key", key),
-		zed.NewColumn("value", val),
+	fields := []zed.Field{
+		zed.NewField("kafka", c.metaType),
+		zed.NewField("key", key),
+		zed.NewField("value", val),
 	}
 	if c.metaType == nil {
-		cols = cols[1:]
+		fields = fields[1:]
 	}
-	typ, err := c.zctx.LookupTypeRecord(cols)
+	typ, err := c.zctx.LookupTypeRecord(fields)
 	if err != nil {
 		return nil, err
 	}

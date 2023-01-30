@@ -37,8 +37,8 @@ func (s *schemaEncoder) encodeRecord(typ *zed.TypeRecord) (avro.Schema, error) {
 		return &avro.RecursiveSchema{Actual: actual}, nil
 	}
 	var fields []*avro.SchemaField
-	for _, col := range typ.Columns {
-		schema, err := s.encode(col.Type)
+	for _, f := range typ.Fields {
+		schema, err := s.encode(f.Type)
 		if err != nil {
 			return nil, err
 		}
@@ -49,11 +49,10 @@ func (s *schemaEncoder) encodeRecord(typ *zed.TypeRecord) (avro.Schema, error) {
 				Types: []avro.Schema{&avro.NullSchema{}, schema},
 			}
 		}
-		fld := &avro.SchemaField{
-			Name: col.Name,
+		fields = append(fields, &avro.SchemaField{
+			Name: f.Name,
 			Type: schema,
-		}
-		fields = append(fields, fld)
+		})
 	}
 	typString := zson.FormatType(typ)
 	schema := &avro.RecordSchema{
@@ -188,7 +187,7 @@ func DecodeSchema(zctx *zed.Context, schema avro.Schema) (zed.Type, error) {
 }
 
 func decodeRecordSchema(zctx *zed.Context, schema *avro.RecordSchema) (zed.Type, error) {
-	cols := make([]zed.Column, 0, len(schema.Fields))
+	fields := make([]zed.Field, 0, len(schema.Fields))
 	for _, fld := range schema.Fields {
 		fieldType := fld.Type
 		// If this field is a union of one type and the null type,
@@ -204,9 +203,9 @@ func decodeRecordSchema(zctx *zed.Context, schema *avro.RecordSchema) (zed.Type,
 		if err != nil {
 			return nil, err
 		}
-		cols = append(cols, zed.NewColumn(fld.Name, typ))
+		fields = append(fields, zed.NewField(fld.Name, typ))
 	}
-	return zctx.LookupTypeRecord(cols)
+	return zctx.LookupTypeRecord(fields)
 }
 
 func isOptional(schema avro.Schema) (avro.Schema, int64) {
