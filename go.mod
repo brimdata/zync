@@ -1,6 +1,6 @@
 module github.com/brimdata/zync
 
-go 1.18
+go 1.19
 
 require (
 	github.com/brimdata/zed v1.2.1-0.20221110185657-2d6411c5f4bf

@@ -84,7 +84,7 @@ func (p *Pipeline) getInputPool() *Pool {
 	panic("no input pool")
 }
 
-//XXX TBD: this is currently taking all records for an update in memory.
+// XXX TBD: this is currently taking all records for an update in memory.
 // We need to work out a streaming model so we can do a very large updates
 // that could involve large anti-joins and spills and we stream the output
 // to the target pool.  This will scale fine since the anti-join design
