@@ -5,14 +5,22 @@ script: |
   zed create -q -orderby kafka.offset Staging
   for i in {1..4}; do
     echo === $i
-    zed load -q -use Raw@main demo/batch-$i.zson
-    zync etl demo/invoices.yaml | sed -e 's/ [0-9a-zA-Z]\{27\} / XXX /'
+    zed load -q -use Raw@main batch-$i.zson
+    zync etl invoices.yaml | sed -e 's/ [0-9a-zA-Z]\{27\} / XXX /'
     zed query -z 'from Staging'
   done
 
 inputs:
-  - name: demo
-    symlink: ../demo
+  - name: batch-1.zson
+    source: ../demo/batch-1.zson
+  - name: batch-2.zson
+    source: ../demo/batch-2.zson
+  - name: batch-3.zson
+    source: ../demo/batch-3.zson
+  - name: batch-4.zson
+    source: ../demo/batch-4.zson
+  - name: invoices.yaml
+    source: ../demo/invoices.yaml
 
 outputs:
   - name: stdout
