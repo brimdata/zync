@@ -117,7 +117,7 @@ func encodeRecord(dst []byte, typ *zed.TypeRecord, body zcode.Bytes) ([]byte, er
 		return dst, nil
 	}
 	it := body.Iter()
-	for _, col := range typ.Columns {
+	for _, f := range typ.Fields {
 		if it.Done() {
 			return nil, ErrBadValue
 		}
@@ -131,7 +131,7 @@ func encodeRecord(dst []byte, typ *zed.TypeRecord, body zcode.Bytes) ([]byte, er
 		// the type's position in the union.
 		dst = appendVarint(dst, 1)
 		var err error
-		dst, err = encodeAny(dst, *zed.NewValue(col.Type, body))
+		dst, err = encodeAny(dst, *zed.NewValue(f.Type, body))
 		if err != nil {
 			return nil, err
 		}

@@ -70,8 +70,8 @@ func marshalPayload(typ zed.Type, bytes zcode.Bytes) interface{} {
 	case *zed.TypeRecord:
 		m := map[string]interface{}{}
 		it := bytes.Iter()
-		for _, col := range typ.Columns {
-			m[col.Name] = marshalPayload(col.Type, it.Next())
+		for _, f := range typ.Fields {
+			m[f.Name] = marshalPayload(f.Type, it.Next())
 		}
 		return m
 	case *zed.TypeArray, *zed.TypeSet:
@@ -136,13 +136,13 @@ func marshalSchema(typ zed.Type) (*connectSchema, error) {
 		}
 	case zed.RecordKind:
 		schema.Type = "struct"
-		for _, c := range zed.TypeRecordOf(typ).Columns {
-			f, err := marshalSchema(c.Type)
+		for _, f := range zed.TypeRecordOf(typ).Fields {
+			s, err := marshalSchema(f.Type)
 			if err != nil {
 				return nil, err
 			}
-			f.Field = c.Name
-			schema.Fields = append(schema.Fields, f)
+			s.Field = f.Name
+			schema.Fields = append(schema.Fields, s)
 		}
 	case zed.ArrayKind:
 		panic("array type unsupported")
@@ -259,15 +259,15 @@ func (c *Decoder) decodeSchema(s *connectSchema) (string, zed.Type, error) {
 	case "map":
 		err = errors.New("map type unimplemented")
 	case "struct":
-		var cols []zed.Column
+		var fields []zed.Field
 		for _, schema := range s.Fields {
 			fname, ftype, err := c.decodeSchema(schema)
 			if err != nil {
 				return "", nil, err
 			}
-			cols = append(cols, zed.NewColumn(fname, ftype))
+			fields = append(fields, zed.NewField(fname, ftype))
 		}
-		typ, err = c.zctx.LookupTypeRecord(cols)
+		typ, err = c.zctx.LookupTypeRecord(fields)
 	default:
 		err = fmt.Errorf("unknown type %q in Connect schema", s.Type)
 	}
@@ -346,11 +346,11 @@ func walkRecord(typ *zed.TypeRecord, body zcode.Bytes, visit zed.Visitor) error 
 		return nil
 	}
 	it := body.Iter()
-	for _, col := range typ.Columns {
+	for _, f := range typ.Fields {
 		if it.Done() {
 			return zed.ErrMissingField
 		}
-		if err := Walk(col.Type, it.Next(), visit); err != nil {
+		if err := Walk(f.Type, it.Next(), visit); err != nil {
 			return err
 		}
 	}
