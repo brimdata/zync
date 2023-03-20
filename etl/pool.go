@@ -35,7 +35,7 @@ func OpenPool(ctx context.Context, poolName string, server lakeapi.Interface) (*
 		return nil, err
 	}
 	// The sync algorithm relies on the pool key being kafka.offset asc.
-	if pool.Layout.Order != order.Asc || len(pool.Layout.Keys) == 0 || !pool.Layout.Keys[0].Equal(field.Dotted("kafka.offset")) {
+	if pool.SortKey.Order != order.Asc || len(pool.SortKey.Keys) == 0 || !pool.SortKey.Keys[0].Equal(field.Dotted("kafka.offset")) {
 		return nil, ErrBadPoolKey
 	}
 	return &Pool{
@@ -93,10 +93,10 @@ func NewArrayFromReader(zr zio.Reader) (*zbuf.Array, error) {
 func Field(val *zed.Value, field string) (*zed.Value, error) {
 	fieldVal := val.Deref(field)
 	if fieldVal == nil {
-		return nil, fmt.Errorf("field %q not found in %q", field, zson.MustFormatValue(val))
+		return nil, fmt.Errorf("field %q not found in %q", field, zson.FormatValue(val))
 	}
 	if fieldVal.IsNull() {
-		return nil, fmt.Errorf("field %q null in %q", field, zson.MustFormatValue(val))
+		return nil, fmt.Errorf("field %q null in %q", field, zson.FormatValue(val))
 	}
 	return fieldVal, nil
 }
@@ -107,7 +107,7 @@ func FieldAsInt(val *zed.Value, field string) (int64, error) {
 		return 0, err
 	}
 	if !zed.IsInteger(fieldVal.Type.ID()) {
-		return 0, fmt.Errorf("field %q not an interger in %q", field, zson.MustFormatValue(val))
+		return 0, fmt.Errorf("field %q not an interger in %q", field, zson.FormatValue(val))
 	}
 	return fieldVal.AsInt(), nil
 }
@@ -118,7 +118,7 @@ func FieldAsString(val *zed.Value, field string) (string, error) {
 		return "", err
 	}
 	if fieldVal.Type.ID() != zed.IDString {
-		return "", fmt.Errorf("field %q not a string in %q", field, zson.MustFormatValue(val))
+		return "", fmt.Errorf("field %q not a string in %q", field, zson.FormatValue(val))
 	}
 	return fieldVal.AsString(), nil
 }

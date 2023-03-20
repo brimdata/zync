@@ -79,14 +79,14 @@ func zlen(zv zcode.Bytes) (int, error) {
 func encodeAny(dst []byte, zv zed.Value) ([]byte, error) {
 	switch typ := zed.TypeUnder(zv.Type).(type) {
 	case *zed.TypeRecord:
-		return encodeRecord(dst, typ, zv.Bytes)
+		return encodeRecord(dst, typ, zv.Bytes())
 	case *zed.TypeArray:
-		return encodeArray(dst, typ.Type, zv.Bytes)
+		return encodeArray(dst, typ.Type, zv.Bytes())
 	case *zed.TypeSet:
 		// encode set as array
-		return encodeArray(dst, typ.Type, zv.Bytes)
+		return encodeArray(dst, typ.Type, zv.Bytes())
 	default:
-		return encodeScalar(dst, typ, zv.Bytes)
+		return encodeScalar(dst, typ, zv.Bytes())
 	}
 }
 
