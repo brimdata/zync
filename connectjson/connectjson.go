@@ -39,7 +39,7 @@ func Encode(val *zed.Value) ([]byte, error) {
 		Schema  *connectSchema `json:"schema"`
 		Payload interface{}    `json:"payload"`
 	}{
-		schema, marshalPayload(val.Type, val.Bytes),
+		schema, marshalPayload(val.Type, val.Bytes()),
 	})
 }
 
@@ -87,9 +87,9 @@ func marshalPayload(typ zed.Type, bytes zcode.Bytes) interface{} {
 		panic("union type unsupported")
 	case *zed.TypeEnum:
 		// Trim leading "%".
-		return zson.MustFormatValue(zed.NewValue(typ, bytes))[1:]
+		return zson.FormatValue(zed.NewValue(typ, bytes))[1:]
 	case *zed.TypeError:
-		return zson.MustFormatValue(zed.NewValue(typ, bytes))
+		return zson.FormatValue(zed.NewValue(typ, bytes))
 	default:
 		panic(fmt.Sprintf("%T unsupported", typ))
 	}
@@ -282,7 +282,7 @@ func (c *Decoder) decodeBytes(val *zed.Value) *zed.Value {
 		return val
 	}
 	c.builder.Truncate()
-	err := Walk(val.Type, val.Bytes, func(typ zed.Type, bytes zcode.Bytes) error {
+	err := Walk(val.Type, val.Bytes(), func(typ zed.Type, bytes zcode.Bytes) error {
 		if bytes == nil {
 			c.builder.Append(nil)
 		} else if zed.IsContainerType(typ) {

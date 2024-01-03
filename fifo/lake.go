@@ -34,7 +34,7 @@ func NewLake(ctx context.Context, poolName, shaper string, server lakeapi.Interf
 		return nil, err
 	}
 	// The sync algorithm relies on the pool key being kafka.offset asc.
-	if pool.Layout.Order != order.Asc || len(pool.Layout.Keys) == 0 || !pool.Layout.Keys[0].Equal(field.Dotted("kafka.offset")) {
+	if pool.SortKey.Order != order.Asc || len(pool.SortKey.Keys) == 0 || !pool.SortKey.Keys[0].Equal(field.Dotted("kafka.offset")) {
 		return nil, ErrBadPoolKey
 	}
 	return &Lake{

@@ -15,7 +15,7 @@ a data warehouse.
 
 ## Installation
 
-To install `zync`, make sure you have Go 1.18 or better installed and then run
+To install `zync`, make sure you have Go 1.21 or better installed and then run
 ```
 go install github.com/brimdata/zync/cmd/zync@main
 ```

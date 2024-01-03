@@ -134,12 +134,12 @@ func (c *Consumer) handle(krec *kgo.Record) (*zed.Value, error) {
 		return nil, err
 	}
 	keyType := key.Type
-	b.Append(key.Bytes)
+	b.Append(key.Bytes())
 	val, err := c.decoder.Decode(krec.Value)
 	if err != nil {
 		return nil, err
 	}
-	b.Append(val.Bytes)
+	b.Append(val.Bytes())
 	outerType, err := c.outerType(keyType, val.Type)
 	if err != nil {
 		return nil, err
