@@ -98,20 +98,19 @@ func (p *Pipeline) writeToOutputPool(ctx context.Context, batch *zbuf.Array) err
 	if err != nil {
 		return err
 	}
-	vals := batch.Values()
-	for k := range vals {
+	for _, rec := range batch.Values() {
 		//XXX This still doesn't work with the zctx bug fix.  See issue #31
 		//if vals[k].Type == p.doneType {
 		//	out.Append(&vals[k])
 		//}
-		if typedef, ok := vals[k].Type.(*zed.TypeNamed); ok && typedef.Name == "done" {
-			out.Append(&vals[k])
+		if named, ok := rec.Type().(*zed.TypeNamed); ok && named.Name == "done" {
+			out.Append(rec)
 		}
-		if extra := vals[k].Deref("left"); extra != nil {
-			out.Append(extra)
+		if extra := rec.Deref("left"); extra != nil {
+			out.Append(*extra)
 		}
-		if extra := vals[k].Deref("right"); extra != nil {
-			out.Append(extra)
+		if extra := rec.Deref("right"); extra != nil {
+			out.Append(*extra)
 		}
 	}
 	//XXX We need to track the commitID and use new commit-only-if
@@ -130,26 +129,24 @@ func insertOffsets(ctx context.Context, zctx *zed.Context, doneType zed.Type, ba
 	// flow count() but that is not implemented yet.  Instead, we just format
 	// up some ZSON that can then insert the proper offsets in each record.
 	var zsons strings.Builder
-	vals := batch.Values()
-	for k := range vals {
+	for _, rec := range batch.Values() {
 		// This pointer comparison should work but it doesn't right now.
 		// Are they all allocated in the same zctx?
 		//if vals[k].Type == doneType {
 		//	continue
 		//}
-		if typedef, ok := vals[k].Type.(*zed.TypeNamed); ok && typedef.Name == "done" {
+		if named, ok := rec.Type().(*zed.TypeNamed); ok && named.Name == "done" {
 			continue
 		}
-		if vals[k].Deref("left") != nil {
+		if rec.Deref("left") != nil {
 			continue
 		}
-		rec := zson.FormatValue(&vals[k])
-		topic, _, err := getKafkaMeta(&vals[k])
+		topic, _, err := getKafkaMeta(rec)
 		if err != nil {
 			return nil, err
 		}
 		off := offsets[topic]
-		zsons.WriteString(fmt.Sprintf("{rec:%s,offset:%d}\n", rec, off))
+		zsons.WriteString(fmt.Sprintf("{rec:%s,offset:%d}\n", zson.FormatValue(rec), off))
 		offsets[topic] = off + 1
 	}
 	comp := compiler.NewCompiler()
@@ -162,20 +159,21 @@ func insertOffsets(ctx context.Context, zctx *zed.Context, doneType zed.Type, ba
 	if err != nil {
 		return nil, err
 	}
-	return NewArrayFromReader(q.AsReader())
+	defer q.Pull(true)
+	return NewArrayFromReader(zbuf.PullerReader(q))
 }
 
-func getKafkaMeta(rec *zed.Value) (string, int64, error) {
+func getKafkaMeta(rec zed.Value) (string, int64, error) {
 	// XXX this API should be simplified in zed package
 	kafkaRec := rec.Deref("kafka")
 	if kafkaRec == nil {
 		return "", 0, fmt.Errorf("value missing 'kafka' metadata field: %s", zson.FormatValue(rec))
 	}
-	topic, err := FieldAsString(kafkaRec, "topic")
+	topic, err := FieldAsString(*kafkaRec, "topic")
 	if err != nil {
 		return "", 0, err
 	}
-	offset, err := FieldAsInt(kafkaRec, "offset")
+	offset, err := FieldAsInt(*kafkaRec, "offset")
 	if err != nil {
 		return "", 0, err
 	}

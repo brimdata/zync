@@ -17,7 +17,6 @@ type Decoder struct {
 
 	builder zcode.Builder
 	schemas map[int]schemaAndType
-	val     zed.Value
 }
 
 type schemaAndType struct {
@@ -33,24 +32,23 @@ func NewDecoder(registry *srclient.SchemaRegistryClient, zctx *zed.Context) *Dec
 	}
 }
 
-func (d *Decoder) Decode(b []byte) (*zed.Value, error) {
+func (d *Decoder) Decode(b []byte) (zed.Value, error) {
 	if len(b) == 0 {
 		return zed.Null, nil
 	}
 	if len(b) < 5 {
-		return nil, fmt.Errorf("Kafka-Avro header is too short: len %d", len(b))
+		return zed.Null, fmt.Errorf("Kafka-Avro header is too short: len %d", len(b))
 	}
 	id := int(binary.BigEndian.Uint32(b[1:5]))
 	schema, typ, err := d.getSchema(id)
 	if err != nil {
-		return nil, fmt.Errorf("could not retrieve schema ID %d: %w", id, err)
+		return zed.Null, fmt.Errorf("could not retrieve schema ID %d: %w", id, err)
 	}
 	d.builder.Truncate()
 	if err := Decode(&d.builder, b[5:], schema); err != nil {
-		return nil, err
+		return zed.Null, err
 	}
-	d.val = *zed.NewValue(typ, d.builder.Bytes().Body())
-	return &d.val, nil
+	return zed.NewValue(typ, d.builder.Bytes().Body()), nil
 }
 
 func (d *Decoder) getSchema(id int) (avro.Schema, zed.Type, error) {

@@ -148,8 +148,8 @@ func (f *From) Run(args []string) error {
 	}
 
 	var fifoLakes []*fifo.Lake
-	var fifoLakeChs []<-chan *zed.Value
-	topicToChs := map[string][]chan<- *zed.Value{}
+	var fifoLakeChs []<-chan zed.Value
+	topicToChs := map[string][]chan<- zed.Value{}
 	topicToOffset := map[string]int64{}
 
 	group, groupCtx := errgroup.WithContext(ctx)
@@ -161,7 +161,7 @@ func (f *From) Run(args []string) error {
 			if err != nil {
 				return fmt.Errorf("pool %s: %w", pool, err)
 			}
-			ch := make(chan *zed.Value)
+			ch := make(chan zed.Value)
 			mu.Lock()
 			fifoLakes = append(fifoLakes, fifoLake)
 			fifoLakeChs = append(fifoLakeChs, ch)
@@ -215,7 +215,7 @@ func (f *From) Run(args []string) error {
 	return group.Wait()
 }
 
-func (f *From) runRead(ctx context.Context, c *fifo.Consumer, topicToChs map[string][]chan<- *zed.Value) error {
+func (f *From) runRead(ctx context.Context, c *fifo.Consumer, topicToChs map[string][]chan<- zed.Value) error {
 	for {
 		val, err := c.ReadValue(ctx)
 		if err != nil {
@@ -243,7 +243,7 @@ func (f *From) runRead(ctx context.Context, c *fifo.Consumer, topicToChs map[str
 	}
 }
 
-func (f *From) runLoad(ctx, timeoutCtx context.Context, zctx *zed.Context, fifoLake *fifo.Lake, shaper string, ch <-chan *zed.Value) error {
+func (f *From) runLoad(ctx, timeoutCtx context.Context, zctx *zed.Context, fifoLake *fifo.Lake, shaper string, ch <-chan zed.Value) error {
 	ticker := time.NewTicker(f.interval)
 	defer ticker.Stop()
 	// Stop ticker until data arrives.

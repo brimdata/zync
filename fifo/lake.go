@@ -74,7 +74,7 @@ func (l *Lake) NextConsumerOffset(ctx context.Context, topic string) (int64, err
 		// This should not happen.
 		return 0, errors.New("'tail 1' returned more than one record")
 	}
-	offset, err := etl.FieldAsInt(&vals[0], "offset")
+	offset, err := etl.FieldAsInt(vals[0], "offset")
 	if err != nil {
 		return 0, err
 	}
@@ -101,5 +101,6 @@ func RunLocalQuery(ctx context.Context, zctx *zed.Context, batch *zbuf.Array, qu
 	if err != nil {
 		return nil, err
 	}
-	return etl.NewArrayFromReader(q.AsReader())
+	defer q.Pull(true)
+	return etl.NewArrayFromReader(zbuf.PullerReader(q))
 }
