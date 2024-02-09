@@ -15,13 +15,13 @@ import (
 )
 
 type Producer struct {
-	encode  func(*zed.Value) ([]byte, error)
+	encode  func(zed.Value) ([]byte, error)
 	kclient *kgo.Client
 	topic   string
 }
 
 func NewProducer(opts []kgo.Opt, reg *srclient.SchemaRegistryClient, format, topic, namespace string) (*Producer, error) {
-	var encode func(*zed.Value) ([]byte, error)
+	var encode func(zed.Value) ([]byte, error)
 	switch format {
 	case "avro":
 		encode = zavro.NewEncoder(namespace, reg).Encode
@@ -55,7 +55,7 @@ func (p *Producer) Run(ctx context.Context, reader zio.Reader) error {
 		if rec == nil || err != nil {
 			break
 		}
-		err = p.write(ctx, rec)
+		err = p.write(ctx, *rec)
 		if err != nil {
 			break
 		}
@@ -71,29 +71,25 @@ func (p *Producer) Run(ctx context.Context, reader zio.Reader) error {
 }
 
 func (p *Producer) Send(ctx context.Context, batch zbuf.Batch) error {
-	values := batch.Values()
-	for k := range values {
-		if err := p.write(ctx, &values[k]); err != nil {
+	for _, rec := range batch.Values() {
+		if err := p.write(ctx, rec); err != nil {
 			return err
 		}
 	}
 	return p.kclient.Flush(ctx)
 }
 
-func (p *Producer) write(ctx context.Context, rec *zed.Value) error {
-	key := rec.Deref("key")
-	if key == nil {
-		key = zed.Null
-	}
+func (p *Producer) write(ctx context.Context, rec zed.Value) error {
+	key := rec.Deref("key").MissingAsNull()
 	val := rec.Deref("value")
 	if val == nil {
-		val = rec
+		val = &rec
 	}
 	keyBytes, err := p.encode(key)
 	if err != nil {
 		return err
 	}
-	valBytes, err := p.encode(val)
+	valBytes, err := p.encode(*val)
 	if err != nil {
 		return err
 	}

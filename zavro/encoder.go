@@ -26,12 +26,12 @@ func NewEncoder(namespace string, registry *srclient.SchemaRegistryClient) *Enco
 	return &Encoder{namespace: namespace, registry: registry, schemaIDs: map[zed.Type]int{}}
 }
 
-func (e *Encoder) Encode(val *zed.Value) ([]byte, error) {
-	id, err := e.getSchemaID(val.Type)
+func (e *Encoder) Encode(val zed.Value) ([]byte, error) {
+	id, err := e.getSchemaID(val.Type())
 	if err != nil {
 		return nil, err
 	}
-	return Encode(nil, uint32(id), *val)
+	return Encode(nil, uint32(id), val)
 }
 
 func (e *Encoder) getSchemaID(typ zed.Type) (int, error) {
@@ -77,7 +77,7 @@ func zlen(zv zcode.Bytes) (int, error) {
 }
 
 func encodeAny(dst []byte, zv zed.Value) ([]byte, error) {
-	switch typ := zed.TypeUnder(zv.Type).(type) {
+	switch typ := zed.TypeUnder(zv.Type()).(type) {
 	case *zed.TypeRecord:
 		return encodeRecord(dst, typ, zv.Bytes())
 	case *zed.TypeArray:
@@ -100,7 +100,7 @@ func encodeArray(dst []byte, elemType zed.Type, body zcode.Bytes) ([]byte, error
 	}
 	dst = appendVarint(dst, int64(cnt))
 	for it := body.Iter(); !it.Done(); {
-		dst, err = encodeAny(dst, *zed.NewValue(elemType, it.Next()))
+		dst, err = encodeAny(dst, zed.NewValue(elemType, it.Next()))
 		if err != nil {
 			return nil, err
 		}
@@ -131,7 +131,7 @@ func encodeRecord(dst []byte, typ *zed.TypeRecord, body zcode.Bytes) ([]byte, er
 		// the type's position in the union.
 		dst = appendVarint(dst, 1)
 		var err error
-		dst, err = encodeAny(dst, *zed.NewValue(f.Type, body))
+		dst, err = encodeAny(dst, zed.NewValue(f.Type, body))
 		if err != nil {
 			return nil, err
 		}

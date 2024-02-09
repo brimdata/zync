@@ -66,9 +66,7 @@ func (p *Pool) NextProducerOffsets(ctx context.Context) (map[string]int64, error
 	// Note at start-up if there are no offsets, then we will return an empty
 	// map and the caller will get offset 0 for the next offset of any lookups.
 	offsets := make(map[string]int64)
-	vals := batch.Values()
-	for k := range vals {
-		rec := &vals[k]
+	for _, rec := range batch.Values() {
 		offset, err := FieldAsInt(rec, "offset")
 		if err != nil {
 			return nil, err
@@ -90,34 +88,34 @@ func NewArrayFromReader(zr zio.Reader) (*zbuf.Array, error) {
 	return &a, nil
 }
 
-func Field(val *zed.Value, field string) (*zed.Value, error) {
+func Field(val zed.Value, field string) (zed.Value, error) {
 	fieldVal := val.Deref(field)
 	if fieldVal == nil {
-		return nil, fmt.Errorf("field %q not found in %q", field, zson.FormatValue(val))
+		return zed.Null, fmt.Errorf("field %q not found in %q", field, zson.FormatValue(val))
 	}
 	if fieldVal.IsNull() {
-		return nil, fmt.Errorf("field %q null in %q", field, zson.FormatValue(val))
+		return zed.Null, fmt.Errorf("field %q null in %q", field, zson.FormatValue(val))
 	}
-	return fieldVal, nil
+	return *fieldVal, nil
 }
 
-func FieldAsInt(val *zed.Value, field string) (int64, error) {
+func FieldAsInt(val zed.Value, field string) (int64, error) {
 	fieldVal, err := Field(val, field)
 	if err != nil {
 		return 0, err
 	}
-	if !zed.IsInteger(fieldVal.Type.ID()) {
+	if !zed.IsInteger(fieldVal.Type().ID()) {
 		return 0, fmt.Errorf("field %q not an interger in %q", field, zson.FormatValue(val))
 	}
 	return fieldVal.AsInt(), nil
 }
 
-func FieldAsString(val *zed.Value, field string) (string, error) {
+func FieldAsString(val zed.Value, field string) (string, error) {
 	fieldVal, err := Field(val, field)
 	if err != nil {
 		return "", err
 	}
-	if fieldVal.Type.ID() != zed.IDString {
+	if fieldVal.Type().ID() != zed.IDString {
 		return "", fmt.Errorf("field %q not a string in %q", field, zson.FormatValue(val))
 	}
 	return fieldVal.AsString(), nil

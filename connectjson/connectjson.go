@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/brimdata/zed"
-	"github.com/brimdata/zed/runtime/expr"
+	"github.com/brimdata/zed/runtime/sam/expr"
 	"github.com/brimdata/zed/zcode"
 	"github.com/brimdata/zed/zio/jsonio"
 	"github.com/brimdata/zed/zson"
@@ -27,11 +27,11 @@ type connectSchema struct {
 	Field    string           `json:"field,omitempty"`
 }
 
-func Encode(val *zed.Value) ([]byte, error) {
-	if zed.TypeUnder(val.Type) == zed.TypeNull {
+func Encode(val zed.Value) ([]byte, error) {
+	if zed.TypeUnder(val.Type()) == zed.TypeNull {
 		return nil, nil
 	}
-	schema, err := marshalSchema(val.Type)
+	schema, err := marshalSchema(val.Type())
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func Encode(val *zed.Value) ([]byte, error) {
 		Schema  *connectSchema `json:"schema"`
 		Payload interface{}    `json:"payload"`
 	}{
-		schema, marshalPayload(val.Type, val.Bytes()),
+		schema, marshalPayload(val.Type(), val.Bytes()),
 	})
 }
 
@@ -169,7 +169,6 @@ type Decoder struct {
 	jsonioReader *jsonio.Reader
 	shapers      map[string]*expr.ConstShaper
 	this         expr.This
-	val          zed.Value
 }
 
 func NewDecoder(zctx *zed.Context) *Decoder {
@@ -184,7 +183,7 @@ func NewDecoder(zctx *zed.Context) *Decoder {
 	}
 }
 
-func (c *Decoder) Decode(b []byte) (*zed.Value, error) {
+func (c *Decoder) Decode(b []byte) (zed.Value, error) {
 	b = bytes.TrimSpace(b)
 	if len(b) == 0 {
 		return zed.Null, nil
@@ -202,13 +201,13 @@ func (c *Decoder) Decode(b []byte) (*zed.Value, error) {
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return zed.Null, err
 	}
 	c.buf.Reset()
 	c.buf.Write(payload)
 	val, err := c.jsonioReader.Read()
 	if err != nil {
-		return nil, err
+		return zed.Null, err
 	}
 	// Using the schema's JSON encoding as the key here means different
 	// encodings of the same schema won't share an entry, but that should be
@@ -217,16 +216,16 @@ func (c *Decoder) Decode(b []byte) (*zed.Value, error) {
 	if !ok {
 		var cs connectSchema
 		if err := json.Unmarshal(schema, &cs); err != nil {
-			return nil, err
+			return zed.Null, err
 		}
 		_, typ, err := c.decodeSchema(&cs)
 		if err != nil {
-			return nil, err
+			return zed.Null, err
 		}
 		shaper = expr.NewConstShaper(c.zctx, &c.this, typ, expr.Cast|expr.Order)
 		c.shapers[string(schema)] = shaper
 	}
-	return c.decodeBytes(shaper.Eval(c.ectx, val)), nil
+	return c.decodeBytes(shaper.Eval(c.ectx, *val)), nil
 }
 
 func (c *Decoder) decodeSchema(s *connectSchema) (string, zed.Type, error) {
@@ -277,12 +276,12 @@ func (c *Decoder) decodeSchema(s *connectSchema) (string, zed.Type, error) {
 	return s.Field, typ, err
 }
 
-func (c *Decoder) decodeBytes(val *zed.Value) *zed.Value {
+func (c *Decoder) decodeBytes(val zed.Value) zed.Value {
 	if val.IsNull() {
 		return val
 	}
 	c.builder.Truncate()
-	err := Walk(val.Type, val.Bytes(), func(typ zed.Type, bytes zcode.Bytes) error {
+	err := Walk(val.Type(), val.Bytes(), func(typ zed.Type, bytes zcode.Bytes) error {
 		if bytes == nil {
 			c.builder.Append(nil)
 		} else if zed.IsContainerType(typ) {
@@ -304,8 +303,7 @@ func (c *Decoder) decodeBytes(val *zed.Value) *zed.Value {
 	if err != nil {
 		panic(err)
 	}
-	c.val = *zed.NewValue(val.Type, c.builder.Bytes().Body())
-	return &c.val
+	return zed.NewValue(val.Type(), c.builder.Bytes().Body())
 }
 
 func Walk(typ zed.Type, body zcode.Bytes, visit zed.Visitor) error {

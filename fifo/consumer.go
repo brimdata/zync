@@ -32,10 +32,10 @@ type Consumer struct {
 
 // decoder wraps the Decode method.
 //
-// Implementations retain ownership of val and val.Bytes, which remain valid
-// until the next Decode..
+// Implementations retain ownership of val.Bytes, which remain valid
+// until the next Decode.
 type decoder interface {
-	Decode(b []byte) (val *zed.Value, err error)
+	Decode(b []byte) (val zed.Value, err error)
 }
 
 func NewConsumer(zctx *zed.Context, opts []kgo.Opt, reg *srclient.SchemaRegistryClient, format string, topics map[string]int64, meta bool) (*Consumer, error) {
@@ -81,7 +81,7 @@ func (c *Consumer) Close() {
 
 // ReadValue returns the next value.  Unlike zio.Reader.Read, the caller
 // receives ownership of zed.Value.Bytes.
-func (c *Consumer) ReadValue(ctx context.Context) (*zed.Value, error) {
+func (c *Consumer) ReadValue(ctx context.Context) (zed.Value, error) {
 	for {
 		if !c.recordIter.Done() {
 			return c.handle(c.recordIter.Next())
@@ -89,9 +89,9 @@ func (c *Consumer) ReadValue(ctx context.Context) (*zed.Value, error) {
 		fetches := c.kclient.PollFetches(ctx)
 		for _, e := range fetches.Errors() {
 			if e.Topic != "" {
-				return nil, fmt.Errorf("topic %s, partition %d: %w", e.Topic, e.Partition, e.Err)
+				return zed.Null, fmt.Errorf("topic %s, partition %d: %w", e.Topic, e.Partition, e.Err)
 			}
-			return nil, e.Err
+			return zed.Null, e.Err
 		}
 		c.recordIter = *fetches.RecordIter()
 	}
@@ -114,9 +114,9 @@ func (c *Consumer) Run(ctx context.Context, w zio.Writer, timeout time.Duration)
 	}
 }
 
-func (c *Consumer) handle(krec *kgo.Record) (*zed.Value, error) {
+func (c *Consumer) handle(krec *kgo.Record) (zed.Value, error) {
 	if saved := c.savedOffsets[krec.Topic]; krec.Offset < saved {
-		return nil, fmt.Errorf("topic %s, partition %d: received offset %d is less than saved offset %d",
+		return zed.Null, fmt.Errorf("topic %s, partition %d: received offset %d is less than saved offset %d",
 			krec.Topic, krec.Partition, krec.Offset, saved)
 	}
 	c.savedOffsets[krec.Topic] = krec.Offset
@@ -131,18 +131,18 @@ func (c *Consumer) handle(krec *kgo.Record) (*zed.Value, error) {
 	}
 	key, err := c.decoder.Decode(krec.Key)
 	if err != nil {
-		return nil, err
+		return zed.Null, err
 	}
-	keyType := key.Type
+	keyType := key.Type()
 	b.Append(key.Bytes())
 	val, err := c.decoder.Decode(krec.Value)
 	if err != nil {
-		return nil, err
+		return zed.Null, err
 	}
 	b.Append(val.Bytes())
-	outerType, err := c.outerType(keyType, val.Type)
+	outerType, err := c.outerType(keyType, val.Type())
 	if err != nil {
-		return nil, err
+		return zed.Null, err
 	}
 	return zed.NewValue(outerType, b.Bytes()), nil
 }
