@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/brimdata/zed"
 	"github.com/brimdata/zed/runtime/sam/expr"
@@ -229,9 +228,6 @@ func (c *Decoder) Decode(b []byte) (zed.Value, error) {
 }
 
 func (c *Decoder) decodeSchema(s *connectSchema) (string, zed.Type, error) {
-	if strings.HasPrefix(s.Name, "org.apache") {
-		panic("XXX " + s.Name)
-	}
 	var typ zed.Type
 	var err error
 	switch s.Type {
