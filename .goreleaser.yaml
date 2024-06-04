@@ -1,0 +1,36 @@
+builds:
+  - main: ./cmd/zync
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -X github.com/brimdata/zync/cmd/zync/version.version={{ .Summary }}
+    goarch:
+      - amd64
+      - arm64
+    goos:
+      - linux
+      - windows
+      - darwin
+archives:
+  - name_template: zync-{{ .Summary }}.{{ .Os }}-{{ .Arch }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - LICENSE.txt
+release:
+  header: |
+    View [change log](CHANGELOG.md#{{ replace .Summary "." "" }}).
+brews:
+  - name: zync
+    repository:
+      owner: brimdata
+      name: homebrew-tap
+    commit_author:
+      name: brim-bot
+      email: bot@brimdata.io
+    homepage: https://github.com/brimdata/zync
+    description: |
+      Kafka connector to sync Zed lakes to and from Kafka topics
+changelog:
+  skip: true
