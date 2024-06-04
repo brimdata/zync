@@ -34,11 +34,5 @@ brews:
     homepage: https://github.com/brimdata/zync
     description: |
       Kafka connector to sync Zed lakes to and from Kafka topics
-    install: |
-      bin.install "zync"
-checksum:
-  name_template: 'zync-checksums.txt'
-snapshot:
-  name_template: "{{ incpatch .Version }}-{{ .ShortCommit }}"
 changelog:
   skip: true
