@@ -1,11 +1,9 @@
 builds:
   - main: ./cmd/zync
-    id: zync
-    binary: zync
     env:
       - CGO_ENABLED=0
     ldflags:
-      - -s -X github.com/brimdata/zync/cli.version={{ .Tag }}
+      - -s -X github.com/brimdata/zync/cmd/zync/version.version={{ .Version }}
     goarch:
       - amd64
       - arm64
@@ -14,7 +12,7 @@ builds:
       - windows
       - darwin
 archives:
-  - name_template: zync-{{ .Tag }}.{{ .Os }}-{{ .Arch }}
+  - name_template: zync-{{ .Version }}.{{ .Os }}-{{ .Arch }}
     format_overrides:
       - goos: windows
         format: zip
@@ -22,7 +20,7 @@ archives:
       - LICENSE.txt
 release:
   header: |
-    View [change log](CHANGELOG.md#{{ replace .Tag "." "" }}).
+    View [change log](CHANGELOG.md#{{ replace .Version "." "" }}).
 brews:
   - name: zync
     repository:
