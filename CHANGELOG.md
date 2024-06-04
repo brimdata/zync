@@ -1,3 +1,3 @@
-## v1.0.0
+## v0.10.0
 
-* Initial release of zync
+* Allow org.apache names in Connect JSON schema (#123)
