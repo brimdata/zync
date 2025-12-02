@@ -2,6 +2,7 @@ package cli
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -62,11 +63,15 @@ func getKey() (apiKey, error) {
 }
 
 type config struct {
-	BootstrapServers string `json:"bootstrap_servers"`
-	SecurityProtocol string `json:"security_protocol"`
-	SaslMechanisms   string `json:"sasl_mechanisms"`
-	SaslUsername     string `json:"sasl_username"`
-	SaslPassword     string `json:"sasl_password"`
+	BootstrapServers            string `json:"bootstrap_servers"`
+	SecurityProtocol            string `json:"security_protocol"`
+	SaslMechanisms              string `json:"sasl_mechanisms"`
+	SaslUsername                string `json:"sasl_username"`
+	SaslPassword                string `json:"sasl_password"`
+	TLSClientCertFile           string `json:"tls_client_cert_file"`
+	TLSClientKeyFile            string `json:"tls_client_key_file"`
+	TLSServerCACertFile         string `json:"tls_server_ca_cert_file"`
+	TLSServerInsecureSkipVerify bool   `json:"tls_server_insecure_skip_verify"`
 }
 
 func LoadKafkaConfig() ([]kgo.Opt, error) {
@@ -90,10 +95,31 @@ func LoadKafkaConfig() ([]kgo.Opt, error) {
 	switch c.SecurityProtocol {
 	case "", "PLAINTEXT", "SASL_PLAINTEXT":
 	case "SSL", "SASL_SSL":
+		var tlsConfig tls.Config
+		if c.TLSClientCertFile != "" && c.TLSClientKeyFile != "" {
+			cert, err := tls.LoadX509KeyPair(c.TLSClientCertFile, c.TLSClientKeyFile)
+			if err != nil {
+				return nil, fmt.Errorf("failed to load key pair from tls_client_cert_file and tls_client_key_file: %w", err)
+			}
+			tlsConfig.Certificates = []tls.Certificate{cert}
+		}
+		if c.TLSServerCACertFile != "" {
+			caCert, err := os.ReadFile(c.TLSServerCACertFile)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read tls_server_ca_cert_file: %w", err)
+			}
+			p := x509.NewCertPool()
+			if !p.AppendCertsFromPEM(caCert) {
+				return nil, fmt.Errorf("failed to append certificates from tls_server_ca_cert_file")
+			}
+			tlsConfig.RootCAs = p
+		}
+		tlsConfig.InsecureSkipVerify = c.TLSServerInsecureSkipVerify
 		d := &tls.Dialer{
 			NetDialer: &net.Dialer{
 				Timeout: 10 * time.Second,
 			},
+			Config: &tlsConfig,
 		}
 		opts = append(opts, kgo.Dialer(d.DialContext))
 	default:
