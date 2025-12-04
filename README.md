@@ -97,9 +97,10 @@ addresses and access credentials.
 This schema registry config file contains the URI of the service and
 access credentials.
 
-> We currently support just SASL authentication though it will be easy
-> to add other authentication options (or no auth).  Please let us know if
-> you have a requirement here.
+> We currently support no authentication, SASL/PLAIN authentication, and
+> TLS client authentication, though it will be easy to add other
+> authentication options.  Please let us know if you have a requirement
+> here.
 
 ## Description
 

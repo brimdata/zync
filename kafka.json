@@ -1,7 +1,11 @@
 {
-  "bootstrap_servers": "<YOUR KAFKA BOOTSTRAP SERVERS>",
-  "security_protocol": "SASL_SSL",
-  "sasl_mechanisms": "PLAIN",
-  "sasl_username": "<YOUR KAFKA USERNAME>",
-  "sasl_password": "<YOUR KAFKA PASSWORD>"
+  "bootstrap_servers": "comma-separated list of Kafka bootstrap servers",
+  "security_protocol": "PLAINTEXT, SASL_PLAINTEXT, SASL_SSL, or SSL (default: PLAINTEXT)",
+  "sasl_mechanisms": "must be PLAIN for SASL_PLAINTEXT and SASL_SSL",
+  "sasl_username": "Kafka username for SASL_PLAINTEXT and SASL_SSL",
+  "sasl_password": "Kafka password for SASL_PLAINTEXT and SASL_SSL",
+  "tls_client_cert_file": "path to certificate file for client authentication for SASL_SSL and SSL",
+  "tls_client_key_file": "path to private key file for client authentication for SASL_SSL and SSL",
+  "tls_server_ca_cert_file": "path to root CA certificate file for server certificate verification for SASL_SSL and SSL",
+  "tls_server_insecure_skip_verify": "set to true to skip server certificate verification for SASL_SSL and SSL (default: false)"
 }
