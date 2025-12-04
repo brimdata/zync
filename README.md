@@ -99,8 +99,9 @@ access credentials.
 
 > We currently support no authentication, SASL/PLAIN authentication, and
 > TLS client authentication, though it will be easy to add other
-> authentication options.  Please let us know if you have a requirement
-> here.
+> authentication options.  The [Connection Guide](Connection-Guide.md)
+> walks through some sample configurations.  Please let us know if you
+> have an additional requirement here.
 
 ## Description
 
